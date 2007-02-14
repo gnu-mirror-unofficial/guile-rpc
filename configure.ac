@@ -24,6 +24,13 @@ GUILE_SITE_DIR
 GUILE_MODULE_REQUIRED([r6rs bytevector])
 GUILE_MODULE_REQUIRED([r6rs i/o ports])
 
+# SRFI-34 is available in Guile 1.8, just checking to make sure.
+GUILE_MODULE_REQUIRED([srfi srfi-34])
+
+# Need SRFI-35 (available in `guile-library').
+GUILE_MODULE_REQUIRED([srfi srfi-35])
+
+
 # Output.
 AC_CONFIG_FILES([Makefile
 	         modules/Makefile

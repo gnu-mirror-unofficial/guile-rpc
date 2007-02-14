@@ -2,6 +2,28 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-02-14 13:04:46 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-2
+
+    Summary:
+      xdr: Use proper SRFI-35 error conditions.
+    Revision:
+      guile-rpc--devo--0--patch-2
+
+    * configure.ac: Check for `srfi-34' and `srfi-35'.
+    
+    * modules/rpc/xdr.scm: Load `srfi-34' and `srfi-35'.  Export the new
+      error condition types and accessors.  Use them.
+    
+    * modules/rpc/xdr/types.scm: Likewise.
+    
+    * tests/xdr-encoding.test: Test type errors with enumeration
+      encoding/decoding.
+
+    modified files:
+     ChangeLog configure.ac modules/rpc/xdr.scm
+     modules/rpc/xdr/types.scm tests/xdr-encoding.test
+
+
 2007-02-14 09:50:33 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-1
 
     Summary:

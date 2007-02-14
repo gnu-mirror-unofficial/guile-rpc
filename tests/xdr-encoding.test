@@ -21,6 +21,8 @@
   :use-module (rpc xdr)
   :use-module (rpc xdr types)
   :use-module (r6rs bytevector)
+  :use-module (srfi srfi-34)
+  :use-module (srfi srfi-35)
   :use-module (srfi srfi-64))
 
 
@@ -31,6 +33,10 @@
 (test-begin "encoding+decoding")
 
 (define bv (make-bytevector 123))
+
+;; XXX: srfi-64's `test-error' doesn't work with Guile so we use our own
+;; trick.
+(define %error-raised (list 'error))
 
 (test-equal "integer" (values 123 4)
             (begin
@@ -59,6 +65,20 @@
                                            '((one . 1) (two . 2)))))
               (xdr-encode! bv 0 e 'one)
               (xdr-decode bv 0 e)))
+
+(test-eq    "invalid enumeration (encoding)" %error-raised
+            (guard (c ((xdr-type-error? c) %error-raised))
+              (let ((e (make-xdr-enumeration 'ordinals
+                                             '((one . 1) (two . 2)))))
+                (xdr-encode! bv 0 e 'invalid)
+                #f)))
+
+(test-eq    "invalid enumeration (decoding)" %error-raised
+            (guard (c ((xdr-enumeration-error? c) %error-raised))
+              (let ((e (make-xdr-enumeration 'ordinals
+                                             '((one . 1) (two . 2)))))
+                (bytevector-u32-set! bv 0 777 %xdr-endianness)
+                (xdr-decode bv 0 e))))
 
 (test-equal "fixed-length opaque array" (values (make-list 10 77) 10)
             (let ((o (make-xdr-fixed-length-opaque-array 10)))

@@ -18,6 +18,8 @@
 (define-module (rpc xdr)
   :use-module (srfi srfi-9)
   :use-module (srfi srfi-11)
+  :autoload   (srfi srfi-34) (raise)
+  :use-module (srfi srfi-35)
   :use-module (r6rs bytevector)
 
   :export (make-xdr-basic-type xdr-basic-type?
@@ -31,7 +33,13 @@
            xdr-struct-base-types
 
            xdr-type-size xdr-encode! xdr-decode
-           %xdr-endianness))
+           %xdr-endianness
+
+           &xdr-error xdr-error?
+           &xdr-type-error xdr-type-error? xdr-type-error:type
+           &xdr-input-type-error xdr-input-type-error?
+           xdr-input-type-error:value
+           &xdr-unknown-type-error xdr-unknown-type-error?))
 
 ;;; Author: Ludovic Courtès <ludovic.courtes@laas.fr>
 ;;;
@@ -43,6 +51,10 @@
 
 
 
+;;;
+;;; Major kinds of types.
+;;;
+
 (define-record-type <xdr-basic-type>
   ;; Basic fixed-size XDR types.
   (make-xdr-basic-type name size type-pred encoder decoder)
@@ -65,6 +77,26 @@
   xdr-struct-type?
   (base-types   xdr-struct-base-types) ;; list of base types
   (size         xdr-struct-size))      ;; only if fixed-length
+
+
+
+;;;
+;;; Error conditions.
+;;;
+
+(define-condition-type &xdr-error &error
+  xdr-error?)
+
+(define-condition-type &xdr-type-error &error
+  xdr-type-error?
+  (type      xdr-unknown-type-error:type))
+
+(define-condition-type &xdr-unknown-type-error &xdr-type-error
+  xdr-unknown-type-error?)
+
+(define-condition-type &xdr-input-type-error &xdr-type-error
+  xdr-input-type-error?
+  (value     xdr-input-type-error:value))
 
 
 
@@ -118,7 +150,7 @@
                (let ((types (xdr-struct-base-types type)))
                  (apply + (map loop types value)))))
           (else
-           (error "unhandled type" type)))))
+           (raise (condition (&xdr-unknown-type-error (type type))))))))
 
 
 ;;;
@@ -135,8 +167,9 @@
   "Encode @var{value}, using XDR type @var{type}, into bytevector @var{bv} at
 @var{index}."
 
-  (define (type-error value)
-    (error "type error while XDR-encoding" value))
+  (define (type-error type value)
+    (raise (condition (&xdr-input-type-error (xdr-type type)
+                                             (value    value)))))
 
   (let loop ((type  type)
              (value value)
@@ -144,7 +177,7 @@
     (cond ((xdr-basic-type? type)
            (let ((valid?  (xdr-basic-type-type-pred type))
                  (encode! (xdr-basic-type-encoder type)))
-             (if (not (valid? value)) (type-error value))
+             (if (not (valid? value)) (type-error type value))
              (encode! type value bv index)
              (+ index (xdr-basic-type-size type))))
           ((xdr-vector-type? type)
@@ -173,7 +206,7 @@
                              (car values)
                              index)))))
           (else
-           (error "unhandled type" type)))))
+           (raise (condition (&xdr-unknown-type-error (type type))))))))
 
 
 ;;;
@@ -212,7 +245,7 @@
                          (cons value result)
                          index)))))
           (else
-           (error "unhandled type" type)))))
+           (raise (condition (&xdr-unknown-type-error (type type))))))))
 
 
 ;;; Local Variables:

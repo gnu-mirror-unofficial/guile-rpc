@@ -17,6 +17,8 @@
 
 (define-module (rpc xdr types)
   :autoload   (srfi srfi-1) (find)
+  :autoload   (srfi srfi-34) (raise)
+  :use-module (srfi srfi-35)
   :use-module (rpc xdr)
   :use-module (r6rs bytevector)
   :export (make-xdr-fixed-length-opaque-array
@@ -25,7 +27,11 @@
            xdr-integer
            xdr-unsigned-integer
            xdr-hyper-integer xdr-unsigned-hyper-integer
-           xdr-double))
+           xdr-double
+
+           &xdr-enumeration-error xdr-enumeration-error?
+           xdr-enumeration-error:enumeration-alist
+           xdr-enumeration-error:value))
 
 ;;; Author: Ludovic Courtès <ludovic.courtes@laas.fr>
 ;;;
@@ -36,6 +42,17 @@
 ;;; of a proper handling in the R6RS bytevector API.
 ;;;
 ;;; Code:
+
+
+;;;
+;;; Additional error conditions.
+;;;
+
+(define-condition-type &xdr-enumeration-error &xdr-type-error
+  xdr-enumeration-error?
+  (enumeration-alist xdr-enumeration-error:enumeration-alist)
+  (value             xdr-enumeration-error:value))
+
 
 
 ;;;
@@ -70,6 +87,12 @@
 
 (define (make-xdr-enumeration name enum-alist)
   ;; Section 4.3.
+  (define (enum-error type value)
+    (raise (condition
+            (&xdr-enumeration-error (type type)
+                                    (value value)
+                                    (enumeration-alist enum-alist)))))
+
   (make-xdr-basic-type (symbol-append 'enum- name) 4
                        (lambda (value)
                          (and (symbol? value)
@@ -86,9 +109,8 @@
                                              (= value (cdr pair)))
                                            enum-alist)))
                            (if (not sym)
-                               (error "received an invalid enumeration"
-                                      (list value name)))
-                           (car sym)))))
+                               (enum-error type value)
+                               (car sym))))))
 
 (define xdr-hyper-integer
   ;; Section 4.5.
