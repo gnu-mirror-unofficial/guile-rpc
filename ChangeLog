@@ -2,6 +2,25 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-02-14 09:50:33 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-1
+
+    Summary:
+      Moved XDR types to a separate module; prepended `make-' to XDR type ctors.
+    Revision:
+      guile-rpc--devo--0--patch-1
+
+
+    new files:
+     modules/rpc/xdr/.arch-ids/=id modules/rpc/xdr/types.scm
+
+    modified files:
+     ChangeLog modules/rpc/xdr.scm tests/xdr-encoding.test
+     tests/xdr.test
+
+    new directories:
+     modules/rpc/xdr modules/rpc/xdr/.arch-ids
+
+
 2007-02-14 09:33:31 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	base-0
 
     Summary:

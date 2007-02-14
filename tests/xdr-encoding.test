@@ -18,8 +18,9 @@
 ;;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 (define-module (tests xdr-encoding)
-  :use-module (r6rs bytevector)
   :use-module (rpc xdr)
+  :use-module (rpc xdr types)
+  :use-module (r6rs bytevector)
   :use-module (srfi srfi-64))
 
 
@@ -42,24 +43,25 @@
               (xdr-decode bv 10 xdr-integer)))
 
 (test-equal "vector" (values (vector 1 2 3 4) 20)
-            (let ((v (xdr-vector-type xdr-integer)))
+            (let ((v (make-xdr-vector-type xdr-integer)))
               (xdr-encode! bv 0 v (vector 1 2 3 4))
               (xdr-decode bv 0 v)))
 
 (test-equal "struct" (values (list 1 2 3.0) 20)
-            (let ((s (xdr-struct-type (list xdr-integer
-                                            xdr-hyper-integer
-                                            xdr-double))))
+            (let ((s (make-xdr-struct-type (list xdr-integer
+                                                 xdr-hyper-integer
+                                                 xdr-double))))
               (xdr-encode! bv 0 s (list 1 2 3.0))
               (xdr-decode bv 0 s)))
 
 (test-equal "enumeration" (values 'one 4)
-            (let ((e (xdr-enumeration 'ordinals '((one . 1) (two . 2)))))
+            (let ((e (make-xdr-enumeration 'ordinals
+                                           '((one . 1) (two . 2)))))
               (xdr-encode! bv 0 e 'one)
               (xdr-decode bv 0 e)))
 
 (test-equal "fixed-length opaque array" (values (make-list 10 77) 10)
-            (let ((o (xdr-fixed-length-opaque-array 10)))
+            (let ((o (make-xdr-fixed-length-opaque-array 10)))
               (xdr-encode! bv 0 o (make-list 10 77))
               (xdr-decode bv 0 o)))
 
@@ -70,9 +72,9 @@
 
 (test-equal "complex" (values (list 1.0 (vector -1 -2 -3 -4) 2.0)
                               36)
-            (let* ((v (xdr-vector-type xdr-integer))
-                   (s (xdr-struct-type (list xdr-double v
-                                             xdr-double))))
+            (let* ((v (make-xdr-vector-type xdr-integer))
+                   (s (make-xdr-struct-type (list xdr-double v
+                                                  xdr-double))))
               (xdr-encode! bv 0 s (list 1.0 (vector -1 -2 -3 -4)
                                         2.0))
               (xdr-decode bv 0 s)))

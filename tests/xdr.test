@@ -20,6 +20,7 @@
 (define-module (tests xdr)
   :use-module (r6rs bytevector)
   :use-module (rpc xdr)
+  :use-module (rpc xdr types)
   :use-module (srfi srfi-64))
 
 
@@ -35,27 +36,28 @@
             (xdr-type-size xdr-integer 0))
 
 (test-equal "enumeration" 4
-            (xdr-type-size (xdr-enumeration 'ordinals
-                                            '((one . 1) (two . 2)))
+            (xdr-type-size (make-xdr-enumeration 'ordinals
+                                                 '((one . 1) (two . 2)))
                            'one))
 
 (test-equal "struct" 20
-            (xdr-type-size (xdr-struct-type (list xdr-integer
-                                                  xdr-hyper-integer
-                                                  xdr-double))
+            (xdr-type-size (make-xdr-struct-type (list xdr-integer
+                                                       xdr-hyper-integer
+                                                       xdr-double))
                            (list 0 1 2.0)))
 
 (test-equal "vector" 44
-            (xdr-type-size (xdr-vector-type xdr-integer)
+            (xdr-type-size (make-xdr-vector-type xdr-integer)
                            (make-vector 10 0)))
 
 (test-equal "complex" 32
-            (let ((v (xdr-vector-type xdr-integer)))
-              (xdr-type-size (xdr-struct-type (list xdr-double v xdr-double))
+            (let ((v (make-xdr-vector-type xdr-integer)))
+              (xdr-type-size (make-xdr-struct-type (list xdr-double v
+                                                         xdr-double))
                              (list 1.0 (vector 1 2 3) 2.0))))
 
 (test-equal "fixed-length opaque array" 77
-            (xdr-type-size (xdr-fixed-length-opaque-array 77)
+            (xdr-type-size (make-xdr-fixed-length-opaque-array 77)
                            (make-list 77 0)))
 
 (test-equal "variable-length opaque array" 14
