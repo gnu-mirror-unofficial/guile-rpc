@@ -1,0 +1,71 @@
+;;; Excercise the XDR type API.                  -*- Scheme -*-
+;;;
+;;; Guile-RPC --- Implementation of R6RS standard libraries.
+;;; Copyright (C) 2007  Ludovic Courtès <ludovic.courtes@laas.fr>
+;;;
+;;; Guile-RPC is free software; you can redistribute it and/or
+;;; modify it under the terms of the GNU Lesser General Public
+;;; License as published by the Free Software Foundation; either
+;;; version 2.1 of the License, or (at your option) any later version.
+;;;
+;;; Guile-RPC is distributed in the hope that it will be useful,
+;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;;; Lesser General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU Lesser General Public
+;;; License along with Guile-RPC; if not, write to the Free Software
+;;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
+(define-module (tests xdr)
+  :use-module (r6rs bytevector)
+  :use-module (rpc xdr)
+  :use-module (srfi srfi-64))
+
+
+
+;;;
+;;; Type size.
+;;;
+
+(test-begin "xdr-type-size")
+
+
+(test-equal "basic" 4
+            (xdr-type-size xdr-integer 0))
+
+(test-equal "enumeration" 4
+            (xdr-type-size (xdr-enumeration 'ordinals
+                                            '((one . 1) (two . 2)))
+                           'one))
+
+(test-equal "struct" 20
+            (xdr-type-size (xdr-struct-type (list xdr-integer
+                                                  xdr-hyper-integer
+                                                  xdr-double))
+                           (list 0 1 2.0)))
+
+(test-equal "vector" 44
+            (xdr-type-size (xdr-vector-type xdr-integer)
+                           (make-vector 10 0)))
+
+(test-equal "complex" 32
+            (let ((v (xdr-vector-type xdr-integer)))
+              (xdr-type-size (xdr-struct-type (list xdr-double v xdr-double))
+                             (list 1.0 (vector 1 2 3) 2.0))))
+
+(test-equal "fixed-length opaque array" 77
+            (xdr-type-size (xdr-fixed-length-opaque-array 77)
+                           (make-list 77 0)))
+
+(test-equal "variable-length opaque array" 14
+            (xdr-type-size xdr-variable-length-opaque-array
+                           (make-vector 10 0)))
+
+(test-end "xdr-type-size")
+
+
+(exit (= (test-runner-fail-count (test-runner-current)) 0))
+
+
+;;; arch-tag: c26141f7-367a-4f7b-8b12-03080ec8706d
