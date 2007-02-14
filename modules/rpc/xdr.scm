@@ -32,6 +32,12 @@
            make-xdr-struct-type xdr-struct-type?
            xdr-struct-base-types
 
+           make-xdr-union-type xdr-union-type?
+           xdr-union-discriminant-type
+           xdr-union-discriminant/type-alist
+           xdr-union-default-type
+           xdr-union-arm-type
+
            xdr-type-size xdr-encode! xdr-decode
            %xdr-endianness
 
@@ -39,7 +45,9 @@
            &xdr-type-error xdr-type-error? xdr-type-error:type
            &xdr-input-type-error xdr-input-type-error?
            xdr-input-type-error:value
-           &xdr-unknown-type-error xdr-unknown-type-error?))
+           &xdr-unknown-type-error xdr-unknown-type-error?
+           &xdr-union-discriminant-error xdr-union-discriminant-error?))
+
 
 ;;; Author: Ludovic Courtès <ludovic.courtes@laas.fr>
 ;;;
@@ -78,6 +86,14 @@
   (base-types   xdr-struct-base-types) ;; list of base types
   (size         xdr-struct-size))      ;; only if fixed-length
 
+(define-record-type <xdr-union-type>
+  ;; Discriminated unions (Section 4.15).
+  (%make-xdr-union-type discriminant-type discriminant/type-alist
+                        default-type)
+  xdr-union-type?
+  (discriminant-type        xdr-union-discriminant-type)
+  (discriminant/type-alist  xdr-union-discriminant/type-alist)
+  (default-type             xdr-union-default-type))
 
 
 ;;;
@@ -98,10 +114,13 @@
   xdr-input-type-error?
   (value     xdr-input-type-error:value))
 
+(define-condition-type &xdr-union-discriminant-error &xdr-type-error
+  xdr-union-discriminant-error?)
+
 
 
 ;;;
-;;; Type size.
+;;; Helpers.
 ;;;
 
 (define (make-xdr-struct-type base-types)
@@ -120,8 +139,41 @@
                        (loop (cdr types)
                              (+ size s))
                        (%make-xdr-struct-type base-types #f))))
-                ((xdr-vector-type? type)
+                (else
+                 ;; Cannot determine struct size statically.
                  (%make-xdr-struct-type base-types #f)))))))
+
+(define (make-xdr-union-type discr-type discr/type-alist default-type)
+  "Return a new XDR discriminated union type, using @var{discr-type} as the
+discriminant type (which must be a 32-bit basic type) and
+@var{discr/type-alist} to select the ``arm'' type depending on the
+discriminant value.  If no suitable value is found in @var{discr/type-alist}
+and @var{default-type} is not @code{#f}, then default type is used as the arm
+type."
+  (if (and (xdr-basic-type? discr-type)
+           (= 4 (xdr-basic-type-size discr-type))
+           (list? discr/type-alist))
+      (%make-xdr-union-type discr-type discr/type-alist
+                            default-type)
+      (raise (condition
+              (&xdr-union-discriminant-error (type discr-type))))))
+
+(define (xdr-union-arm-type union discriminant)
+  "Return the type that should be used for @var{union}'s arm given
+ @var{discriminant} (a Scheme value)."
+  (let ((arm-type (assoc discriminant
+                         (xdr-union-discriminant/type-alist union))))
+    (if (pair? arm-type)
+        (cdr arm-type)
+        (or (xdr-union-default-type union)
+            (raise (condition
+                    (&xdr-input-type-error (type  union)
+                                           (value discriminant))))))))
+
+
+;;;
+;;; Type size.
+;;;
 
 (define (xdr-type-size type value)
   "Return the size (in octets) of @var{type} when applied to @var{value}."
@@ -149,6 +201,10 @@
            (or (xdr-struct-size type)
                (let ((types (xdr-struct-base-types type)))
                  (apply + (map loop types value)))))
+          ((xdr-union-type? type)
+           (let ((discr (car value)))
+             (+ 4 (loop (xdr-union-arm-type type discr)
+                        (cdr value)))))
           (else
            (raise (condition (&xdr-unknown-type-error (type type))))))))
 
@@ -168,8 +224,8 @@
 @var{index}."
 
   (define (type-error type value)
-    (raise (condition (&xdr-input-type-error (xdr-type type)
-                                             (value    value)))))
+    (raise (condition (&xdr-input-type-error (type  type)
+                                             (value value)))))
 
   (let loop ((type  type)
              (value value)
@@ -205,6 +261,12 @@
                        (loop (car types)
                              (car values)
                              index)))))
+          ((xdr-union-type? type)
+           (let ((discr (car value))
+                 (arm   (cdr value)))
+             (loop (xdr-union-discriminant-type type) discr index)
+             ;; We can safely assume that the discriminant is 32-bit.
+             (loop (xdr-union-arm-type type discr) arm (+ index 4))))
           (else
            (raise (condition (&xdr-unknown-type-error (type type))))))))
 
@@ -244,6 +306,11 @@
                    (liip (cdr types)
                          (cons value result)
                          index)))))
+          ((xdr-union-type? type)
+           (let-values (((discr index)
+                         (loop (xdr-union-discriminant-type type) index)))
+             ;; The value of the discriminant is not returned.
+             (loop (xdr-union-arm-type type discr) index)))
           (else
            (raise (condition (&xdr-unknown-type-error (type type))))))))
 

@@ -64,6 +64,30 @@
             (xdr-type-size xdr-variable-length-opaque-array
                            (make-vector 10 0)))
 
+(test-equal "union (1)" (+ 4 4)
+            (let* ((o (make-xdr-fixed-length-opaque-array 77))
+                   (u (make-xdr-union-type xdr-integer
+                                           `((1 . ,xdr-integer)
+                                             (2 . ,o))
+                                           #f)))
+              (xdr-type-size u (cons 1 77))))
+
+(test-equal "union (2)" (+ 4 77)
+            (let* ((o (make-xdr-fixed-length-opaque-array 77))
+                   (u (make-xdr-union-type xdr-integer
+                                           `((1 . ,xdr-integer)
+                                             (2 . ,o))
+                                           #f)))
+              (xdr-type-size u (cons 2 (list 255 255 255)))))
+
+(test-equal "union (default)" (+ 4 8)
+            (let* ((o (make-xdr-fixed-length-opaque-array 77))
+                   (u (make-xdr-union-type xdr-integer
+                                           `((1 . ,xdr-integer)
+                                             (2 . ,o))
+                                           xdr-hyper-integer)))
+              (xdr-type-size u (cons 55 77777))))
+
 (test-end "xdr-type-size")
 
 

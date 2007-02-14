@@ -80,6 +80,49 @@
                 (bytevector-u32-set! bv 0 777 %xdr-endianness)
                 (xdr-decode bv 0 e))))
 
+(test-equal "union (1)" (values 77 8)
+            (let* ((o (make-xdr-fixed-length-opaque-array 77))
+                   (u (make-xdr-union-type xdr-integer
+                                           `((1 . ,xdr-integer)
+                                             (2 . ,o))
+                                           #f)))
+              (xdr-encode! bv 0 u (cons 1 77))
+              (xdr-decode bv 0 u)))
+
+(test-equal "union (2)" (values (make-list 77 255) (+ 4 77))
+            (let* ((o (make-xdr-fixed-length-opaque-array 77))
+                   (u (make-xdr-union-type xdr-integer
+                                           `((1 . ,xdr-integer)
+                                             (2 . ,o))
+                                           #f)))
+              (xdr-encode! bv 0 u (cons 2 (make-list 77 255)))
+              (xdr-decode bv 0 u)))
+
+(test-equal "union (default)" (values 7777 (+ 4 8))
+            (let ((u (make-xdr-union-type xdr-integer
+                                           `((1 . ,xdr-integer))
+                                           xdr-hyper-integer)))
+              (xdr-encode! bv 0 u (cons 55 7777))
+              (xdr-decode bv 0 u)))
+
+(test-equal "invalid union (encoding)" %error-raised
+            (guard (c ((xdr-type-error? c) %error-raised))
+              (let ((u (make-xdr-union-type xdr-integer
+                                           `((1 . ,xdr-integer))
+                                           #f)))
+                (xdr-encode! bv 0 u (cons 33 ;; invalid discriminant
+                                          'some-value))
+                #f)))
+
+(test-equal "invalid union (decoding)" %error-raised
+            (guard (c ((xdr-type-error? c) %error-raised))
+              (let ((u (make-xdr-union-type xdr-integer
+                                           `((1 . ,xdr-integer))
+                                           #f)))
+                (bytevector-u32-set! bv 0 777 %xdr-endianness)
+                (xdr-decode bv 0 u)
+                #f)))
+
 (test-equal "fixed-length opaque array" (values (make-list 10 77) 10)
             (let ((o (make-xdr-fixed-length-opaque-array 10)))
               (xdr-encode! bv 0 o (make-list 10 77))

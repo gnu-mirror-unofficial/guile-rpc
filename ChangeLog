@@ -2,6 +2,30 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-02-14 14:36:46 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-3
+
+    Summary:
+      xdr: Added support for unions.
+    Revision:
+      guile-rpc--devo--0--patch-3
+
+    * modules/rpc/xdr.scm (<xdr-union-type>): New.
+      (&xdr-union-discriminant-error): New.
+      (make-xdr-union-type): New.
+      (make-xdr-struct-type): Handle unions.
+      (xdr-types-size): Likewise.
+      (xdr-encode!): Likewise.
+      (xdr-decode): Likewise.
+    
+    * tests/xdr-encoding.test: New tests.
+    
+    * tests/xdr.test: Likewise.
+
+    modified files:
+     ChangeLog modules/rpc/xdr.scm tests/xdr-encoding.test
+     tests/xdr.test
+
+
 2007-02-14 13:04:46 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-2
 
     Summary:
