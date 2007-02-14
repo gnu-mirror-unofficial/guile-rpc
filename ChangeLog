@@ -2,6 +2,21 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-02-14 14:45:59 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-4
+
+    Summary:
+      xdr: Added support for booleans.
+    Revision:
+      guile-rpc--devo--0--patch-4
+
+    * modules/rpc/xdr/types.scm (xdr-boolean): New.
+    
+    * tests/xdr-encoding.test: New test.
+
+    modified files:
+     ChangeLog modules/rpc/xdr/types.scm tests/xdr-encoding.test
+
+
 2007-02-14 14:36:46 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-3
 
     Summary:

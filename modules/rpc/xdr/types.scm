@@ -24,6 +24,7 @@
   :export (make-xdr-fixed-length-opaque-array
            xdr-variable-length-opaque-array
            make-xdr-enumeration
+           xdr-boolean
            xdr-integer
            xdr-unsigned-integer
            xdr-hyper-integer xdr-unsigned-hyper-integer
@@ -111,6 +112,10 @@
                            (if (not sym)
                                (enum-error type value)
                                (car sym))))))
+
+(define xdr-boolean
+  ;; Section 4.4.
+  (make-xdr-enumeration 'book '((FALSE . 0) (TRUE . 1))))
 
 (define xdr-hyper-integer
   ;; Section 4.5.

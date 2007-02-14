@@ -80,6 +80,11 @@
                 (bytevector-u32-set! bv 0 777 %xdr-endianness)
                 (xdr-decode bv 0 e))))
 
+(test-equal "boolean" (values 'TRUE 4)
+            (begin
+              (xdr-encode! bv 0 xdr-boolean 'TRUE)
+              (xdr-decode bv 0 xdr-boolean)))
+
 (test-equal "union (1)" (values 77 8)
             (let* ((o (make-xdr-fixed-length-opaque-array 77))
                    (u (make-xdr-union-type xdr-integer
