@@ -21,6 +21,7 @@
   :use-module (srfi srfi-35)
   :use-module (rpc xdr)
   :use-module (r6rs bytevector)
+  :use-module (r6rs i/o ports)
   :export (make-xdr-fixed-length-opaque-array
            xdr-variable-length-opaque-array
            make-xdr-enumeration
@@ -29,6 +30,7 @@
            xdr-unsigned-integer
            xdr-hyper-integer xdr-unsigned-hyper-integer
            xdr-double
+           xdr-void %void
 
            &xdr-enumeration-error xdr-enumeration-error?
            xdr-enumeration-error:enumeration-alist
@@ -70,8 +72,9 @@
                        (lambda (type value bv index)
                          (bytevector-s32-set! bv index value
                                               %xdr-endianness))
-                       (lambda (type bv index)
-                         (bytevector-s32-ref bv index %xdr-endianness))))
+                       (lambda (type port)
+                         (bytevector-s32-ref (get-bytevector-n port 4)
+                                             0 %xdr-endianness))))
 
 (define xdr-unsigned-integer
   ;; Section 4.2.
@@ -83,8 +86,9 @@
                        (lambda (type value bv index)
                          (bytevector-u32-set! bv index value
                                               %xdr-endianness))
-                       (lambda (type bv index)
-                         (bytevector-u32-ref bv index %xdr-endianness))))
+                       (lambda (type port)
+                         (bytevector-u32-ref (get-bytevector-n port 4)
+                                             0 %xdr-endianness))))
 
 (define (make-xdr-enumeration name enum-alist)
   ;; Section 4.3.
@@ -102,9 +106,10 @@
                          (let ((value (cdr (assq value enum-alist))))
                            (bytevector-u32-set! bv index value
                                                 %xdr-endianness)))
-                       (lambda (type bv index)
-                         (let* ((value
-                                 (bytevector-u32-ref bv index
+                       (lambda (type port)
+                         (let* ((bv (get-bytevector-n port 4))
+                                (value
+                                 (bytevector-u32-ref bv 0
                                                      %xdr-endianness))
                                 (sym (find (lambda (pair)
                                              (= value (cdr pair)))
@@ -124,8 +129,9 @@
                        (lambda (type value bv index)
                          (bytevector-s64-set! bv index value
                                               %xdr-endianness))
-                       (lambda (type bv index)
-                         (bytevector-s64-ref  bv index %xdr-endianness))))
+                       (lambda (type port)
+                         (bytevector-s64-ref (get-bytevector-n port 8)
+                                             0 %xdr-endianness))))
 
 (define xdr-unsigned-hyper-integer
   ;; Section 4.5.
@@ -136,8 +142,9 @@
                        (lambda (type value bv index)
                          (bytevector-u64-set! bv index value
                                               %xdr-endianness))
-                       (lambda (type bv index)
-                         (bytevector-u64-ref  bv index %xdr-endianness))))
+                       (lambda (type port)
+                         (bytevector-u64-ref (get-bytevector-n port 8)
+                                             0 %xdr-endianness))))
 
 (define xdr-double
   ;; Double-precision floating point (Section 4.7).
@@ -148,9 +155,9 @@
                        (lambda (type value bv index)
                          (bytevector-ieee-double-set! bv index value
                                                       %xdr-endianness))
-                       (lambda (type bv index)
-                         (bytevector-ieee-double-ref bv index
-                                                     %xdr-endianness))))
+                       (lambda (type port)
+                         (bytevector-ieee-double-ref
+                          (get-bytevector-n port 8) 0 %xdr-endianness))))
 
 (define xdr-single-opaque
   ;; The XDR `opaque' type cannot be used on its own.
@@ -161,8 +168,8 @@
                               (<= value 255)))
                        (lambda (type value bv index)
                          (bytevector-u8-set! bv index value))
-                       (lambda (type bv index)
-                         (bytevector-u8-ref bv index))))
+                       (lambda (type port)
+                         (get-u8 port))))
 
 (define (make-xdr-fixed-length-opaque-array size)
   ;; Section 4.9.
@@ -171,6 +178,17 @@
 (define xdr-variable-length-opaque-array
   ;; Section 4.10.
   (make-xdr-vector-type xdr-single-opaque))
+
+(define %void
+  ;; The `void' value, obtained when deserializing a `void' object.
+  (list 'void))
+
+(define xdr-void
+  ;; Section 4.16.
+  (make-xdr-basic-type 'void 0
+                       (lambda (value) #t)
+                       (lambda (type value bv index) #t)
+                       (lambda (type port) %void)))
 
 
 ;;; types.scm ends here

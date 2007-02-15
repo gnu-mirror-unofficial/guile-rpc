@@ -18,9 +18,10 @@
 (define-module (rpc xdr)
   :use-module (srfi srfi-9)
   :use-module (srfi srfi-11)
-  :autoload   (srfi srfi-34) (raise)
+  :autoload   (srfi srfi-34)   (raise)
   :use-module (srfi srfi-35)
   :use-module (r6rs bytevector)
+  :autoload   (r6rs i/o ports) (get-bytevector-n)
 
   :export (make-xdr-basic-type xdr-basic-type?
            xdr-basic-type-name xdr-basic-type-size
@@ -275,44 +276,40 @@ type."
 ;;; Decoding.
 ;;;
 
-(define (xdr-decode bv index type)
-  "Decode from @var{bv} at index @var{index} a value of XDR type @var{type}."
-  (let loop ((type  type)
-             (index index))
+(define (xdr-decode type port)
+  "Decode from @var{port} (a binary input port) a value of XDR type
+@var{type}.  Return the decoded value."
+  (let loop ((type  type))
     (cond ((xdr-basic-type? type)
            (let ((decode (xdr-basic-type-decoder type)))
-             (values (decode type bv index)
-                     (+ index (xdr-basic-type-size type)))))
+             (decode type port)))
+
           ((xdr-vector-type? type)
            (let* ((type (xdr-vector-base-type type))
-                  (len  (bytevector-u32-ref bv index %xdr-endianness))
+                  (raw  (get-bytevector-n port 4))
+                  (len  (bytevector-u32-ref raw 0 %xdr-endianness))
                   (vec  (make-vector len)))
-             (let liip ((index       (+ index 4))
-                        (value-index 0))
-               (if (< value-index len)
-                   (let-values (((value index)
-                                 (loop type index)))
-                     (vector-set! vec value-index value)
-                     (liip index (+ 1 value-index)))
-                   (values vec index)))))
+             (let liip ((index 0))
+               (if (< index len)
+                   (let ((value (loop type)))
+                     (vector-set! vec index value)
+                     (liip (+ 1 index)))
+                   vec))))
+
           ((xdr-struct-type? type)
            (let liip ((types  (xdr-struct-base-types type))
-                      (result '())
-                      (index  index))
+                      (result '()))
              (if (null? types)
-                 (values (reverse! result) index)
-                 (let-values (((value index)
-                               (loop (car types) index)))
+                 (reverse! result)
+                 (let ((value (loop (car types))))
                    (liip (cdr types)
-                         (cons value result)
-                         index)))))
+                         (cons value result))))))
+
           ((xdr-union-type? type)
-           (let-values (((discr index)
-                         (loop (xdr-union-discriminant-type type) index)))
-             (let-values (((value index)
-                           (loop (xdr-union-arm-type type discr) index)))
-               ;; Return a pair whose car is the discriminant.
-               (values (cons discr value) index))))
+           (let* ((discr (loop (xdr-union-discriminant-type type)))
+                  (value (loop (xdr-union-arm-type type discr))))
+             (cons discr value)))
+
           (else
            (raise (condition (&xdr-unknown-type-error (type type))))))))
 

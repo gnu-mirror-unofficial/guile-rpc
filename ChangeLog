@@ -2,6 +2,28 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-02-15 16:30:07 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-6
+
+    Summary:
+      Use ports instead of bytevectors for XDR decoding.
+    Revision:
+      guile-rpc--devo--0--patch-6
+
+    * modules/rpc/xdr.scm: Autoload `(r6rs i/o ports)'.
+      (xdr-decode): Take TYPE and PORT instead of BV, INDEX and TYPE.
+    
+    * modules/rpc/xdr/types.scm: Use `(r6rs i/o ports)'.  Updated basic type
+      decoders.
+      (%void, xdr-void): New.
+    
+    * tests/xdr-encoding.test: Use `(r6rs i/o ports)'.  Updated tests.  Added
+      two tests for `xdr-void'.
+
+    modified files:
+     ChangeLog modules/rpc/xdr.scm modules/rpc/xdr/types.scm
+     tests/xdr-encoding.test
+
+
 2007-02-15 14:43:33 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-5
 
     Summary:
