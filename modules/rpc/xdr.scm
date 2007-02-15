@@ -309,8 +309,10 @@ type."
           ((xdr-union-type? type)
            (let-values (((discr index)
                          (loop (xdr-union-discriminant-type type) index)))
-             ;; The value of the discriminant is not returned.
-             (loop (xdr-union-arm-type type discr) index)))
+             (let-values (((value index)
+                           (loop (xdr-union-arm-type type discr) index)))
+               ;; Return a pair whose car is the discriminant.
+               (values (cons discr value) index))))
           (else
            (raise (condition (&xdr-unknown-type-error (type type))))))))
 

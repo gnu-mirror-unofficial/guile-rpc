@@ -2,6 +2,22 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-02-15 14:43:33 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-5
+
+    Summary:
+      Return discriminant/value pairs when decoding unions.
+    Revision:
+      guile-rpc--devo--0--patch-5
+
+    * modules/rpc/xdr.scm (xdr-decode!): Return a discriminant/value pairs
+      for unions instead of just the value.
+    
+    * tests/xdr-encoding.test: Updated accordingly.
+
+    modified files:
+     ChangeLog modules/rpc/xdr.scm tests/xdr-encoding.test
+
+
 2007-02-14 14:45:59 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-4
 
     Summary:

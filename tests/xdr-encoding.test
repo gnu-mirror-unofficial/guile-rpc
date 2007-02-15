@@ -85,7 +85,7 @@
               (xdr-encode! bv 0 xdr-boolean 'TRUE)
               (xdr-decode bv 0 xdr-boolean)))
 
-(test-equal "union (1)" (values 77 8)
+(test-equal "union (1)" (values (cons 1 77) 8)
             (let* ((o (make-xdr-fixed-length-opaque-array 77))
                    (u (make-xdr-union-type xdr-integer
                                            `((1 . ,xdr-integer)
@@ -94,7 +94,7 @@
               (xdr-encode! bv 0 u (cons 1 77))
               (xdr-decode bv 0 u)))
 
-(test-equal "union (2)" (values (make-list 77 255) (+ 4 77))
+(test-equal "union (2)" (values (cons 2 (make-list 77 255)) (+ 4 77))
             (let* ((o (make-xdr-fixed-length-opaque-array 77))
                    (u (make-xdr-union-type xdr-integer
                                            `((1 . ,xdr-integer)
@@ -103,7 +103,7 @@
               (xdr-encode! bv 0 u (cons 2 (make-list 77 255)))
               (xdr-decode bv 0 u)))
 
-(test-equal "union (default)" (values 7777 (+ 4 8))
+(test-equal "union (default)" (values (cons 55 7777) (+ 4 8))
             (let ((u (make-xdr-union-type xdr-integer
                                            `((1 . ,xdr-integer))
                                            xdr-hyper-integer)))
