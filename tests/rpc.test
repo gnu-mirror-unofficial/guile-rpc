@@ -1,0 +1,60 @@
+;;; Excercise the RPC message API.                  -*- Scheme -*-
+;;;
+;;; Guile-RPC --- Implementation of R6RS standard libraries.
+;;; Copyright (C) 2007  Ludovic Courtès <ludovic.courtes@laas.fr>
+;;;
+;;; Guile-RPC is free software; you can redistribute it and/or
+;;; modify it under the terms of the GNU Lesser General Public
+;;; License as published by the Free Software Foundation; either
+;;; version 2.1 of the License, or (at your option) any later version.
+;;;
+;;; Guile-RPC is distributed in the hope that it will be useful,
+;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+;;; Lesser General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU Lesser General Public
+;;; License along with Guile-RPC; if not, write to the Free Software
+;;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+
+(define-module (tests xdr)
+  :use-module (r6rs bytevector)
+  :use-module (r6rs i/o ports)
+  :use-module (rpc xdr)
+  :use-module (rpc xdr types)
+  :use-module (rpc rpc)
+  :use-module (rpc rpc types)
+  :use-module (srfi srfi-64))
+
+
+;;;
+;;; RPC message type.
+;;;
+
+(test-begin "rpc-message")
+
+(define bv (make-bytevector 1024))
+
+(test-equal "call" #t
+            (let ((msg (make-rpc-message #x9999 'CALL 70000 1 2)))
+              (xdr-encode! bv 0 rpc-message msg)
+              (equal? (xdr-decode rpc-message
+                                  (open-bytevector-input-port bv))
+                      msg)))
+
+(test-equal "reply (accepted, success)" #x9999
+            (let* ((xid #x9999)
+                   (msg (make-rpc-message xid 'REPLY
+                                          'MSG_ACCEPTED 'SUCCESS)))
+              (xdr-encode! bv 0 rpc-message msg)
+              (assert-accepted-reply
+               (xdr-decode rpc-message (open-bytevector-input-port bv))
+               xid)))
+
+(test-end "rpc-message")
+
+
+(exit (= (test-runner-fail-count (test-runner-current)) 0))
+
+
+;;; arch-tag: a294fa9c-8df4-48bc-9cdc-99785aa03980

@@ -2,6 +2,31 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-02-16 15:39:06 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-9
+
+    Summary:
+      Added ONC RPC code base.
+    Revision:
+      guile-rpc--devo--0--patch-9
+
+    * modules/Makefile.am (nobase_dist_guilemodule_DATA): Added new headers.
+    
+    * modules/rpc/rpc.scm: Added meat.
+    
+    * tests/Makefile.am (TESTS): Added `rpc.tests'.
+
+    new files:
+     modules/rpc/rpc/.arch-ids/=id modules/rpc/rpc/transports.scm
+     modules/rpc/rpc/types.scm tests/rpc.test
+
+    modified files:
+     ChangeLog modules/Makefile.am modules/rpc/rpc.scm
+     tests/Makefile.am
+
+    new directories:
+     modules/rpc/rpc modules/rpc/rpc/.arch-ids
+
+
 2007-02-16 15:05:37 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-8
 
     Summary:
