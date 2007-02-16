@@ -82,10 +82,11 @@
 
 (define-record-type <xdr-struct-type>
   ;; Fixed-length arrays and structures (Sections 4.12 and 4.14).
-  (%make-xdr-struct-type base-types size)
+  (%make-xdr-struct-type base-types size padding)
   xdr-struct-type?
   (base-types   xdr-struct-base-types) ;; list of base types
-  (size         xdr-struct-size))      ;; only if fixed-length
+  (size         xdr-struct-size)       ;; size in octets (if fixed-length)
+  (padding      xdr-struct-padding))   ;; padding required (if fixed-length)
 
 (define-record-type <xdr-union-type>
   ;; Discriminated unions (Section 4.15).
@@ -124,12 +125,24 @@
 ;;; Helpers.
 ;;;
 
+;; Section 3: the "basic block size" is 32 bits.
+(define %xdr-atom-size 4)
+
+(define (round-up-size size)
+  "Round up @var{size} so that it fits into a 32-bit XDR basic block size."
+  (let ((rem (modulo size %xdr-atom-size)))
+    (if (= 0 rem)
+        size
+        (+ size (- %xdr-atom-size rem)))))
+
 (define (make-xdr-struct-type base-types)
   "Return a new XDR struct type and pre-compute its size if possible."
   (let loop ((types base-types)
              (size  0))
     (if (null? types)
-        (%make-xdr-struct-type base-types size)
+        (let* ((rem (modulo size %xdr-atom-size))
+               (padding (if (= 0 rem) 0 (- %xdr-atom-size rem))))
+          (%make-xdr-struct-type base-types (+ size padding) padding))
         (let ((type (car types)))
           (cond ((xdr-basic-type? type)
                  (loop (cdr types)
@@ -139,10 +152,10 @@
                    (if (number? s)
                        (loop (cdr types)
                              (+ size s))
-                       (%make-xdr-struct-type base-types #f))))
+                       (%make-xdr-struct-type base-types #f #f))))
                 (else
                  ;; Cannot determine struct size statically.
-                 (%make-xdr-struct-type base-types #f)))))))
+                 (%make-xdr-struct-type base-types #f #f)))))))
 
 (define (make-xdr-union-type discr-type discr/type-alist default-type)
   "Return a new XDR discriminated union type, using @var{discr-type} as the
@@ -178,6 +191,7 @@ type."
 
 (define (xdr-type-size type value)
   "Return the size (in octets) of @var{type} when applied to @var{value}."
+
   (define (vector-map proc v)
     (let ((len (vector-length v)))
       (let loop ((i 0)
@@ -188,20 +202,27 @@ type."
                   (cons (proc (vector-ref v i))
                         result))))))
 
+  ;; We allow the size of basic types to not be a multiple of 4 and only
+  ;; round up the size on structs and vectors.  This is so that we can, e.g.,
+  ;; have an `xdr-single-opaque' type whose size is 1.  Thus, padding is only
+  ;; performed for structs and vectors; all other types (unions and public
+  ;; basic types) are assumed to be a multiple of 4.
+
   (let loop ((type type)
              (value value))
     (cond ((xdr-basic-type? type)
            (xdr-basic-type-size type))
           ((xdr-vector-type? type)
            (let ((base (xdr-vector-base-type type)))
-             (apply + 4 ;; 4 octets to encode the length
-                    (vector-map (lambda (value)
-                                  (loop base value))
-                                value))))
+             (round-up-size
+              (apply + 4 ;; 4 octets to encode the length
+                     (vector-map (lambda (value)
+                                   (loop base value))
+                                 value)))))
           ((xdr-struct-type? type)
            (or (xdr-struct-size type)
                (let ((types (xdr-struct-base-types type)))
-                 (apply + (map loop types value)))))
+                 (round-up-size (apply + (map loop types value))))))
           ((xdr-union-type? type)
            (let ((discr (car value)))
              (+ 4 (loop (xdr-union-arm-type type discr)
@@ -250,13 +271,13 @@ type."
                          (loop base
                                (vector-ref value value-index)
                                index))
-                   index))))
+                   (round-up-size index)))))
           ((xdr-struct-type? type)
            (let liip ((types  (xdr-struct-base-types type))
                       (values value)
                       (index  index))
              (if (null? values)
-                 index
+                 (round-up-size index)
                  (liip (cdr types)
                        (cdr values)
                        (loop (car types)
@@ -279,6 +300,16 @@ type."
 (define (xdr-decode type port)
   "Decode from @var{port} (a binary input port) a value of XDR type
 @var{type}.  Return the decoded value."
+
+  (define (vector-padding base-type count)
+    (if (xdr-basic-type? base-type)
+        (let ((rem (modulo (xdr-basic-type-size base-type)
+                           %xdr-atom-size)))
+          (if (= 0 rem)
+              0
+              (- %xdr-atom-size rem)))
+        0))
+
   (let loop ((type  type))
     (cond ((xdr-basic-type? type)
            (let ((decode (xdr-basic-type-decoder type)))
@@ -294,13 +325,17 @@ type."
                    (let ((value (loop type)))
                      (vector-set! vec index value)
                      (liip (+ 1 index)))
-                   vec))))
+                   (let ((padding (vector-padding type len)))
+                     (if (> padding 0) (get-bytevector-n port padding))
+                     vec)))))
 
           ((xdr-struct-type? type)
            (let liip ((types  (xdr-struct-base-types type))
                       (result '()))
              (if (null? types)
-                 (reverse! result)
+                 (let ((padding (or (xdr-struct-padding type) 0)))
+                   (if (> padding 0) (get-bytevector-n port padding))
+                   (reverse! result))
                  (let ((value (loop (car types))))
                    (liip (cdr types)
                          (cons value result))))))

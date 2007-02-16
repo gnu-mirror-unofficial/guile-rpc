@@ -2,6 +2,29 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-02-16 08:53:07 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-7
+
+    Summary:
+      Properly handle padding of structs and vectors.
+    Revision:
+      guile-rpc--devo--0--patch-7
+
+    * modules/rpc/xdr.scm (%xdr-atom-size, round-up-size): New.
+      (make-xdr-struct-type): Handle PADDING.
+      (xdr-type-size): Round up the size of structs and vectors.
+      (xdr-encode!): Likewise.
+      (xdr-decode)[vector-padding]: New.
+      Read padding for vectors and structs.
+    
+    * tests/xdr-encoding.test: New tests for padding.
+    
+    * tests/xdr.test: Likewise.
+
+    modified files:
+     ChangeLog modules/rpc/xdr.scm tests/xdr-encoding.test
+     tests/xdr.test
+
+
 2007-02-15 16:30:07 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-6
 
     Summary:

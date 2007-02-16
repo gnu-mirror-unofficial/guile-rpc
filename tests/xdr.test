@@ -56,24 +56,32 @@
                                                          xdr-double))
                              (list 1.0 (vector 1 2 3) 2.0))))
 
-(test-equal "fixed-length opaque array" 77
-            (xdr-type-size (make-xdr-fixed-length-opaque-array 77)
-                           (make-list 77 0)))
+(test-equal "fixed-length opaque array (exact)" 12
+            (xdr-type-size (make-xdr-fixed-length-opaque-array 12)
+                           (make-list 12 0)))
 
-(test-equal "variable-length opaque array" 14
+(test-equal "fixed-length opaque array (rounded up)" 16
+            (xdr-type-size (make-xdr-fixed-length-opaque-array 13)
+                           (make-list 13 0)))
+
+(test-equal "variable-length opaque array (exact)" 16
             (xdr-type-size xdr-variable-length-opaque-array
-                           (make-vector 10 0)))
+                           (make-vector 12 0)))
+
+(test-equal "variable-length opaque array (rounded up)" 20
+            (xdr-type-size xdr-variable-length-opaque-array
+                           (make-vector 13 0)))
 
 (test-equal "union (1)" (+ 4 4)
-            (let* ((o (make-xdr-fixed-length-opaque-array 77))
+            (let* ((o (make-xdr-fixed-length-opaque-array 32))
                    (u (make-xdr-union-type xdr-integer
                                            `((1 . ,xdr-integer)
                                              (2 . ,o))
                                            #f)))
               (xdr-type-size u (cons 1 77))))
 
-(test-equal "union (2)" (+ 4 77)
-            (let* ((o (make-xdr-fixed-length-opaque-array 77))
+(test-equal "union (2)" (+ 4 32)
+            (let* ((o (make-xdr-fixed-length-opaque-array 32))
                    (u (make-xdr-union-type xdr-integer
                                            `((1 . ,xdr-integer)
                                              (2 . ,o))
@@ -81,7 +89,7 @@
               (xdr-type-size u (cons 2 (list 255 255 255)))))
 
 (test-equal "union (default)" (+ 4 8)
-            (let* ((o (make-xdr-fixed-length-opaque-array 77))
+            (let* ((o (make-xdr-fixed-length-opaque-array 32))
                    (u (make-xdr-union-type xdr-integer
                                            `((1 . ,xdr-integer)
                                              (2 . ,o))

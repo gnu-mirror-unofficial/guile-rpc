@@ -31,7 +31,7 @@
 ;;; Encoding/decoding.
 ;;;
 
-(test-begin "encoding+decoding")
+(test-begin "xdr-encoding")
 
 (define bv (make-bytevector 123))
 
@@ -87,6 +87,26 @@
             (begin
               (xdr-encode! bv 0 xdr-boolean 'TRUE)
               (xdr-decode xdr-boolean (open-bytevector-input-port bv))))
+
+(test-equal "fixed-length opaque array with padding"
+            (list (make-list 77 99) -77)
+
+            (let* ((o (make-xdr-fixed-length-opaque-array 77))
+                   (s (make-xdr-struct-type (list o xdr-integer))))
+              (and (= (xdr-encode! bv 0 s
+                                   (list (make-list 77 99) -77))
+                      (+ 80 4))
+                   (xdr-decode s (open-bytevector-input-port bv)))))
+
+(test-equal "variable-length opaque array with padding"
+            (list (make-vector 77 99) -77)
+
+            (let* ((o xdr-variable-length-opaque-array)
+                   (s (make-xdr-struct-type (list o xdr-integer))))
+              (and (= (xdr-encode! bv 0 s
+                                   (list (make-vector 77 99) -77))
+                      (+ 4 80 4))
+                   (xdr-decode s (open-bytevector-input-port bv)))))
 
 (test-equal "union (1)" (cons 1 77)
             (let* ((o (make-xdr-fixed-length-opaque-array 77))
