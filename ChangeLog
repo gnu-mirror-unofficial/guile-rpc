@@ -2,6 +2,21 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-02-16 15:43:11 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-10
+
+    Summary:
+      Fixed file headers.
+    Revision:
+      guile-rpc--devo--0--patch-10
+
+
+    modified files:
+     ChangeLog modules/rpc/rpc.scm modules/rpc/rpc/transports.scm
+     modules/rpc/rpc/types.scm modules/rpc/xdr.scm
+     modules/rpc/xdr/types.scm tests/rpc.test
+     tests/xdr-encoding.test tests/xdr.test
+
+
 2007-02-16 15:39:06 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-9
 
     Summary:

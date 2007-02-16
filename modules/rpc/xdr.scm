@@ -1,4 +1,4 @@
-;;; Guile-RPC --- Implementation of R6RS standard libraries.
+;;; Guile-RPC --- A Scheme implementation of ONC RPC.
 ;;; Copyright (C) 2007  Ludovic Courtès <ludovic.courtes@laas.fr>
 ;;;
 ;;; Guile-RPC is free software; you can redistribute it and/or
