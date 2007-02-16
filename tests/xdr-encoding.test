@@ -108,6 +108,16 @@
                       (+ 4 80 4))
                    (xdr-decode s (open-bytevector-input-port bv)))))
 
+(test-equal "empty variable-length opaque array (without padding)"
+            (list (vector) (vector))
+
+            (let* ((o xdr-variable-length-opaque-array)
+                   (s (make-xdr-struct-type (list o o))))
+              (and (= (xdr-encode! bv 0 s
+                                   (list (vector) (vector)))
+                      (+ 4 4))
+                   (xdr-decode s (open-bytevector-input-port bv)))))
+
 (test-equal "union (1)" (cons 1 77)
             (let* ((o (make-xdr-fixed-length-opaque-array 77))
                    (u (make-xdr-union-type xdr-integer
@@ -175,7 +185,7 @@
                                         2.0))
               (xdr-decode s (open-bytevector-input-port bv))))
 
-(test-end "encoding+decoding")
+(test-end "xdr-encoding")
 
 (exit (= (test-runner-fail-count (test-runner-current)) 0))
 

@@ -169,7 +169,10 @@
                        (lambda (type value bv index)
                          (bytevector-u8-set! bv index value))
                        (lambda (type port)
-                         (get-u8 port))))
+                         (let ((c (get-u8 port)))
+                           (if (eof-object? c)
+                               (error "input shallow" c) ;; FIXME: raise
+                               c)))))
 
 (define (make-xdr-fixed-length-opaque-array size)
   ;; Section 4.9.

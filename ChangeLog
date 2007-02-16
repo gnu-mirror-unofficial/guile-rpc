@@ -2,6 +2,27 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-02-16 15:05:37 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-8
+
+    Summary:
+      xdr: Fixed empty variable-length opaque array decoding.
+    Revision:
+      guile-rpc--devo--0--patch-8
+
+    * modules/rpc/xdr.scm (xdr-decode)[vector-padding]: Return 0 when COUNT
+      is 0.
+    
+    * modules/rpc/xdr/types.scm (xdr-single-opaque): Check for EOF in the
+      decoder.
+    
+    * tests/xdr-encoding.test (empty variable-length opaque array (without
+      padding)): New test.
+
+    modified files:
+     ChangeLog modules/rpc/xdr.scm modules/rpc/xdr/types.scm
+     tests/xdr-encoding.test
+
+
 2007-02-16 08:53:07 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-7
 
     Summary:

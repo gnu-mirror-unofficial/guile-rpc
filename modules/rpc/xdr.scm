@@ -302,7 +302,7 @@ type."
 @var{type}.  Return the decoded value."
 
   (define (vector-padding base-type count)
-    (if (xdr-basic-type? base-type)
+    (if (and (xdr-basic-type? base-type) (> count 0))
         (let ((rem (modulo (xdr-basic-type-size base-type)
                            %xdr-atom-size)))
           (if (= 0 rem)
