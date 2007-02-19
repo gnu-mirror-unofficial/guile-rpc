@@ -33,6 +33,7 @@ GUILE_MODULE_REQUIRED([srfi srfi-35])
 
 # Output.
 AC_CONFIG_FILES([Makefile
+	         doc/Makefile
 	         modules/Makefile
 		 tests/Makefile])
 

@@ -1,0 +1,322 @@
+\input texinfo  @c -*-texinfo-*-
+
+@c %**start of header
+@setfilename guile-rpc.info
+@settitle An ONC RPC Framework for Guile
+@footnotestyle end
+@setchapternewpage odd
+@c %**end of header
+
+@set EDITION 1
+@include version.texi
+
+
+@ifinfo
+@dircategory The Algorithmic Language Scheme
+@direntry
+* Guile RPC: (guile-rpc).      An ONC RPC Framework for Guile.
+@end direntry
+
+This file documents Guile-RPC.
+
+Copyright @copyright{} 2007 Ludovic Court@`es
+
+Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that this permission notice may be stated in a translation
+approved by the Free Software Foundation.
+@end ifinfo
+
+@titlepage
+@title An ONC RPC Framework for Guile
+@subtitle for Guile-RPC @value{VERSION}
+@author Ludovic Courtès
+
+@page
+@vskip 0pt plus 1filll
+Edition @value{EDITION} @*
+@c Updated for Guile-RPC @value{VERSION} @*
+@value{UPDATED} @*
+
+Copyright @copyright{} 2007 Ludovic Court@`es
+
+Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that this permission notice may be stated in a translation
+approved by the Free Software Foundation.
+@end titlepage
+
+@contents
+
+@c *********************************************************************
+@node Top, Introduction, (dir), (dir)
+@top An ONC RPC Framework for Guile
+
+This document describes Guile-RPC version @value{VERSION}.  It was
+last updated in @value{UPDATED-MONTH}.
+
+@menu
+* Introduction::                Overview of Guile-RPC
+* Quick Start::                 Writing an RPC client in a glimpse
+* API Reference::               Everything about Guile-RPC
+* References::                  Useful documents
+* Concept Index::               Concepts discussed in this document
+* Function Index::              Index of Scheme procedures
+@end menu
+
+
+@c *********************************************************************
+@node Introduction, Quick Start, Top, Top
+@chapter Introduction
+
+Guile-RPC is a framework for distributed programming under Guile.  It
+is a pure Scheme implementation of the ONC RPC standard, i.e., the
+``Open Network Computing'' Remote Procedure Call standard.  ONC RPC is
+standardized by the Internet Engineering Task Force (IETF) as RFC
+1831.  It is based on the External Data Representation standard (XDR),
+known as RFC 4506 (@pxref{References}).
+
+@cindex marshalling
+@cindex distributed programming
+Remote procedure calls allow programs on different, potentially remote
+machines to interact together.  A @dfn{remote procedure call} is the
+invocation of the procedure of a program located on a remote host (the
+@dfn{RPC server}), as the name implies.  Doing so requires the
+procedure arguments on the client-side to be encoded, or
+@dfn{marshalled}, i.e., converted to a representation suitable for
+transfer over the network.  On the server-side, upon reception of the
+RPC, those arguments must be decoded or @dfn{unmarshalled}, i.e.,
+converted back to a form that is directly understandable by the server
+program---for instance, data using Scheme data types, should the
+server program be written in Scheme.  The value returned by the RPC
+server must be encoded and decoded similarly.
+
+When using the ONC RPC protocol, the way data items are encoded is
+dictated by the XDR standard.  This encoding has the advantage of
+being particularly compact, allowing for relatively low bandwidth
+requirements and fast implementations, especially compared to more
+verbose RPC protocols such as XML-RPC and SOAP.
+
+Guile-RPC provides an easy access to the ONC RPC protocol for the
+Guile Scheme programmer.  In particular, it allows standard Scheme
+types to be mapped to XDR data types, so that Scheme objects are
+easily encoded to or decoded from XDR.
+
+In order to use Guile-RPC, all that is needed is
+@uref{http://www.gnu.org/software/guile/guile.html, GNU Guile 1.8}
+along with the R6RS library package for Guile 1.8, known as
+@code{guile-r6rs-libs}.
+
+
+@c *********************************************************************
+@node Quick Start, API Reference, Introduction, Top
+@chapter Quick Start
+
+Currently, Guile-RPC lacks a compiler for the XDR and RPC languages.
+So one has to write data type and RPC definitions ``by hand'', using
+the Guile-RPC's programming interface.  Hopefully, this should be
+quite straightforward.
+
+Consider the following RPC definitions:
+
+@example
+typedef struct
+@{
+  int          integer_part;
+  unsigned int decimal_part;
+@} result_t;
+
+program ARITHMETIC_PROGRAM
+@{
+  version ARITHMETIC_VERSION
+  @{
+    /* Return the integer and decimal part of NUMBER.  */
+    result_t split_number (double number) = 1;
+  @} = 0;
+@} = 80000;
+@end example
+
+This defines a simple RPC @dfn{interface} named @code{ARITHMETIC}
+which contains only one procedure called @code{split_number ()}.  The
+interface itself has a @dfn{program number} that identifies it (here,
+80000).  Normally, program numbers below 20000000 (hexadecimal) are
+assigned by Sun Microsystems, Inc. and thus should not be used unless
+the number has been properly registered (@pxref{References, RFC 1831},
+for details).  It also has a @dfn{version number} (here, 0) that is
+user-defined and should be increased when the interface changes (e.g.,
+when procedures are added, modified, etc.).  Finally, the procedure
+@code{split_number ()} has a procedure number (here, 1) that allows it
+to be distinguished from other procedures.
+
+People vaguely familiar with the C programming language should have
+guessed by now that this simple interface defines a procedure that
+takes a double-precision floating-point number and returns a structure
+that contains two fields.
+
+Before actually creating a client or server for this interface, one
+must define the types it uses.  To that end, one must first import the
+relevant Guile-RPC modules:
+
+@example
+(use-modules (rpc xdr)
+             (rpc xdr types))
+@end example
+
+Then, the @code{result_t} type must be defined:
+
+@example
+(define result-type
+  (make-xdr-struct-type (list xdr-integer             ;; `integer_part'
+                              xdr-unsigned-integer))) ;; `decimal_part'
+@end example
+
+Producing a client to invoke @code{split_number ()} is as simple as
+this:
+
+@example
+(use-modules (rpc rpc))
+
+(define invoke-split-number
+  (make-synchronous-rpc-call 80000 0    ;; program and version
+                             1          ;; procedure number
+                             xdr-double ;; argument type
+                             result-type))
+@end example
+
+Once this is done, invoking the procedure is as simple as this:
+
+@example
+(invoke-split-number 3.14 #x7777 socket)
+@end example
+
+The first argument to @code{invoke-split-number} is the argument of
+@code{split_number ()}; the second argument is a transaction ID, i.e.,
+an arbitrarily chosen number that identifies the remote procedure
+call; the third argument should be an output port, typically one
+bound to a connection to the RPC server:
+
+@example
+(define socket (socket PF_INET SOCK_STREAM 0))
+(connect socket AF_INET INADDR_LOOPBACK 6666)
+@end example
+
+This example creates an IPv4 connection to the local host on port 6666
+(@pxref{Network Sockets and Communication,,, guile, Guile Reference
+Manual}).
+
+On success, @code{invoke-split-number} returns a two-element list
+where the first element corresponds to the @code{integer_part} field
+of the result and the second element correspond to the
+@code{decimal_part} field of the result, both represented as Scheme
+exact integers.
+
+More details about the XDR type definition as well as client and
+server creation are available in the API reference (@pxref{API
+Reference}).
+
+
+@c *********************************************************************
+@node API Reference, References, Quick Start, Top
+@chapter API Reference
+
+This section first details facilities available to manipulate XDR
+types.  It then describes Scheme procedures that should be used to
+build ONC RPC clients and servers.
+
+@menu
+* Implementation of XDR::       
+* Implementation of ONC RPC::   
+@end menu
+
+@node Implementation of XDR, Implementation of ONC RPC, API Reference, API Reference
+@section Implementation of XDR
+
+@menu
+* XDR Standard Data Types::     
+* XDR Encoding and Decoding::   
+* Low-level XDR Type Primitives::  
+@end menu
+
+@node XDR Standard Data Types, XDR Encoding and Decoding, Implementation of XDR, Implementation of XDR
+@subsection XDR Standard Data Types
+
+@node XDR Encoding and Decoding, Low-level XDR Type Primitives, XDR Standard Data Types, Implementation of XDR
+@subsection XDR Encoding and Decoding
+
+@node Low-level XDR Type Primitives,  , XDR Encoding and Decoding, Implementation of XDR
+@subsection Low-level XDR Type Primitives
+
+
+@node Implementation of ONC RPC,  , Implementation of XDR, API Reference
+@section Implementation of ONC RPC
+
+@menu
+* Building an RPC Client::      
+* Building an RPC Server::      
+* ONC RPC Message Types::       
+@end menu
+
+@node Building an RPC Client, Building an RPC Server, Implementation of ONC RPC, Implementation of ONC RPC
+@subsection Building an RPC Client
+
+@node Building an RPC Server, ONC RPC Message Types, Building an RPC Client, Implementation of ONC RPC
+@subsection Building an RPC Server
+
+@node ONC RPC Message Types,  , Building an RPC Server, Implementation of ONC RPC
+@subsection ONC RPC Message Types
+
+
+
+@c *********************************************************************
+@node References, Concept Index, API Reference, Top
+@chapter References
+
+@table @code
+@item RFC 1831
+R. Srinivasan et al., @uref{http://tools.ietf.org/html/rfc1831,``RPC:
+Remote Procedure Call Protocol Specification Version 2''}, August
+1995.
+@item RFC 4506
+M. Eisler et al., @uref{http://tools.ietf.org/html/rfc4506, ``XDR:
+External Data Representation Standard''}, May 2006.
+@end table
+
+
+@c *********************************************************************
+@node Concept Index, Function Index, References, Top
+@unnumbered Concept Index
+@printindex cp
+
+@node Function Index,  , Concept Index, Top
+@unnumbered Function Index
+@printindex fn
+
+
+@bye
+
+@ignore
+;;; arch-tag: 412a400f-ccbb-42d8-97a2-036301f92235
+@end ignore
+
+@c Local Variables:
+@c ispell-local-dictionary: "american"
+@c End:
+

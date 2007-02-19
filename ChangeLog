@@ -2,6 +2,28 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-02-19 16:32:26 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-15
+
+    Summary:
+      Added a `doc' directory.
+    Revision:
+      guile-rpc--devo--0--patch-15
+
+    * Makefile.am (SUBDIRS): Added `doc'.
+    
+    * configure.ac: Output `doc/Makefile'.
+
+    new files:
+     doc/.arch-ids/=id doc/.arch-ids/Makefile.am.id
+     doc/.arch-inventory doc/Makefile.am doc/guile-rpc.texi
+
+    modified files:
+     ChangeLog Makefile.am configure.ac
+
+    new directories:
+     doc doc/.arch-ids
+
+
 2007-02-19 14:40:35 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-14
 
     Summary:
