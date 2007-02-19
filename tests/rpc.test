@@ -24,12 +24,15 @@
   :use-module (rpc xdr types)
   :use-module (rpc rpc)
   :use-module (rpc rpc types)
+  :use-module (srfi srfi-34)
   :use-module (srfi srfi-64))
 
 
 ;;;
 ;;; RPC message type.
 ;;;
+
+(define %error-raised (list 'error))
 
 (test-begin "rpc-message")
 
@@ -50,6 +53,47 @@
               (assert-accepted-reply
                (xdr-decode rpc-message (open-bytevector-input-port bv))
                xid)))
+
+(test-eq    "reply (accepted, mismatch)" %error-raised
+            (let ((msg (make-rpc-message #x99 'REPLY
+                                         'MSG_ACCEPTED 'PROG_MISMATCH
+                                         2 3)))
+              (xdr-encode! bv 0 rpc-message msg)
+              (guard (c ((rpc-program-mismatch-error? c)
+                         (and
+                          (equal? (list
+                                   (rpc-program-mismatch-error:low-version c)
+                                   (rpc-program-mismatch-error:high-version c))
+                                  '(2 3))
+                          %error-raised)))
+                (assert-accepted-reply
+                 (xdr-decode rpc-message (open-bytevector-input-port bv))
+                 #t))))
+
+(test-eq    "reply (accepted, program unavailable)" %error-raised
+            (let ((msg (make-rpc-message #x99 'REPLY
+                                         'MSG_ACCEPTED 'PROG_UNAVAIL)))
+              (xdr-encode! bv 0 rpc-message msg)
+              (guard (c ((rpc-program-unavailable-error? c) %error-raised))
+                (assert-accepted-reply
+                 (xdr-decode rpc-message (open-bytevector-input-port bv))
+                 #t))))
+
+(test-eq    "reply (denied, mismatch)" %error-raised
+            (let ((msg (make-rpc-message #x99 'REPLY
+                                         'MSG_DENIED 'RPC_MISMATCH
+                                         2 3)))
+              (xdr-encode! bv 0 rpc-message msg)
+              (guard (c ((rpc-program-mismatch-error? c)
+                         (and
+                          (equal? (list
+                                   (rpc-program-mismatch-error:low-version c)
+                                   (rpc-program-mismatch-error:high-version c))
+                                  '(2 3))
+                          %error-raised)))
+                (assert-accepted-reply
+                 (xdr-decode rpc-message (open-bytevector-input-port bv))
+                 #t))))
 
 (test-end "rpc-message")
 

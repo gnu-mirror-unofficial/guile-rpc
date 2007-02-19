@@ -2,6 +2,30 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-02-19 13:39:27 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-11
+
+    Summary:
+      Translate RPC errors into SRFI-35 error conditions.
+    Revision:
+      guile-rpc--devo--0--patch-11
+
+    * modules/rpc/rpc.scm: Use `srfi-3[45]'.
+      (&rpc-error, &rpc-call-error, &rpc-invalid-reply-error,
+      &rpc-invalid-reply-xid-error, &rpc-program-unavailable-error,
+      &rpc-program-mismatch-error, &rpc-procedure-unavailable-error,
+      &rpc-garbage-arguments-error, &rpc-system-error,
+      &rpc-authentication-error): New error conditions.
+      (make-rpc-accepted-reply-message): Fixed the `PROG_MISMATCH' case.
+      (make-rpc-denied-reply-message): New.
+      (assert-accepted-reply): Raise exceptions instead of using `error'.
+    
+    * tests/rpc.test: Use `srfi-34'.  New tests checking the exceptions
+      raised in case of unsuccessful replies.
+
+    modified files:
+     ChangeLog modules/rpc/rpc.scm tests/rpc.test
+
+
 2007-02-16 15:43:11 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-10
 
     Summary:

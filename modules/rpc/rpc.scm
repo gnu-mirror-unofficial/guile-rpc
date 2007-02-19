@@ -18,6 +18,8 @@
 (define-module (rpc rpc)
   :use-module (rpc xdr)
   :use-module (rpc rpc types)
+  :use-module (srfi srfi-34)
+  :use-module (srfi srfi-35)
   :use-module (r6rs bytevector)
   :use-module (r6rs i/o ports)
   :autoload   (rpc rpc transports) (tcp-send-rpc-message
@@ -28,13 +30,72 @@
            assert-accepted-reply
 
            ;; high-level
-           make-synchronous-rpc-call ))
+           make-synchronous-rpc-call
+
+           ;; error conditions
+           &rpc-error &rpc-call-error
+           rpc-error? rpc-call-error?
+           rpc-invalid-reply-error? rpc-invalid-reply-error:message
+           rpc-invalid-reply-xid-error?
+           rpc-invalid-reply-xid-error:expected-xid
+           rpc-invalid-reply-xid-error:reply-xid
+           rpc-program-unavailable-error?
+           rpc-program-mismatch-error?
+           rpc-procedure-unavailable-error?
+           rpc-program-mismatch-error?
+           rpc-program-mismatch-error:low-version
+           rpc-program-mismatch-error:high-version
+           rpc-garbage-arguments-error?
+           rpc-system-error?
+           rpc-authentication-error?))
 
 ;;; Commentary:
 ;;;
 ;;; An implementation of ONC RPC (RFC 1831).
 ;;;
 ;;; Code:
+
+
+;;;
+;;; Error conditions.
+;;;
+
+(define-condition-type &rpc-error &error
+  rpc-error?)
+
+(define-condition-type &rpc-call-error &rpc-error
+  rpc-call-error?)
+
+(define-condition-type &rpc-invalid-reply-error &rpc-call-error
+  rpc-invalid-reply-error?
+  (message  rpc-invalid-reply-error:message))
+
+(define-condition-type &rpc-invalid-reply-xid-error &rpc-call-error
+  rpc-invalid-reply-xid-error?
+  (expected-xid  rpc-invalid-reply-xid-error:expected-xid)
+  (reply-xid     rpc-invalid-reply-xid-error:reply-xid))
+
+(define-condition-type &rpc-program-unavailable-error &rpc-call-error
+  rpc-program-unavailable-error?)
+
+(define-condition-type &rpc-program-mismatch-error &rpc-call-error
+  rpc-program-mismatch-error?
+  (low-version   rpc-program-mismatch-error:low-version)
+  (high-version  rpc-program-mismatch-error:high-version))
+
+(define-condition-type &rpc-procedure-unavailable-error &rpc-call-error
+  rpc-procedure-unavailable-error?)
+
+(define-condition-type &rpc-garbage-arguments-error &rpc-call-error
+  rpc-garbage-arguments-error?)
+
+(define-condition-type &rpc-system-error &rpc-call-error
+  rpc-system-error?)
+
+(define-condition-type &rpc-authentication-error &rpc-call-error
+  ;; XXX: Needs to be further refined.
+  rpc-authentication-error?)
+
 
 
 ;;;
@@ -60,12 +121,22 @@
         (cons accept-stat
               (case accept-stat
                 ((PROG_MISMATCH)
-                 (cons 'PROG_MISMATCH
-                       (apply make-rpc-mismatch-info-message args)))
+                 (apply make-rpc-mismatch-info-message args))
                 ((SUCCESS PROG_UNAVAIL PROC_UNAVAIL GARBAGE_ARGS SYSTEM_ERR)
                  'void)
                 (else
                  (error "invalid accept-stat" accept-stat))))))
+
+(define (make-rpc-denied-reply-message reject-stat . args)
+  (cons reject-stat
+        (case reject-stat
+          ((RPC_MISMATCH)
+           (apply make-rpc-mismatch-info-message args))
+          ((AUTH_ERROR)
+           ;; XXX: Not implemented.
+           #f)
+          (else
+           (error "invalid reject-stat" reject-stat)))))
 
 (define (make-rpc-reply-message xid reply-stat . args)
   ;; Return an `rpc-reply-body' datum.
@@ -108,14 +179,51 @@ message).  On failure, an appropriate error condition is raised."
          (reply-msg (cadr rpc-msg)))
     (if (or (eq? xid #t) (equal? xid reply-xid))
         (if (eq? (car reply-msg) 'REPLY)
-            (if (eq? (cadr reply-msg) 'MSG_ACCEPTED)
-                ;; XXX: skip the opaque auth
-                (if (eq? (car (cadddr reply-msg)) 'SUCCESS)
-                    reply-xid
-                    (error "accepted message failed" reply-msg))
-                (error "message denied" reply-msg))
-            (error "invalid reply message" reply-msg))
-        (error "invalid reply xid" rpc-msg))))
+            (let ((reply-body (cdr reply-msg)))
+              (case (car reply-body)
+                ((MSG_ACCEPTED)
+                 ;; XXX: skip the opaque auth
+                 (let ((reply-data (cadddr reply-msg)))
+                   (case (car reply-data)
+                     ((SUCCESS) reply-xid)
+                     ((PROG_UNAVAIL)
+                      (raise (condition (&rpc-program-unavailable-error))))
+                     ((PROG_MISMATCH)
+                      (let* ((hi+lo (cdr reply-data))
+                             (lo    (car hi+lo))
+                             (hi    (cadr hi+lo)))
+                        (raise (condition
+                                (&rpc-program-mismatch-error
+                                 (low-version   lo)
+                                 (high-version  hi))))))
+                     ((PROC_UNAVAIL)
+                      (raise (condition (&rpc-procedure-unavailable-error))))
+                     ((GARBAGE_ARGS)
+                      (raise (condition (&rpc-garbage-arguments-error))))
+                     ((SYSTEM_ERROR)
+                      (raise (condition (&rpc-system-error))))
+                     (else
+                      (raise (condition (&rpc-call-error)))))))
+                ((MSG_DENIED)
+                 (case (cadr reply-body)
+                   ((RPC_MISMATCH)
+                    (let* ((hi+lo (cddr reply-body))
+                           (lo    (car hi+lo))
+                           (hi    (cadr hi+lo)))
+                      (raise (condition
+                              (&rpc-program-mismatch-error
+                               (low-version   lo)
+                               (high-version  hi))))))
+                   ((AUTH_ERROR)
+                    ;; XXX: Not further decoded.
+                    (raise (condition (&rpc-authentication-error))))
+                   (else
+                    (raise (condition (&rpc-call-error))))))))
+            (raise (condition (&rpc-invalid-reply-error
+                               (message reply-msg)))))
+        (raise (condition (&rpc-invalid-reply-xid-error
+                           (expected-xid xid)
+                           (reply-xid reply-xid)))))))
 
 
 ;;;
