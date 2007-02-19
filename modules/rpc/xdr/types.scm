@@ -31,6 +31,7 @@
            xdr-unsigned-integer
            xdr-hyper-integer xdr-unsigned-hyper-integer
            xdr-double
+           xdr-string make-xdr-string
            xdr-void %void
 
            &xdr-enumeration-error xdr-enumeration-error?
@@ -186,6 +187,11 @@
 (define xdr-variable-length-opaque-array
   ;; Section 4.10.
   (make-xdr-vector-type xdr-single-opaque #f))
+
+;; Section 4.11.
+;; XXX: Strings normally require zeroed padding.
+(define make-xdr-string make-xdr-variable-length-opaque-array)
+(define xdr-string      xdr-variable-length-opaque-array)
 
 (define %void
   ;; The `void' value, obtained when deserializing a `void' object.

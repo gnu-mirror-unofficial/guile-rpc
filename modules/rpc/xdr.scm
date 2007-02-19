@@ -218,6 +218,7 @@ type."
              (value value))
     (cond ((xdr-basic-type? type)
            (xdr-basic-type-size type))
+
           ((xdr-vector-type? type)
            (let ((base (xdr-vector-base-type type)))
              (round-up-size
@@ -225,14 +226,17 @@ type."
                      (vector-map (lambda (value)
                                    (loop base value))
                                  value)))))
+
           ((xdr-struct-type? type)
            (or (xdr-struct-size type)
                (let ((types (xdr-struct-base-types type)))
                  (round-up-size (apply + (map loop types value))))))
+
           ((xdr-union-type? type)
            (let ((discr (car value)))
              (+ 4 (loop (xdr-union-arm-type type discr)
                         (cdr value)))))
+
           (else
            (raise (condition (&xdr-unknown-type-error (type type))))))))
 
@@ -268,6 +272,7 @@ type."
              (if (not (valid? value)) (type-error type value))
              (encode! type value bv index)
              (+ index (xdr-basic-type-size type))))
+
           ((xdr-vector-type? type)
            (let ((base (xdr-vector-base-type type))
                  (len  (vector-length value))
@@ -292,6 +297,7 @@ type."
                                (vector-ref value value-index)
                                index))
                    (round-up-size index)))))
+
           ((xdr-struct-type? type)
            (let liip ((types  (xdr-struct-base-types type))
                       (values value)
@@ -303,12 +309,14 @@ type."
                        (loop (car types)
                              (car values)
                              index)))))
+
           ((xdr-union-type? type)
            (let ((discr (car value))
                  (arm   (cdr value)))
              (loop (xdr-union-discriminant-type type) discr index)
              ;; We can safely assume that the discriminant is 32-bit.
              (loop (xdr-union-arm-type type discr) arm (+ index 4))))
+
           (else
            (raise (condition (&xdr-unknown-type-error (type type))))))))
 
