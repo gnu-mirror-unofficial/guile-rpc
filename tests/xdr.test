@@ -47,11 +47,11 @@
                            (list 0 1 2.0)))
 
 (test-equal "vector" 44
-            (xdr-type-size (make-xdr-vector-type xdr-integer)
+            (xdr-type-size (make-xdr-vector-type xdr-integer #f)
                            (make-vector 10 0)))
 
 (test-equal "complex" 32
-            (let ((v (make-xdr-vector-type xdr-integer)))
+            (let ((v (make-xdr-vector-type xdr-integer #f)))
               (xdr-type-size (make-xdr-struct-type (list xdr-double v
                                                          xdr-double))
                              (list 1.0 (vector 1 2 3) 2.0))))

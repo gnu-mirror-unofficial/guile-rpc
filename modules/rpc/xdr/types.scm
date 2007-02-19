@@ -23,6 +23,7 @@
   :use-module (r6rs bytevector)
   :use-module (r6rs i/o ports)
   :export (make-xdr-fixed-length-opaque-array
+           make-xdr-variable-length-opaque-array
            xdr-variable-length-opaque-array
            make-xdr-enumeration
            xdr-boolean
@@ -178,9 +179,13 @@
   ;; Section 4.9.
   (make-xdr-struct-type (make-list size xdr-single-opaque)))
 
+(define (make-xdr-variable-length-opaque-array limit)
+  ;; Section 4.10.
+  (make-xdr-vector-type xdr-single-opaque limit))
+
 (define xdr-variable-length-opaque-array
   ;; Section 4.10.
-  (make-xdr-vector-type xdr-single-opaque))
+  (make-xdr-vector-type xdr-single-opaque #f))
 
 (define %void
   ;; The `void' value, obtained when deserializing a `void' object.

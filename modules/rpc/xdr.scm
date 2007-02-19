@@ -28,7 +28,7 @@
            xdr-basic-type-encoder xdr-basic-type-decoder
 
            make-xdr-vector-type xdr-vector-type?
-           xdr-vector-base-type
+           xdr-vector-base-type xdr-vector-max-element-count
 
            make-xdr-struct-type xdr-struct-type?
            xdr-struct-base-types
@@ -47,7 +47,8 @@
            &xdr-input-type-error xdr-input-type-error?
            xdr-input-type-error:value
            &xdr-unknown-type-error xdr-unknown-type-error?
-           &xdr-union-discriminant-error xdr-union-discriminant-error?))
+           &xdr-union-discriminant-error xdr-union-discriminant-error?
+           &xdr-vector-size-exceeded-error xdr-vector-size-exceeded-error?))
 
 
 ;;; Author: Ludovic Courtès <ludovic.courtes@laas.fr>
@@ -75,10 +76,11 @@
   (decoder      xdr-basic-type-decoder))
 
 (define-record-type <xdr-vector-type>
-  ;; Variable-length arrays (Section 4.13).
-  (make-xdr-vector-type base-type)
+  ;; Variable-length arrays (Sections 4.13 and 4.10).
+  (make-xdr-vector-type base-type max-element-count)
   xdr-vector-type?
-  (base-type xdr-vector-base-type))
+  (base-type         xdr-vector-base-type)
+  (max-element-count xdr-vector-max-element-count))
 
 (define-record-type <xdr-struct-type>
   ;; Fixed-length arrays and structures (Sections 4.12 and 4.14).
@@ -118,6 +120,10 @@
 
 (define-condition-type &xdr-union-discriminant-error &xdr-type-error
   xdr-union-discriminant-error?)
+
+(define-condition-type &xdr-vector-size-exceeded-error &xdr-type-error
+  xdr-vector-size-exceeded-error?
+  (element-count xdr-vector-size-exceeded-error:element-count))
 
 
 
@@ -240,6 +246,10 @@ type."
   ;; endianness.
   (endianness big))
 
+(define %max-vector-size
+  ;; Section 4.13: Vector sizes are encoded on 32-bit, hence this limit.
+  (- (expt 2 32) 1))
+
 
 (define (xdr-encode! bv index type value)
   "Encode @var{value}, using XDR type @var{type}, into bytevector @var{bv} at
@@ -260,7 +270,17 @@ type."
              (+ index (xdr-basic-type-size type))))
           ((xdr-vector-type? type)
            (let ((base (xdr-vector-base-type type))
-                 (len  (vector-length value)))
+                 (len  (vector-length value))
+                 (max  (xdr-vector-max-element-count type)))
+
+             ;; check whether LEN exceeds the maximum element count
+             (if (or (and max (> len max))
+                     (> len %max-vector-size))
+                 (raise (condition
+                         (&xdr-vector-size-exceeded-error
+                          (type type)
+                          (element-count len)))))
+
              ;; encode the vector length.
              (bytevector-u32-set! bv index len %xdr-endianness)
 
@@ -316,18 +336,25 @@ type."
              (decode type port)))
 
           ((xdr-vector-type? type)
-           (let* ((type (xdr-vector-base-type type))
+           (let* ((max  (xdr-vector-max-element-count type))
+                  (type (xdr-vector-base-type type))
                   (raw  (get-bytevector-n port 4))
-                  (len  (bytevector-u32-ref raw 0 %xdr-endianness))
-                  (vec  (make-vector len)))
-             (let liip ((index 0))
-               (if (< index len)
-                   (let ((value (loop type)))
-                     (vector-set! vec index value)
-                     (liip (+ 1 index)))
-                   (let ((padding (vector-padding type len)))
-                     (if (> padding 0) (get-bytevector-n port padding))
-                     vec)))))
+                  (len  (bytevector-u32-ref raw 0 %xdr-endianness)))
+
+             (if (and max (> len max))
+                 (raise (condition
+                         (&xdr-vector-size-exceeded-error
+                          (type type)
+                          (element-count len))))
+                 (let ((vec (make-vector len)))
+                   (let liip ((index 0))
+                     (if (< index len)
+                         (let ((value (loop type)))
+                           (vector-set! vec index value)
+                           (liip (+ 1 index)))
+                         (let ((padding (vector-padding type len)))
+                           (if (> padding 0) (get-bytevector-n port padding))
+                           vec)))))))
 
           ((xdr-struct-type? type)
            (let liip ((types  (xdr-struct-base-types type))

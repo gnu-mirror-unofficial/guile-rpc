@@ -52,9 +52,22 @@
                 (xdr-decode xdr-integer port))))
 
 (test-equal "vector" (vector 1 2 3 4)
-            (let ((v (make-xdr-vector-type xdr-integer)))
+            (let ((v (make-xdr-vector-type xdr-integer #f)))
               (xdr-encode! bv 0 v (vector 1 2 3 4))
               (xdr-decode v (open-bytevector-input-port bv))))
+
+(test-eq    "limited vector (encoding)" %error-raised
+            (let ((v (make-xdr-vector-type xdr-integer 2)))
+              (guard (c ((xdr-vector-size-exceeded-error? c)
+                         %error-raised))
+                (xdr-encode! bv 0 v (vector 1 2 3 4)))))
+
+(test-eq    "limited vector (decoding)" %error-raised
+            (let ((v (make-xdr-vector-type xdr-integer 2)))
+              (guard (c ((xdr-vector-size-exceeded-error? c)
+                         %error-raised))
+                (bytevector-u32-set! bv 0 55 %xdr-endianness)
+                (xdr-decode v (open-bytevector-input-port bv)))))
 
 (test-equal "struct" (list 1 2 3.0)
             (let ((s (make-xdr-struct-type (list xdr-integer
@@ -178,7 +191,7 @@
             (xdr-decode xdr-void (open-bytevector-input-port bv)))
 
 (test-equal "complex" (list 1.0 (vector -1 -2 -3 -4) 2.0)
-            (let* ((v (make-xdr-vector-type xdr-integer))
+            (let* ((v (make-xdr-vector-type xdr-integer #f))
                    (s (make-xdr-struct-type (list xdr-double v
                                                   xdr-double))))
               (xdr-encode! bv 0 s (list 1.0 (vector -1 -2 -3 -4)

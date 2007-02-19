@@ -51,9 +51,7 @@
                           (AUTH_SHORT . 2))))
 (define rpc-opaque-auth
   (make-xdr-struct-type (list rpc-auth-flavor
-                              ;; XXX: The opaque array should be at most
-                              ;; 400-octet long.
-                              xdr-variable-length-opaque-array)))
+                              (make-xdr-variable-length-opaque-array 400))))
 
 
 

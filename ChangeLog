@@ -2,6 +2,37 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-02-19 14:24:33 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-13
+
+    Summary:
+      Support size limits on vector types.
+    Revision:
+      guile-rpc--devo--0--patch-13
+
+    * modules/rpc/rpc/types.scm (rpc-opaque-auth): Implement the 400-octet
+      limit.
+    
+    * modules/rpc/xdr.scm (<xdr-vector-type>)[make-xdr-vector-type]: Taken an
+      additional MAX-ELEMENT-COUNT argument.
+      [max-element-count]: New field.
+      (&xdr-vector-size-exceeded-error): New error condition.
+      (%max-vector-size): New.
+      (xdr-encode!): Check whether LEN exceeds the maximum possible size.
+      (xdr-decode): Likewise.
+    
+    * modules/rpc/xdr/types.scm (make-xdr-variable-length-opaque-array): New.
+    
+    * tests/xdr-encoding.test: Updated callers of `make-xdr-vector-type'.
+      Added new tests for the `&xdr-vector-size-exceeded-error' error.
+    
+    * tests/xdr.test: Updated callers of `make-xdr-vector-type'.
+
+    modified files:
+     ChangeLog modules/rpc/rpc/types.scm modules/rpc/xdr.scm
+     modules/rpc/xdr/types.scm tests/xdr-encoding.test
+     tests/xdr.test
+
+
 2007-02-19 13:41:38 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-12
 
     Summary:
