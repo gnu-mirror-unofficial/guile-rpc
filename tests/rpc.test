@@ -50,7 +50,7 @@
                    (msg (make-rpc-message xid 'REPLY
                                           'MSG_ACCEPTED 'SUCCESS)))
               (xdr-encode! bv 0 rpc-message msg)
-              (assert-accepted-reply
+              (assert-successful-reply
                (xdr-decode rpc-message (open-bytevector-input-port bv))
                xid)))
 
@@ -66,7 +66,7 @@
                                    (rpc-program-mismatch-error:high-version c))
                                   '(2 3))
                           %error-raised)))
-                (assert-accepted-reply
+                (assert-successful-reply
                  (xdr-decode rpc-message (open-bytevector-input-port bv))
                  #t))))
 
@@ -75,7 +75,7 @@
                                          'MSG_ACCEPTED 'PROG_UNAVAIL)))
               (xdr-encode! bv 0 rpc-message msg)
               (guard (c ((rpc-program-unavailable-error? c) %error-raised))
-                (assert-accepted-reply
+                (assert-successful-reply
                  (xdr-decode rpc-message (open-bytevector-input-port bv))
                  #t))))
 
@@ -91,7 +91,7 @@
                                    (rpc-program-mismatch-error:high-version c))
                                   '(2 3))
                           %error-raised)))
-                (assert-accepted-reply
+                (assert-successful-reply
                  (xdr-decode rpc-message (open-bytevector-input-port bv))
                  #t))))
 

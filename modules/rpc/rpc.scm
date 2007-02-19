@@ -27,7 +27,7 @@
   :export (;; messaging
            make-rpc-message
 
-           assert-accepted-reply
+           assert-successful-reply
 
            ;; high-level
            make-synchronous-rpc-call
@@ -168,7 +168,7 @@ enumeration)."
 ;;; Decoding RPC messages.
 ;;;
 
-(define (assert-accepted-reply rpc-msg xid)
+(define (assert-successful-reply rpc-msg xid)
   "Return true if @var{rpc-msg} (an RPC message as returned by a previous
 @code{(xdr-decode rpc-message port)} call) is a valid reply for the
 invocation labeled with transaction ID @var{xid} indicating that the it was
@@ -257,7 +257,7 @@ condition is raised."
       (tcp-skip-record-header endpoint)
 
       (let* ((reply-msg (xdr-decode rpc-message endpoint)))
-        (and (assert-accepted-reply reply-msg xid)
+        (and (assert-successful-reply reply-msg xid)
              (xdr-decode result-type endpoint))))))
 
 

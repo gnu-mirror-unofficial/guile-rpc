@@ -2,6 +2,18 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-02-19 13:41:38 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-12
+
+    Summary:
+      Renamed `assert-accepted-reply' to `assert-successful-reply'.
+    Revision:
+      guile-rpc--devo--0--patch-12
+
+
+    modified files:
+     ChangeLog modules/rpc/rpc.scm tests/rpc.test
+
+
 2007-02-19 13:39:27 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-11
 
     Summary:
