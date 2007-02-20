@@ -2,6 +2,24 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-02-20 17:07:04 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-16
+
+    Summary:
+      xdr: Added support for single-precision floats.
+    Revision:
+      guile-rpc--devo--0--patch-16
+
+    * modules/rpc/xdr/types.scm (xdr-float): New.
+    
+    * tests/xdr-encoding.test: Use it.
+    
+    * tests/xdr.test: Likewise.
+
+    modified files:
+     ChangeLog modules/rpc/xdr/types.scm tests/xdr-encoding.test
+     tests/xdr.test
+
+
 2007-02-19 16:32:26 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-15
 
     Summary:

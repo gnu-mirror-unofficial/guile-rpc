@@ -30,7 +30,7 @@
            xdr-integer
            xdr-unsigned-integer
            xdr-hyper-integer xdr-unsigned-hyper-integer
-           xdr-double
+           xdr-float xdr-double
            xdr-string make-xdr-string
            xdr-void %void
 
@@ -147,6 +147,19 @@
                        (lambda (type port)
                          (bytevector-u64-ref (get-bytevector-n port 8)
                                              0 %xdr-endianness))))
+
+(define xdr-float
+  ;; Single-precision floating point (Section 4.6).
+  (make-xdr-basic-type 'float 4
+                       (lambda (value)
+                         (and (number? value)
+                              (inexact? value)))
+                       (lambda (type value bv index)
+                         (bytevector-ieee-single-set! bv index value
+                                                      %xdr-endianness))
+                       (lambda (type port)
+                         (bytevector-ieee-single-ref
+                          (get-bytevector-n port 4) 0 %xdr-endianness))))
 
 (define xdr-double
   ;; Double-precision floating point (Section 4.7).

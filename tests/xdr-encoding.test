@@ -192,7 +192,7 @@
 
 (test-equal "complex" (list 1.0 (vector -1 -2 -3 -4) 2.0)
             (let* ((v (make-xdr-vector-type xdr-integer #f))
-                   (s (make-xdr-struct-type (list xdr-double v
+                   (s (make-xdr-struct-type (list xdr-float v
                                                   xdr-double))))
               (xdr-encode! bv 0 s (list 1.0 (vector -1 -2 -3 -4)
                                         2.0))
