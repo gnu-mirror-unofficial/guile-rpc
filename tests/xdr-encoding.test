@@ -131,6 +131,18 @@
                       (+ 4 4))
                    (xdr-decode s (open-bytevector-input-port bv)))))
 
+(test-equal "consecutive strings with padding"
+            (list (make-vector 35 97) (make-vector 35 98) 7777)
+
+            (let* ((s (make-xdr-struct-type (list xdr-string xdr-string
+                                                  xdr-integer))))
+              (and (= (xdr-encode! bv 0 s
+                                   (list (make-vector 35 97)
+                                         (make-vector 35 98)
+                                         7777))
+                      84)
+                   (xdr-decode s (open-bytevector-input-port bv)))))
+
 (test-equal "union (1)" (cons 1 77)
             (let* ((o (make-xdr-fixed-length-opaque-array 77))
                    (u (make-xdr-union-type xdr-integer

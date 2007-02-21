@@ -2,6 +2,23 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-02-21 16:45:08 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-17
+
+    Summary:
+      Fixed vector padding handling in `xdr-decode'.
+    Revision:
+      guile-rpc--devo--0--patch-17
+
+    * modules/rpc/xdr.scm (xdr-decode)[vector-padding]: Multiply the size of
+      BASE-TYPE by COUNT.  This is needed to account for types whose size is
+      less than %XDR-ATOM-SIZE, such as XDR-SINGLE-OPAQUE.
+    
+    * tests/xdr-encoding.test (consecutive strings with padding): New.
+
+    modified files:
+     ChangeLog modules/rpc/xdr.scm tests/xdr-encoding.test
+
+
 2007-02-20 17:07:04 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-16
 
     Summary:
