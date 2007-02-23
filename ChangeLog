@@ -2,6 +2,26 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-02-23 16:19:08 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-20
+
+    Summary:
+      xdr: Optimized decoding by adding support for per-type vector decoders.
+    Revision:
+      guile-rpc--devo--0--patch-20
+
+    * modules/rpc/xdr.scm (<xdr-basic-type>)[vector-decoder]: New field.
+      (make-xdr-basic-type): Accept an additional VECTOR-DECODER argument.
+      (xdr-decode): For vectors, use the base type's vector decoder when
+      available.
+    
+    * modules/rpc/xdr/types.scm (xdr-integer, xdr-unsigned-integer,
+      make-xdr-enumeration, xdr-hyper-integer, xdr-unsigned-hyper-integer,
+      xdr-single-opaque): Added specialized vector decoders.
+
+    modified files:
+     ChangeLog modules/rpc/xdr.scm modules/rpc/xdr/types.scm
+
+
 2007-02-23 14:20:22 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-19
 
     Summary:

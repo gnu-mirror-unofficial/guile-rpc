@@ -67,13 +67,14 @@
 
 (define-record-type <xdr-basic-type>
   ;; Basic fixed-size XDR types.
-  (make-xdr-basic-type name size type-pred encoder decoder)
+  (%make-xdr-basic-type name size type-pred encoder decoder vector-decoder)
   xdr-basic-type?
-  (name         xdr-basic-type-name)
-  (size         xdr-basic-type-size)         ;; encoded size (in octets)
-  (type-pred    xdr-basic-type-type-pred)    ;; input type predicate
-  (encoder      xdr-basic-type-encoder)
-  (decoder      xdr-basic-type-decoder))
+  (name           xdr-basic-type-name)
+  (size           xdr-basic-type-size)         ;; encoded size (in octets)
+  (type-pred      xdr-basic-type-type-pred)    ;; input type predicate
+  (encoder        xdr-basic-type-encoder)
+  (decoder        xdr-basic-type-decoder)
+  (vector-decoder xdr-basic-type-vector-decoder))
 
 (define-record-type <xdr-vector-type>
   ;; Variable-length arrays (Sections 4.13 and 4.10).
@@ -130,6 +131,17 @@
 ;;;
 ;;; Helpers.
 ;;;
+
+(define (make-xdr-basic-type name size type-pred
+                             encoder decoder . vector-decoder)
+  "Return a new basic XDR type.  If @var{vector-decoder} is provided, then it
+should be a procedure that will be used to efficiently decode vectors of that
+type."
+  (let ((vector-decoder (if (null? vector-decoder)
+                            '(#f)
+                            vector-decoder)))
+    (apply %make-xdr-basic-type name size type-pred encoder decoder
+           vector-decoder)))
 
 ;; Section 3: the "basic block size" is 32 bits.
 (define %xdr-atom-size 4)
@@ -344,25 +356,32 @@ type."
              (decode type port)))
 
           ((xdr-vector-type? type)
-           (let* ((max  (xdr-vector-max-element-count type))
-                  (type (xdr-vector-base-type type))
-                  (raw  (get-bytevector-n port 4))
-                  (len  (bytevector-u32-ref raw 0 %xdr-endianness)))
+           (let* ((max    (xdr-vector-max-element-count type))
+                  (type   (xdr-vector-base-type type))
+                  (decode (and (xdr-basic-type? type)
+                               (xdr-basic-type-vector-decoder type)))
+                  (raw    (get-bytevector-n port 4))
+                  (len    (bytevector-u32-ref raw 0 %xdr-endianness)))
 
              (if (and max (> len max))
                  (raise (condition
                          (&xdr-vector-size-exceeded-error
                           (type type)
                           (element-count len))))
-                 (let ((vec (make-vector len)))
-                   (let liip ((index 0))
-                     (if (< index len)
-                         (let ((value (loop type)))
-                           (vector-set! vec index value)
-                           (liip (+ 1 index)))
-                         (let ((padding (vector-padding type len)))
-                           (if (> padding 0) (get-bytevector-n port padding))
-                           vec)))))))
+                 (let ((padding (vector-padding type len))
+                       (result
+                        (if decode
+                            (decode type len port)
+                            (let ((vec (make-vector len)))
+                              (let liip ((index 0))
+                                (if (< index len)
+                                    (let ((value (loop type)))
+                                      (vector-set! vec index value)
+                                      (liip (+ 1 index)))
+                                    vec))))))
+
+                   (if (> padding 0) (get-bytevector-n port padding))
+                   result))))
 
           ((xdr-struct-type? type)
            (let liip ((types  (xdr-struct-base-types type))

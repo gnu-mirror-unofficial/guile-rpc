@@ -76,7 +76,12 @@
                                               %xdr-endianness))
                        (lambda (type port)
                          (bytevector-s32-ref (get-bytevector-n port 4)
-                                             0 %xdr-endianness))))
+                                             0 %xdr-endianness))
+                       (lambda (type count port)
+                         (let ((bv (get-bytevector-n port (* 4 count))))
+                           (apply vector
+                                  (bytevector->sint-list bv %xdr-endianness
+                                                         4))))))
 
 (define xdr-unsigned-integer
   ;; Section 4.2.
@@ -90,7 +95,12 @@
                                               %xdr-endianness))
                        (lambda (type port)
                          (bytevector-u32-ref (get-bytevector-n port 4)
-                                             0 %xdr-endianness))))
+                                             0 %xdr-endianness))
+                       (lambda (type count port)
+                         (let ((bv (get-bytevector-n port (* 4 count))))
+                           (apply vector
+                                  (bytevector->uint-list bv %xdr-endianness
+                                                         4))))))
 
 (define (make-xdr-enumeration name enum-alist)
   ;; Section 4.3.
@@ -100,6 +110,18 @@
                                     (value value)
                                     (enumeration-alist enum-alist)))))
 
+  (define (enum-symbol type value)
+    (let ((sym (find (lambda (pair)
+                        (= value (cdr pair)))
+                     enum-alist)))
+      (if (not sym)
+          (enum-error type value)
+          (car sym))))
+
+  (define (decode-enum type port)
+    (let* ((bv (get-bytevector-n port 4)))
+      (enum-symbol type (bytevector-u32-ref bv 0 %xdr-endianness))))
+
   (make-xdr-basic-type (symbol-append 'enum- name) 4
                        (lambda (value)
                          (and (symbol? value)
@@ -108,21 +130,19 @@
                          (let ((value (cdr (assq value enum-alist))))
                            (bytevector-u32-set! bv index value
                                                 %xdr-endianness)))
-                       (lambda (type port)
-                         (let* ((bv (get-bytevector-n port 4))
-                                (value
-                                 (bytevector-u32-ref bv 0
-                                                     %xdr-endianness))
-                                (sym (find (lambda (pair)
-                                             (= value (cdr pair)))
-                                           enum-alist)))
-                           (if (not sym)
-                               (enum-error type value)
-                               (car sym))))))
+                       decode-enum
+                       (lambda (type count port)
+                         (let ((bv (get-bytevector-n port (* 4 count))))
+                           (apply vector
+                                  (map (lambda (value)
+                                         (enum-symbol type value))
+                                       (bytevector->uint-list bv
+                                                              %xdr-endianness
+                                                              4)))))))
 
 (define xdr-boolean
   ;; Section 4.4.
-  (make-xdr-enumeration 'book '((FALSE . 0) (TRUE . 1))))
+  (make-xdr-enumeration 'bool '((FALSE . 0) (TRUE . 1))))
 
 (define xdr-hyper-integer
   ;; Section 4.5.
@@ -133,7 +153,12 @@
                                               %xdr-endianness))
                        (lambda (type port)
                          (bytevector-s64-ref (get-bytevector-n port 8)
-                                             0 %xdr-endianness))))
+                                             0 %xdr-endianness))
+                       (lambda (type count port)
+                         (let ((bv (get-bytevector-n port (* 8 count))))
+                           (apply vector
+                                  (bytevector->sint-list bv %xdr-endianness
+                                                         8))))))
 
 (define xdr-unsigned-hyper-integer
   ;; Section 4.5.
@@ -146,7 +171,12 @@
                                               %xdr-endianness))
                        (lambda (type port)
                          (bytevector-u64-ref (get-bytevector-n port 8)
-                                             0 %xdr-endianness))))
+                                             0 %xdr-endianness))
+                       (lambda (type count port)
+                         (let ((bv (get-bytevector-n port (* 8 count))))
+                           (apply vector
+                                  (bytevector->uint-list bv %xdr-endianness
+                                                         8))))))
 
 (define xdr-float
   ;; Single-precision floating point (Section 4.6).
@@ -187,7 +217,10 @@
                          (let ((c (get-u8 port)))
                            (if (eof-object? c)
                                (error "input shallow" c) ;; FIXME: raise
-                               c)))))
+                               c)))
+                       (lambda (type count port)
+                         (let ((bv (get-bytevector-n port count)))
+                           (apply vector (bytevector->u8-list bv))))))
 
 (define (make-xdr-fixed-length-opaque-array size)
   ;; Section 4.9.
