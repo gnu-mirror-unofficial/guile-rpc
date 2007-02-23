@@ -23,8 +23,8 @@
   :use-module (r6rs bytevector)
   :use-module (r6rs i/o ports)
   :use-module (ice-9 optargs)
-  :autoload   (rpc rpc transports) (tcp-send-rpc-message
-                                    tcp-skip-record-header)
+  :autoload   (rpc rpc transports) (send-rpc-record
+                                    rpc-record-marking-input-port)
   :export (;; messaging
            %onc-rpc-version
            make-rpc-message
@@ -244,7 +244,7 @@ numbered @var{procedure} in @var{program}, version @var{version}.  On
 success, the invocation result is eventually returned.  Otherwise, an error
 condition is raised."
   (lambda* (args xid endpoint
-                 #:optional (send-message rpc-send-record)
+                 #:optional (send-message send-rpc-record)
                             (wrap-input-port rpc-record-marking-input-port))
     (let* ((call-msg     (make-rpc-message xid 'CALL program version
                                            procedure))

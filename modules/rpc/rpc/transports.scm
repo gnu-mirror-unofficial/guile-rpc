@@ -60,9 +60,9 @@ standard, chopping its input bytevector into fragments of size
               (put-bytevector port bv (+ offset start) count)
               (loop (+ 1 fragment))))))))
 
-(define (send-rpc-record port bv offset len)
-  "Send the RPC message of @var{len} octets encoded at offset @var{offset} in
-@var{bv} (a bytevector) to @var{port}."
+(define send-rpc-record
+  ;; Send the RPC message of @var{len} octets encoded at offset @var{offset}
+  ;; in @var{bv} (a bytevector) to @var{port}.
   (make-rpc-record-sender %max-record-fragment-length))
 
 (define (rpc-record-marking-input-port port)
@@ -118,6 +118,8 @@ decoding of the record marking standard (RFC 1831, Section 10)."
                     (set! octet-count    0)
                     (set! in-fragment?   #t)
 
+                    ;;(format #t "starting new frag: len=~a last=~a~%"
+                    ;;        fragment-len last-fragment?)
                     (loop start count total)))))))
 
     (make-custom-binary-input-port "record-marking input port"

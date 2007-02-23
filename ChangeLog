@@ -2,6 +2,25 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-02-23 14:20:22 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-19
+
+    Summary:
+      rpc/transport: Fixed stupid typos.
+    Revision:
+      guile-rpc--devo--0--patch-19
+
+    * modules/rpc/rpc.scm: Fixed symbols for autoloading of `(rpc rpc
+      transports)'.
+      (make-synchronous-rpc-call): Replaced `rpc-send-record' by
+      `send-rpc-record'.
+    
+    * modules/rpc/rpc/transports.scm (send-rpc-record): Fixed (didn't send
+      anything).
+
+    modified files:
+     ChangeLog modules/rpc/rpc.scm modules/rpc/rpc/transports.scm
+
+
 2007-02-23 10:05:39 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-18
 
     Summary:
