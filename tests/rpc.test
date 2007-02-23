@@ -24,6 +24,8 @@
   :use-module (rpc xdr types)
   :use-module (rpc rpc)
   :use-module (rpc rpc types)
+  :use-module (rpc rpc transports)
+  :use-module (srfi srfi-11)
   :use-module (srfi srfi-34)
   :use-module (srfi srfi-64))
 
@@ -94,6 +96,18 @@
                 (assert-successful-reply
                  (xdr-decode rpc-message (open-bytevector-input-port bv))
                  #t))))
+
+(test-equal "record marking" #t
+            (let-values (((port get-content)
+                          (open-bytevector-output-port)))
+              (let ((source      (make-bytevector 999))
+                    (send-record (make-rpc-record-sender 103)))
+                (send-record port source 0 (bytevector-length source))
+                (let* ((raw-result (get-content))
+                       (input (rpc-record-marking-input-port
+                               (open-bytevector-input-port raw-result))))
+                  (bytevector=? (get-bytevector-all input)
+                                source)))))
 
 (test-end "rpc-message")
 

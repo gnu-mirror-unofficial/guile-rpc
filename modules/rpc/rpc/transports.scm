@@ -19,50 +19,111 @@
   :use-module (r6rs bytevector)
   :use-module (r6rs i/o ports)
   :use-module (srfi srfi-60)
-  :export (tcp-send-rpc-message
-           tcp-skip-record-header))
+  :export (make-rpc-record-sender send-rpc-record
+           rpc-record-marking-input-port))
 
 
+;;; Author: Ludovic Courtès
 ;;;
-;;; TCP transport and record marking (RFC 1831, Section 10).
+;;; Commentary:
 ;;;
+;;; Implementation of the record marking standard (RFC 1831, Section 10) for
+;;; use with stream-oriented transports such as TCP.
+;;;
+;;; Code:
 
 
 (define %record-header-endianness (endianness big))
 
-(define (tcp-send-rpc-message port bv offset len)
+(define %max-record-fragment-length
+  ;; The maximum size of a record fragment.
+  (- (expt 2 31) 1))
+
+(define (make-rpc-record-sender fragment-len)
+  "Return a procedure that sends data according to the record marking
+standard, chopping its input bytevector into fragments of size
+@var{fragment-len} octets."
+  (lambda (port bv offset len)
+    (let* ((fragment-count (+ 1 (quotient len fragment-len)))
+           (last-fragment  (- fragment-count 1))
+           (record-header (make-bytevector 4)))
+      (let loop ((fragment 0))
+        (if (<= fragment last-fragment)
+            (let* ((start (* fragment fragment-len))
+                   (count (min fragment-len (- len start))))
+              (bytevector-u32-set! record-header 0
+                                   (if (= fragment last-fragment)
+                                       (bitwise-ior count #x80000000)
+                                       count)
+                                   %record-header-endianness)
+              (put-bytevector port record-header)
+              (put-bytevector port bv (+ offset start) count)
+              (loop (+ 1 fragment))))))))
+
+(define (send-rpc-record port bv offset len)
   "Send the RPC message of @var{len} octets encoded at offset @var{offset} in
 @var{bv} (a bytevector) to @var{port}."
-  (define %max-record-length
-    (- (expt 2 31) 1))
+  (make-rpc-record-sender %max-record-fragment-length))
 
-  (let* ((fragment-count (+ 1 (quotient len %max-record-length)))
-         (last-fragment  (- fragment-count 1))
-         (record-header (make-bytevector 4)))
-    (let loop ((fragment 0))
-      (if (<= fragment last-fragment)
-          (let* ((start (* fragment %max-record-length))
-                 (count (min %max-record-length (- len start))))
-            (bytevector-u32-set! record-header 0
-                                 (if (= fragment last-fragment)
-                                     (bitwise-ior count #x80000000)
-                                     count)
-                                 %record-header-endianness)
-            (put-bytevector port record-header)
-            (put-bytevector port bv (+ offset start) count)
-            (loop (+ 1 fragment)))))))
+(define (rpc-record-marking-input-port port)
+  "Return a binary input port that proxies @var{port} in order to implement
+decoding of the record marking standard (RFC 1831, Section 10)."
+
+  (let* ((in-fragment? #f)
+         (last-fragment? #f)
+         (fragment-len 0)
+         (octet-count 0))
+
+    ;; An awful imperative implementation of "record marking" (Section 10).
+    ;; We could probably achieve a similar result more elegantly by using
+    ;; continuations.
+
+    (define (read! bv start count)
+      (define (leave-fragment!)
+        (set! in-fragment? #f)
+        (set! octet-count #f)
+        (set! fragment-len 0))
+
+      (define (have-read-from-fragment! count)
+        (set! octet-count (+ octet-count count))
+        (if (>= octet-count fragment-len)
+            (leave-fragment!)))
+
+      (let loop ((start start)
+                 (count count)
+                 (total 0))
+
+        (if in-fragment?
+            (let* ((remaining (- fragment-len octet-count))
+                   (result (get-bytevector-n! port bv start
+                                              (min remaining count))))
+              (if (eof-object? result)
+                  0
+                  (let ((last? last-fragment?))
+                    (have-read-from-fragment! result)
+                    (if (and (not last?) (> count result))
+                        (loop (+ start result) (- count result)
+                              (+ total result))
+                        (+ total result)))))
+            (let ((raw (get-bytevector-n port 4)))
+              (if (eof-object? raw)
+                  total
+                  (let* ((header
+                          (bytevector-u32-ref raw 0
+                                              %record-header-endianness))
+                         (len (bitwise-and #x7fffffff header)))
+                    ;; enter the new fragment
+                    (set! last-fragment? (bit-set? 31 header))
+                    (set! fragment-len   len)
+                    (set! octet-count    0)
+                    (set! in-fragment?   #t)
+
+                    (loop start count total)))))))
+
+    (make-custom-binary-input-port "record-marking input port"
+                                   read!)))
 
 
-;; FIXME: In order to implement this, we'd need to provide a custom binary
-;; input port type so that XDR decoders can keep using binary input
-;; procedures without being aware of fragmentation issues.
-
-(define (tcp-skip-record-header port)
-  (let* ((raw    (get-bytevector-n port 4))
-         (header (bytevector-u32-ref raw 0 %record-header-endianness)))
-    (if (bit-set? 31 header)
-        #t ;; last record fragment
-        (error "reading fragmented messages is not handled yet" raw))))
-
+;;; transports.scm ends here
 
 ;;; arch-tag: 21cfcc4a-a169-4472-a446-9a2230da9dcc

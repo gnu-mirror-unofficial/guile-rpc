@@ -22,9 +22,11 @@
   :use-module (srfi srfi-35)
   :use-module (r6rs bytevector)
   :use-module (r6rs i/o ports)
+  :use-module (ice-9 optargs)
   :autoload   (rpc rpc transports) (tcp-send-rpc-message
                                     tcp-skip-record-header)
   :export (;; messaging
+           %onc-rpc-version
            make-rpc-message
 
            assert-successful-reply
@@ -102,13 +104,17 @@
 ;;; Creating RPC messages (Section 8).
 ;;;
 
+(define %onc-rpc-version
+  ;; We only support version 2 of ONC RPC (Section 8, struct `call_body').
+  2)
+
 (define %dummy-opaque-auth
   ;; An `rpc-opaque-auth' datum.
   (list 'AUTH_NONE '#()))
 
 (define (make-rpc-call-message program version procedure)
   ;; Return an `rpc-call-body' datum.
-  (list 2 program version procedure
+  (list %onc-rpc-version program version procedure
         %dummy-opaque-auth %dummy-opaque-auth))
 
 (define (make-rpc-mismatch-info-message low-version high-version)
@@ -237,7 +243,9 @@ ID, and I/O port, to make a synchronous RPC call to the remote procedure
 numbered @var{procedure} in @var{program}, version @var{version}.  On
 success, the invocation result is eventually returned.  Otherwise, an error
 condition is raised."
-  (lambda (args xid endpoint)
+  (lambda* (args xid endpoint
+                 #:optional (send-message rpc-send-record)
+                            (wrap-input-port rpc-record-marking-input-port))
     (let* ((call-msg     (make-rpc-message xid 'CALL program version
                                            procedure))
            (call-msg-len (xdr-type-size rpc-message call-msg))
@@ -247,16 +255,15 @@ condition is raised."
 
       (xdr-encode! msg 0 rpc-message call-msg)
       (xdr-encode! msg call-msg-len arg-type args)
-      (tcp-send-rpc-message endpoint msg 0 msg-len)
+      (send-message endpoint msg 0 msg-len)
       (force-output endpoint)
 
       (format #t "request sent (~a = ~a + ~a)!~%" msg-len
               call-msg-len args-msg-len)
 
       ;; Wait for an answer
-      (tcp-skip-record-header endpoint)
-
-      (let* ((reply-msg (xdr-decode rpc-message endpoint)))
+      (let* ((endpoint  (wrap-input-port endpoint))
+             (reply-msg (xdr-decode rpc-message endpoint)))
         (and (assert-successful-reply reply-msg xid)
              (xdr-decode result-type endpoint))))))
 

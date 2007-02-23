@@ -2,6 +2,34 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-02-23 10:05:39 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-18
+
+    Summary:
+      Added a proper implementation of the record marking standard.
+    Revision:
+      guile-rpc--devo--0--patch-18
+
+    * modules/rpc/rpc.scm: Use `(ice-9 optargs)'.
+      (%onc-rpc-version): New.
+      (make-rpc-call-message): Use it.
+      (make-synchronous-rpc-call): Added optional arguments to the returned
+      procedure: SEND-MESSAGE and WRAP-INPUT-PORT.  Use `rpc-send-record' and
+      `rpc-record-marking-input-port' by default.
+    
+    * modules/rpc/rpc/transports.scm (tcp-send-rpc-message): Renamed to
+      `make-rpc-record-sender'.
+      (send-rpc-record): New.
+      (rpc-record-marking-input-port): New.
+      (tcp-skip-record-header): Removed.
+    
+    * tests/rpc.test: Use `(rpc rpc transports)' and `(srfi srfi-11)'.
+      (record marking): New test.
+
+    modified files:
+     ChangeLog modules/rpc/rpc.scm modules/rpc/rpc/transports.scm
+     tests/rpc.test
+
+
 2007-02-21 16:45:08 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-17
 
     Summary:
