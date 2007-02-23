@@ -104,6 +104,22 @@
 
 (define (make-xdr-enumeration name enum-alist)
   ;; Section 4.3.
+  (define symbol->integer
+    (let ((table (make-hash-table)))
+      (for-each (lambda (item)
+                  (hashq-set! table (car item) (cdr item)))
+                enum-alist)
+      (lambda (sym)
+        (hashq-ref table sym))))
+
+  (define integer->symbol
+    (let ((table (make-hash-table)))
+      (for-each (lambda (item)
+                  (hash-set! table (cdr item) (car item)))
+                enum-alist)
+      (lambda (int)
+        (hash-ref table int))))
+
   (define (enum-error type value)
     (raise (condition
             (&xdr-enumeration-error (type type)
@@ -111,12 +127,10 @@
                                     (enumeration-alist enum-alist)))))
 
   (define (enum-symbol type value)
-    (let ((sym (find (lambda (pair)
-                        (= value (cdr pair)))
-                     enum-alist)))
+    (let ((sym (integer->symbol value)))
       (if (not sym)
           (enum-error type value)
-          (car sym))))
+          sym)))
 
   (define (decode-enum type port)
     (let* ((bv (get-bytevector-n port 4)))
@@ -125,9 +139,9 @@
   (make-xdr-basic-type (symbol-append 'enum- name) 4
                        (lambda (value)
                          (and (symbol? value)
-                              (assq value enum-alist)))
+                              (symbol->integer value)))
                        (lambda (type value bv index)
-                         (let ((value (cdr (assq value enum-alist))))
+                         (let ((value (symbol->integer value)))
                            (bytevector-u32-set! bv index value
                                                 %xdr-endianness)))
                        decode-enum
