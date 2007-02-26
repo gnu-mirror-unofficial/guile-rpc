@@ -2,6 +2,20 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-02-26 18:10:03 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-24
+
+    Summary:
+      Told Automake about `rpc/rpc/server.scm'.
+    Revision:
+      guile-rpc--devo--0--patch-24
+
+    * modules/Makefile.am (nobase_dist_guilemodule_DATA): Added
+      `rpc/rpc/server.scm'.
+
+    modified files:
+     ChangeLog modules/Makefile.am
+
+
 2007-02-26 17:15:50 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-23
 
     Summary:
