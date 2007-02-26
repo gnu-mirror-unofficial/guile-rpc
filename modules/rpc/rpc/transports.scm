@@ -79,20 +79,18 @@ decoding of the record marking standard (RFC 1831, Section 10)."
     ;; continuations.
 
     (define (read! bv start count)
-      (define (leave-fragment!)
-        (set! in-fragment? #f)
-        (set! octet-count #f)
-        (set! fragment-len 0))
-
       (define (have-read-from-fragment! count)
         (set! octet-count (+ octet-count count))
         (if (>= octet-count fragment-len)
-            (leave-fragment!)))
+            (set! in-fragment? #f)))
+
+      ;;(format #t "gotta read ~a~%" count)
 
       (let loop ((start start)
                  (count count)
                  (total 0))
 
+        ;;(format #t "looping: ~a ~a ~a~%" start count total)
         (if in-fragment?
             (let* ((remaining (- fragment-len octet-count))
                    (result (get-bytevector-n! port bv start
@@ -105,9 +103,12 @@ decoding of the record marking standard (RFC 1831, Section 10)."
                         (loop (+ start result) (- count result)
                               (+ total result))
                         (+ total result)))))
-            (let ((raw (get-bytevector-n port 4)))
+            (let (;;(zzz (format #t "getting record header...~%"))
+                  (raw (get-bytevector-n port 4)))
               (if (eof-object? raw)
-                  total
+                  (begin
+                    ;;(format #t "failed to get record header~%")
+                    total)
                   (let* ((header
                           (bytevector-u32-ref raw 0
                                               %record-header-endianness))

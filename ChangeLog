@@ -2,6 +2,21 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-02-26 17:10:47 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-22
+
+    Summary:
+      transports: Added well-placed commented debugging statements.
+    Revision:
+      guile-rpc--devo--0--patch-22
+
+    * modules/rpc/rpc/transports.scm
+      (rpc-record-marking-input-port)[read!](leave-fragment!): Removed.  Left
+      various useful `format' statements.
+
+    modified files:
+     ChangeLog modules/rpc/rpc/transports.scm
+
+
 2007-02-23 16:37:58 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-21
 
     Summary:
