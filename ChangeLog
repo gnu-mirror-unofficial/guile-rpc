@@ -2,6 +2,24 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-02-26 17:15:50 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-23
+
+    Summary:
+      Added server-side support.
+    Revision:
+      guile-rpc--devo--0--patch-23
+
+    * tests/rpc.test: Use `(rpc rpc server)'.
+      ("procedure-call-information", "procedure lookup", "procedure lookup
+      error", "procedure lookup error handling"): New tests.
+
+    new files:
+     modules/rpc/rpc/server.scm
+
+    modified files:
+     ChangeLog tests/rpc.test
+
+
 2007-02-26 17:10:47 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-22
 
     Summary:

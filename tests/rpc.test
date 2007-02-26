@@ -25,6 +25,7 @@
   :use-module (rpc rpc)
   :use-module (rpc rpc types)
   :use-module (rpc rpc transports)
+  :use-module (rpc rpc server)
   :use-module (srfi srfi-11)
   :use-module (srfi srfi-34)
   :use-module (srfi srfi-64))
@@ -108,6 +109,64 @@
                                (open-bytevector-input-port raw-result))))
                   (bytevector=? (get-bytevector-all input)
                                 source)))))
+
+
+;; Server stuff.
+
+(test-equal "procedure-call-information" (list #x9999 70 0 5)
+            (let* ((call-msg (make-rpc-message #x9999 'CALL 70 0 5))
+                   (call     (procedure-call-information call-msg)))
+              (list (rpc-call-xid call)
+                    (rpc-call-program call)
+                    (rpc-call-version call)
+                    (rpc-call-procedure call))))
+
+(test-eq    "procedure lookup" #t
+            (let* ((proc     (make-rpc-procedure 5 xdr-void xdr-void
+                                                 (lambda (arg) #t)))
+                   (version  (make-rpc-program-version 0 (list proc)))
+                   (program  (make-rpc-program 70 (list version)))
+                   (call-msg (make-rpc-message #x9999 'CALL 70 0 5))
+                   (call     (procedure-call-information call-msg)))
+              (eq? (lookup-called-procedure call (list program))
+                   proc)))
+
+(test-eq    "procedure lookup error" %error-raised
+            (let* ((proc     (make-rpc-procedure 5 xdr-void xdr-void
+                                                 (lambda (arg) #t)))
+                   (version  (make-rpc-program-version 0 (list proc)))
+                   (program  (make-rpc-program 70 (list version)))
+                   (call-msg (make-rpc-message #x9999 'CALL 70 9 5))
+                   (call     (procedure-call-information call-msg)))
+              (guard (c ((rpc-invalid-version-error? c)
+                         (and (= (rpc-invalid-version-error:version c) 9)
+                              (eq? (rpc-invalid-version-error:program c)
+                                   program)
+                              %error-raised)))
+                (lookup-called-procedure call (list program)))))
+
+(test-eq    "procedure lookup error handling" #t
+            (let-values (((port get-content)
+                          (open-bytevector-output-port)))
+              (let* ((proc     (make-rpc-procedure 5 xdr-void xdr-void
+                                                 (lambda (arg) #t)))
+                     (version1 (make-rpc-program-version 0 (list proc)))
+                     (version2 (make-rpc-program-version 1 (list proc)))
+                     (program  (make-rpc-program 70 (list version1
+                                                          version2)))
+                     (call-msg (make-rpc-message #x9999 'CALL 70 9 5))
+                     (call     (procedure-call-information call-msg))
+                     (send     (lambda (bv offset count)
+                                 (put-bytevector port bv offset count))))
+                (guard (c ((rpc-procedure-lookup-error? c)
+                           (handle-procedure-lookup-error c call send)))
+                  (lookup-called-procedure call (list program)))
+
+                (equal? (xdr-decode rpc-message
+                                    (open-bytevector-input-port
+                                     (get-content)))
+                        (make-rpc-message #x9999 'REPLY 'MSG_ACCEPTED
+                                          'PROG_MISMATCH 0 1)))))
 
 (test-end "rpc-message")
 
