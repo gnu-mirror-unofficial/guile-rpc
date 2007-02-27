@@ -2,6 +2,21 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-02-27 21:12:36 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-26
+
+    Summary:
+      doc: Documented XDR handling.
+    Revision:
+      guile-rpc--devo--0--patch-26
+
+    * doc/guile-rpc.texi (API Reference)[Implementation of XDR]: Filled in.
+    
+    * modules/rpc/xdr.scm (xdr-encode!): Updated docstring.
+
+    modified files:
+     ChangeLog doc/guile-rpc.texi modules/rpc/xdr.scm
+
+
 2007-02-27 14:45:21 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-25
 
     Summary:

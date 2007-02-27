@@ -207,6 +207,8 @@ Once this is done, invoking the procedure is as simple as this:
 (invoke-split-number 3.14 #x7777 socket)
 @end example
 
+@cindex transaction ID (xid)
+
 The first argument to @code{invoke-split-number} is the argument of
 @code{split_number ()}; the second argument is a transaction ID, i.e.,
 an arbitrarily chosen number that identifies the remote procedure
@@ -249,20 +251,222 @@ build ONC RPC clients and servers.
 @node Implementation of XDR, Implementation of ONC RPC, API Reference, API Reference
 @section Implementation of XDR
 
+This section describes how XDR types are represented in Guile-RPC, as
+well as how one can encode Scheme values to XDR and decode XDR binary
+data to Scheme values.
+
 @menu
-* XDR Standard Data Types::     
-* XDR Encoding and Decoding::   
-* Low-level XDR Type Primitives::  
+* XDR Type Representations::    Foundations.
+* XDR Standard Data Types::     The XDR standard types.
+* XDR Encoding and Decoding::   Encoding to and decoding from XDR.
 @end menu
 
-@node XDR Standard Data Types, XDR Encoding and Decoding, Implementation of XDR, Implementation of XDR
+@node XDR Type Representations, XDR Standard Data Types, Implementation of XDR, Implementation of XDR
+@subsection XDR Type Representations
+
+@cindex XDR type objects
+
+The XDR standard defines various basic data types and allows for the
+definition of compound data types (``structs''), fixed-size and
+variable-size arrays as well as ``unions''.  Fixed-size arrays and
+structs can actually be thought as the same type: Their size if known
+in advance and they are encoded as the succession of the data they
+contain.  Thus, those types can be summarized as 4 great classes:
+``basic'' types, variable-length arrays, structs and unions.
+
+The @code{(rpc xdr)} module provides facilities to represent and
+handle these classes of types which we describe below.
+
+@deffn {Scheme Procedure} make-xdr-basic-type name size type-pred encoder decoder [vector-decoder]
+This returns an @code{<xdr-basic-type>} object describing a type whose
+encoding fits on @var{size} octets, and which is encoded/decoded using
+the @var{encoder} and @var{decoder} procedures.  @var{type-pred}
+should be a predicate checking the validity of an input Scheme value
+for encoding into this type.  Optionally, @var{vector-decoder} can be
+passed and should be a procedure that efficiently decodes sequences of
+data items of this type (for instance, the vector decoder could use
+the @code{bytevector->int-list} procedure of the @code{(r6rs
+bytevector)} module to speed up decoding).
+
+Users should normally not need to define new basic types since all the
+basic types defined by XDR are already available in @code{(rpc xdr
+types)} (@pxref{XDR Standard Data Types}).  Thus, we will not describe
+its use further.
+@end deffn
+
+@deffn {Scheme Procedure} make-xdr-struct-type base-types
+Return a new XDR struct type made of a sequence of XDR data items
+whose types are listed in @var{base-types}.
+
+Struct types encode from/decode to Scheme lists whose length is that
+of @var{base-types}.
+@end deffn
+
+@deffn {Scheme Procedure} make-xdr-vector-type base-type max-element-count
+Return an object describing an XDR variable-length array of elements
+of types @var{base-type} (again, an XDR type object).  If
+@var{max-element-count} is a number, then it describes the maximum
+number of items of type @var{base-type} that are allow in actual
+arrays of this type.  If @var{base-type} is @code{#f}, then arrays of
+this type may contain up to 2^32 - 1 items of type @var{base-type}.
+
+Vector types encode from/decode to Scheme vectors.  If
+@var{max-element-count} is specified and a vector to be encoded
+contains more than @var{max-element-count} elements, then an
+@code{&xdr-vector-size-exceeded-error} error condition is raised.
+Likewise, if XDR data to be decoded describes vectors larger than
+@var{max-element-count}, this error condition is raised.
+@end deffn
+
+@deffn {Scheme Procedure} make-xdr-union-type discr-type discr/type-alist default-type
+Return a new XDR discriminated union type, using @var{discr-type} as the
+discriminant type (which must be a 32-bit basic type) and
+@var{discr/type-alist} to select the ``arm'' type depending on the
+discriminant value.  If no suitable value is found in @var{discr/type-alist}
+and @var{default-type} is not @code{#f}, then default type is used as the arm
+type.
+
+Union types encode from/decode to Scheme pairs whose @code{car} is the
+discriminant's value and whose @code{cdr} is the actual union value.
+@end deffn
+
+@deffn {Scheme Procedure} xdr-union-arm-type union discriminant
+Return the type that should be used for @var{union}'s arm given
+@var{discriminant} (a Scheme value).
+@end deffn
+
+It is often useful to know the size in octets it takes to encode a
+given value according to an XDR type.  However, as we just saw, the
+size of some XDR types (variable-length arrays and unions) cannot be
+known in advance: The encoding size depends on the actual value to
+encode.  The following procedure allow the computation of the size of
+the XDR representation of some value.
+
+@deffn {Scheme Procedure} xdr-type-size type value
+Return the size (in octets) of @var{type} when applied to
+@var{value}.  @var{type} must be an XDR type object returned by one of
+the above procedures, while @var{value} should be a Scheme value
+suitable for encoding with @var{type}.
+@end deffn
+
+The following section lists the standard XDR data types.
+
+
+@node XDR Standard Data Types, XDR Encoding and Decoding, XDR Type Representations, Implementation of XDR
 @subsection XDR Standard Data Types
 
-@node XDR Encoding and Decoding, Low-level XDR Type Primitives, XDR Standard Data Types, Implementation of XDR
+All the basic data types defined by XDR are defined in the @code{(rpc
+xdr types)} module.
+
+@defvr {Scheme Variable} xdr-integer
+@defvrx {Scheme Variable} xdr-unsigned-integer
+@defvrx {Scheme Variable} xdr-hyper-integer
+@defvrx {Scheme Variable} xdr-unsigned-hyper-integer
+XDR's 32-bit and 64-bit signed and unsigned integer types.  This type
+decodes to/encodes from Scheme exact numbers.
+@end defvr
+
+@defvr {Scheme Variable} xdr-float
+@defvrx {Scheme Variable} xdr-double
+32-bit and 64-bit IEEE-754 floating point numbers.  This type decodes
+to/encodes from Scheme inexact numbers.  Note that XDR also defines a
+``quadruple-precision floating point type'' (i.e., 128-bit long) that
+is currently not available (FIXME).
+@end defvr
+
+@defvr {Scheme Variable} xdr-void
+The ``void'' type that yields zero bits.  Any Scheme value is suitable
+as an input when encoding with this type.  When decoding this type,
+the @code{%void} value (which may be compared via @code{eq?}) is
+returned.
+@end defvr
+
+XDR provides support for ``enumerations'', similar to that found in C.
+An enumeration type maps symbols to integers and are actually encoded
+as 32-bit integers.
+
+@deffn {Scheme Procedure} make-xdr-enumeration name enum-alist
+Return an enumeration type that obeys the symbol-integer mapping
+provided in @var{enum-alist} which should be a list of symbol-integer
+pairs.  The returned type decodes to/encodes from Scheme symbols, as
+provided in @var{enum-alist}.  Upon decoding/encoding of an
+enumeration, an @code{&xdr-enumeration-error} is raised if an
+incorrect value (i.e., one not listed in @var{enum-alist}) is found.
+@end deffn
+
+@deffn {Scheme Variable} xdr-boolean
+XDR's boolean type which is an enumeration.  It encodes to/decodes
+from Scheme symbols @code{TRUE} and @code{FALSE}.
+@end deffn
+
+Several fixed-size and variable-size are predefined in the standard.
+
+@deffn {Scheme Procedure} make-xdr-fixed-length-opaque-array size
+Return a fixed-length ``opaque'' array of @var{size} octets.  An
+opaque array is simply a sequence of octets.
+
+The returned XDR type object is actually an @code{<xdr-struct-type>}
+object.  Thus, it encodes from/decodes to Scheme lists of exact
+integers.  Conversion to a Scheme string, if needed, is left to the
+user.
+@end deffn
+
+@deffn {Scheme Procedure} make-xdr-variable-length-opaque-array limit
+Return a variable-length opaque array.  As for
+@code{make-xdr-vector-type} (@pxref{XDR Type Representations}),
+@var{limit} can be either a number specifying the maximum number of
+elements that can be held by the created type, or @code{#f} in which
+case the variable-length array can hold up to 2^32 - 1 octets.
+
+The returned XDR type object is actually an @code{<xdr-vector-type>}
+object.  Thus, it encodes from/decodes to Scheme vectors of exact
+integers.
+@end deffn
+
+@deffn {Scheme Procedure} make-xdr-string limit
+This is a synonym of @code{make-xdr-variable-length-opaque-array}
+since XDR's string type actually represents ASCII strings, i.e.,
+sequences of octets.
+@end deffn
+
+@defvr {Scheme Variable} xdr-variable-length-opaque-array
+@defvrx {Scheme Variable} xdr-string
+These convenience variables contain the unlimited variable-length
+opaque array.
+@end defvr
+
+
+@node XDR Encoding and Decoding,  , XDR Standard Data Types, Implementation of XDR
 @subsection XDR Encoding and Decoding
 
-@node Low-level XDR Type Primitives,  , XDR Encoding and Decoding, Implementation of XDR
-@subsection Low-level XDR Type Primitives
+The following primitives are exported by the @code{(rpc xdr)} module.
+They implement the encoding of Scheme values to XDR data types, and
+the decoding of binary XDR data to Scheme values.  The exact mapping
+between XDR data types and Scheme data types has been discussed
+earlier.
+
+@deffn {Scheme Procedure} xdr-encode! bv index type value
+Encode @var{value} (a suitable Scheme value), using XDR type
+@var{type}, into bytevector @var{bv} at @var{index}.  Return the index
+where encoding ended.
+
+@var{bv} should be an R6RS bytevector large enough to hold the XDR
+representation of value according to @var{type}.  To that end, users
+may rely on @code{xdr-type-size} (@pxref{XDR Type Representations}).
+
+Error conditions sub-classing @code{&xdr-error} may be raised during
+encoding.  The exact exceptions that may be raised are type-dependent
+and have been discussed in the previous sections.
+@end deffn
+
+@deffn {Scheme Procedure} xdr-decode type port
+Decode from @var{port} (a binary input port) a value of XDR type
+@var{type}.  Return the decoded value.
+
+Error conditions sub-classing @code{&xdr-error} may be raised during
+encoding.  The exact exceptions that may be raised are type-dependent
+and have been discussed in the previous sections.
+@end deffn
 
 
 @node Implementation of ONC RPC,  , Implementation of XDR, API Reference

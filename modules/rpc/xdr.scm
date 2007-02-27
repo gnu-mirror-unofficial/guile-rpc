@@ -269,7 +269,7 @@ type."
 
 (define (xdr-encode! bv index type value)
   "Encode @var{value}, using XDR type @var{type}, into bytevector @var{bv} at
-@var{index}."
+@var{index}.  Return the index where encoding ended."
 
   (define (type-error type value)
     (raise (condition (&xdr-input-type-error (type  type)
