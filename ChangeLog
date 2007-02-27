@@ -2,6 +2,21 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-02-27 14:45:21 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-25
+
+    Summary:
+      Added a simple yet convenient TCP server lookup.
+    Revision:
+      guile-rpc--devo--0--patch-25
+
+    * modules/rpc/rpc/server.scm: Use `(rpc rpc transports)' and `srfi-39'.
+      (serve-one-tcp-request, <tcp-connection>, current-tcp-connection,
+      run-tcp-rpc-server): New procedures.
+
+    modified files:
+     ChangeLog modules/rpc/rpc/server.scm
+
+
 2007-02-26 18:10:03 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-24
 
     Summary:

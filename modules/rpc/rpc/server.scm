@@ -17,13 +17,17 @@
 
 (define-module (rpc rpc server)
   :use-module (rpc rpc)
-  :autoload   (rpc rpc types) (rpc-message)
-  :autoload   (rpc xdr)       (xdr-type-size xdr-decode)
-  :autoload   (srfi srfi-1)   (find)
+  :autoload   (rpc rpc types)       (rpc-message)
+  :autoload   (rpc xdr)             (xdr-type-size xdr-decode)
+  :autoload   (rpc rpc transports)  (rpc-record-marking-input-port
+                                     send-rpc-record)
+  :autoload   (srfi srfi-1)         (find fold)
   :use-module (srfi srfi-9)
   :use-module (srfi srfi-34)
   :use-module (srfi srfi-35)
+  :use-module (srfi srfi-39)
   :use-module (r6rs bytevector)
+  :autoload   (r6rs i/o ports)      (lookahead-u8)
 
   :export (procedure-call-information
            rpc-call-xid rpc-call-program rpc-call-version
@@ -38,6 +42,11 @@
 
            lookup-called-procedure handle-procedure-call
            handle-procedure-lookup-error
+
+           serve-one-tcp-request run-tcp-rpc-server current-tcp-connection
+           tcp-connection?
+           tcp-connection-port tcp-connection-peer-address
+           tcp-connection-rpc-program
 
            ;; error conditions
            &rpc-server-error rpc-server-error?
@@ -286,7 +295,7 @@ count."
   (guard (c ((rpc-procedure-lookup-error? c)
              (handle-procedure-call c call send-result)))
 
-    (let* ((proc (lookup-called-procedure call programs))
+    (let* ((proc           (lookup-called-procedure call programs))
            (handler        (rpc-procedure-handler proc))
            (input-type     (rpc-procedure-argument-xdr-type proc))
            (result         (handler (xdr-decode input-type input-port)))
@@ -304,6 +313,119 @@ count."
                                 rpc-message reply-prologue)
                    result-type result)
       (send-result raw-result 0 total-size))))
+
+
+;;;
+;;; High-level aids.
+;;;
+
+(define (serve-one-tcp-request program port)
+  "Serve one block store requests for @var{program} on port @var{port}.
+@var{peer-address} should be the IP address where the request originates."
+  (let* ((input-port (rpc-record-marking-input-port port)))
+
+    (if (eof-object? (lookahead-u8 port))
+        #f ;; XXX: The connection should eventually be removed.
+        (let* ((msg (xdr-decode rpc-message input-port))
+               (call (procedure-call-information msg)))
+          (handle-procedure-call call (list program) input-port
+                                 (lambda (bv offset count)
+                                   (send-rpc-record port bv
+                                                    offset count)))))))
+
+(define-record-type <tcp-connection>
+  (make-tcp-connection port address rpc-program)
+  tcp-connection?
+  (port        tcp-connection-port)
+  (address     tcp-connection-peer-address)
+  (rpc-program tcp-connection-rpc-program))
+
+(define current-tcp-connection
+  ;; A fluid that is parameterized upon connection.
+  (make-parameter #f))
+
+
+(define (run-tcp-rpc-server sockets+rpc-programs timeout
+                            close-connection-proc idle-thunk)
+  "Run a full-blown TCP RPC server for the given listening sockets and RPC
+programs.  @var{sockets+rpc-programs} should be a list of listening
+socket-RPC program pairs (where ``RPC programs'' are objects as returned by
+@code{make-rpc-program}).  @var{timeout} should be a number of microseconds
+that the loop should wait for input; when no input is available,
+@var{idle-thunk} is invoked, thus at most every @var{timeout} microseconds.
+If @var{close-connection-proc} is a procedure, it is called when a connection
+is being closed is passed the corresponding @code{<tcp-connection>} object."
+
+  ;; XXX: The code has a nice functional style but is far from optimized.  We
+  ;; should use, e.g., vlists instead of lists
+  ;; (http://en.wikipedia.org/wiki/VList).
+
+  (define sockets
+    (map car sockets+rpc-programs))
+
+  (define timeout-s  (quotient  timeout 1000000))
+  (define timeout-us (remainder timeout 1000000))
+
+  (let server ((connections '()))
+    (let* ((connection-sockets (map tcp-connection-port connections))
+           (selected (select (append sockets
+                                     connection-sockets)
+                             '()
+                             connection-sockets
+                             timeout-s timeout-us))
+           (reads    (car selected))
+           (writes   (cadr selected))
+           (excepts  (caddr selected)))
+
+      (define (handle-reads reads connections)
+        (fold (lambda (s connections)
+                (cond ((assq s sockets+rpc-programs)
+                       =>
+                       (lambda (socket+program)
+                         ;; Initiate a new connection.
+                         (let* ((program  (cdr socket+program))
+                                (accepted (accept s))
+                                (port     (car accepted))
+                                (address  (cdr accepted)))
+                           (cons (make-tcp-connection port address
+                                                      program)
+                                 connections))))
+                      (else
+                       ;; Process a request.
+                       (let* ((conn (find (lambda (c)
+                                            (eq? (tcp-connection-port c)
+                                                 s))
+                                          connections))
+                              (prog (tcp-connection-rpc-program conn)))
+                         (parameterize ((current-tcp-connection conn))
+                           (serve-one-tcp-request prog s))
+
+                         connections))))
+              connections
+              reads))
+
+      (define (handle-exceptions exceptions connections)
+        (fold (lambda (s connections)
+                (filter (lambda (c)
+                          (if (eq? s (tcp-connection-port c))
+                              (begin
+                                (if (procedure? close-connection-proc)
+                                    (close-connection-proc c))
+                                #f)
+                              #t))
+                        connections))
+              connections
+              exceptions))
+
+
+      (if (and (null? reads) (null? excepts))
+          (begin
+            (idle-thunk)
+            (server connections))
+          (server (handle-exceptions excepts
+                                     (handle-reads reads connections)))))))
+
+
 
 ;;; server.scm ens here
 
