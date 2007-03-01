@@ -177,7 +177,7 @@ enumeration)."
 (define (assert-successful-reply rpc-msg xid)
   "Return true if @var{rpc-msg} (an RPC message as returned by a previous
 @code{(xdr-decode rpc-message port)} call) is a valid reply for the
-invocation labeled with transaction ID @var{xid} indicating that the it was
+invocation labeled with transaction ID @var{xid} indicating that it was
 accepted.  If @var{xid} is @code{#t}, any reply transaction ID is accepted
 and it is returned (provided the rest of the message denotes an accepted
 message).  On failure, an appropriate error condition is raised."

@@ -2,6 +2,22 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-03-01 22:19:52 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-27
+
+    Summary:
+      doc: Documented RPC clients and message types.
+    Revision:
+      guile-rpc--devo--0--patch-27
+
+    * doc/guile-rpc.texi (Building an RPC Client): Added meat.
+      (ONC RPC Message Types): Likewise.
+    
+    * modules/rpc/rpc.scm (assert-successful-reply): Fixed docstring.
+
+    modified files:
+     ChangeLog doc/guile-rpc.texi modules/rpc/rpc.scm
+
+
 2007-02-27 21:12:36 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-26
 
     Summary:

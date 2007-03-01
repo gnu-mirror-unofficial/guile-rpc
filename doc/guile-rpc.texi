@@ -481,12 +481,137 @@ and have been discussed in the previous sections.
 @node Building an RPC Client, Building an RPC Server, Implementation of ONC RPC, Implementation of ONC RPC
 @subsection Building an RPC Client
 
+Basic building blocks for the creation of RPC clients are provided by
+the @code{(rpc rpc)} module.  The easiest way to build an RPC client
+is through @code{make-synchronous-rpc-call}.
+
+@deffn {Scheme Procedure} make-synchronous-rpc-call program version procedure arg-type result-type
+Return a procedure that may be applied to a list of arguments,
+transaction ID (any unsigned number representable on 32 bits), and I/O
+port, to make a synchronous RPC call to the remote procedure numbered
+@var{procedure} in @var{program}, version @var{version}.  On success,
+the invocation result is eventually returned.  Otherwise, an error
+condition is raised.  @var{arg-type} and @var{result-type} should be
+XDR type objects (@pxref{XDR Type Representations}).
+
+Error conditions that may be raised include those related to XDR
+encoding and decoding (@pxref{XDR Encoding and Decoding}), as well as
+RPC-specific error conditions inheriting from @code{&rpc-error} (i.e.,
+conditions that pass the @code{rpc-error?} predicate).  These are
+detailed in @ref{ONC RPC Message Types}.
+@end deffn
+
 @node Building an RPC Server, ONC RPC Message Types, Building an RPC Client, Implementation of ONC RPC
 @subsection Building an RPC Server
 
 @node ONC RPC Message Types,  , Building an RPC Server, Implementation of ONC RPC
 @subsection ONC RPC Message Types
 
+@cindex @code{rpc_msg} struct type
+
+The @code{(rpc rpc types)} module provides a representation of the
+various XDR types defined in the standard to represent RPC messages
+(@pxref{References}).  We only describe the most important one as well
+as procedures from the @code{(rpc rpc)} module that help use it.
+
+@defvr {Scheme Variable} rpc-message
+This variable contains a XDR struct type representing all possible RPC
+messages---the @code{rpc_msg} struct type defined in RFC 1831.  By
+``rpc message'' we mean the header that is transmitted before the
+actual procedure argument to describe the procedure call being made.
+
+Roughly, this header contains a transaction ID allowing clients to
+match call/reply pairs, plus information describing either the call or
+the reply being made.  Calls essentially contain a program, version
+and procedure numbers.  Replies, on the other hand, can be more
+complex since they can describe a large class of errors.
+@end defvr
+
+@defvr {Scheme Variable} rpc-message-type
+This variable is bound to an XDR enumeration.  Its two possible values
+are @code{CALL} and @code{REPLY} (both represented in Scheme using
+symbols), denoting a procedure call and a reply to a procedure call,
+respectively.
+@end defvr
+
+@deffn {Scheme Procedure} make-rpc-message xid type args ...
+Return an @code{rpc-message} datum.  @var{type} should be either
+@code{CALL} or @code{REPLY} (the two values of the
+@code{rpc-message-type} enumeration).  The arguments @var{args} are
+message-type-specific.  For example, a message denoting a procedure
+call to procedure number 5 of version 1 of program 77 can be created
+as follows:
+
+@example
+(define my-call-msg
+  (make-rpc-message #x123 ;; the transaction ID
+                    'CALL ;; the message type
+                    77 1 5))
+@end example
+
+It can then be encoded in the usual way (@pxref{XDR Encoding and
+Decoding}):
+
+@example
+(let* ((size (xdr-type-size rpc-message my-call-msg))
+       (bv   (make-bytevector size)))
+  (xdr-encode! bv 0 rpc-message my-call-msg)
+  ;;; ...
+  )
+@end example
+
+Likewise, a reply message denoting a successful RPC call can be
+produced as follows:
+
+@example
+(make-rpc-message xid 'REPLY 'MSG_ACCEPTED 'SUCCESS)
+@end example
+
+It is worth noting that in practice, ``messages'' of type
+@var{rpc-message} are followed by additional data representing either
+the procedure call arguments (if the message is a @code{CALL} message)
+or the procedure return value (if the message is a @code{REPLY}
+message).
+@end deffn
+
+@deffn {Scheme Procedure} assert-successful-reply rpc-msg xid
+Return true if @var{rpc-msg} (an RPC message as returned by a previous
+@code{(xdr-decode rpc-message port)} call) is a valid reply for the
+invocation labeled with transaction ID @var{xid} indicating that it
+was accepted.  If @var{xid} is @code{#t}, any reply transaction ID is
+accepted and it is returned (provided the rest of the message denotes
+an accepted message).  On failure, an appropriate error condition is
+raised.
+
+The error conditions that may be raised obey @code{rpc-error?} and
+@code{rpc-call-error?}.  More precisely, error conditions include the
+following:
+
+@table @code
+@item rpc-program-unavailable-error?
+If @var{rpc-msg} denotes the fact that the program requested by the
+corresponding RPC call is not available.
+
+@item rpc-program-mismatch-error?
+If the corresponding RPC call requested a program version that is not
+available.  The procedures
+@code{rpc-program-mismatch-error:low-version} and
+@code{rpc-program-mismatch-error:high-version} return, respectively,
+the lowest and highest version numbers supported by the remote server.
+
+@item rpc-procedure-unavailable-error?
+If the corresponding RPC call requested a procedure that is not
+available.
+
+@item rpc-garbage-arguments-error?
+If the remote server failed to decode the procedure arguments.
+
+@item rpc-system-error?
+If the remote server failed to allocate enough memory for argument
+decoding, for instance.
+
+@end table
+@end deffn
 
 
 @c *********************************************************************
