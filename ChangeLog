@@ -2,6 +2,18 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-03-03 14:41:00 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-28
+
+    Summary:
+      doc: Added a server example, documented server creation.
+    Revision:
+      guile-rpc--devo--0--patch-28
+
+
+    modified files:
+     ChangeLog doc/guile-rpc.texi
+
+
 2007-03-01 22:19:52 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-27
 
     Summary:
