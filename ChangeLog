@@ -2,6 +2,22 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-03-04 16:57:23 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-29
+
+    Summary:
+      doc: Completed (roughly).
+    Revision:
+      guile-rpc--devo--0--patch-29
+
+    * doc/guile-rpc.texi: Replace "the Free Software Foundation" by "the
+      author" in the "Permission is granted [...] translations" paragraph.
+      (Record Marking Standard): Filled in.
+      (Variable Index): New.
+
+    modified files:
+     ChangeLog doc/guile-rpc.texi
+
+
 2007-03-03 14:41:00 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-28
 
     Summary:

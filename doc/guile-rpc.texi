@@ -33,13 +33,13 @@ permission notice identical to this one.
 Permission is granted to copy and distribute translations of this manual
 into another language, under the above conditions for modified versions,
 except that this permission notice may be stated in a translation
-approved by the Free Software Foundation.
+approved by the author.
 @end ifinfo
 
 @titlepage
 @title An ONC RPC Framework for Guile
 @subtitle for Guile-RPC @value{VERSION}
-@author Ludovic Courtès
+@author Ludovic Court@`es
 
 @page
 @vskip 0pt plus 1filll
@@ -61,7 +61,7 @@ permission notice identical to this one.
 Permission is granted to copy and distribute translations of this manual
 into another language, under the above conditions for modified versions,
 except that this permission notice may be stated in a translation
-approved by the Free Software Foundation.
+approved by the author.
 @end titlepage
 
 @contents
@@ -78,8 +78,10 @@ last updated in @value{UPDATED-MONTH}.
 * Quick Start::                 Writing an RPC client/server in a glimpse
 * API Reference::               Everything about Guile-RPC
 * References::                  Useful documents
+
 * Concept Index::               Concepts discussed in this document
 * Function Index::              Index of Scheme procedures
+* Variable Index::              Index of Scheme variables
 @end menu
 
 
@@ -452,6 +454,7 @@ is currently not available (FIXME).
 @end defvr
 
 @defvr {Scheme Variable} xdr-void
+@vindex %void
 The ``void'' type that yields zero bits.  Any Scheme value is suitable
 as an input when encoding with this type.  When decoding this type,
 the @code{%void} value (which may be compared via @code{eq?}) is
@@ -817,7 +820,41 @@ decoding, for instance.
 @node Record Marking Standard,  , ONC RPC Message Types, Implementation of ONC RPC
 @subsection Record Marking Standard
 
-FIXME: Write about @code{(rpc rpc transports)}.
+@cindex record-marking protocol
+
+The ONC RPC standard defines a @dfn{record-marking protocol} for
+stream-oriented transport layers such as TCP whereby (1) each RPC
+message is sent out as a single @dfn{record} and (2) where records may
+be split into several @dfn{fragments}.  This allows implementations to
+``delimit one message from another in order to detect and possibly
+recover from protocol errors'' (@pxref{References, @code{RFC
+1831}@comma{} Section 10}).
+
+This protocol is implemented by the @code{(rpc rpc transports)}
+module.  It is automatically used by the high-level client and server
+facilities, namely @ref{Building an RPC Client,
+@code{make-synchronous-rpc-call}} and @ref{Building an RPC Server,
+@code{run-tcp-rpc-server}}.  The available facilities are described
+below.
+
+@deffn {Scheme Procedure} send-rpc-record port bv offset len
+Send the RPC message of @var{len} octets encoded at offset
+@var{offset} in @var{bv} (a bytevector) to @var{port}.  This procedure
+sends the @var{len} octets of the record without fragmenting them.
+@end deffn
+
+@deffn {Scheme Procedure} make-rpc-record-sender fragment-len
+This procedure is a generalization of @code{send-rpc-record}.
+
+Return a procedure that sends data according to the record marking
+standard, chopping its input bytevector into fragments of size
+@var{fragment-len} octets.
+@end deffn
+
+@deffn {Scheme Procedure} rpc-record-marking-input-port port
+Return a binary input port that proxies @var{port} in order to implement
+decoding of the record marking standard (RFC 1831, Section 10).
+@end deffn
 
 
 @c *********************************************************************
@@ -840,9 +877,13 @@ External Data Representation Standard''}, May 2006.
 @unnumbered Concept Index
 @printindex cp
 
-@node Function Index,  , Concept Index, Top
+@node Function Index, Variable Index, Concept Index, Top
 @unnumbered Function Index
 @printindex fn
+
+@node Variable Index,  , Function Index, Top
+@unnumbered Variable Index
+@printindex vr
 
 
 @bye
