@@ -2,6 +2,19 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-03-04 18:46:46 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-32
+
+    Summary:
+      doc: Fixed typo.
+    Revision:
+      guile-rpc--devo--0--patch-32
+
+    * doc/guile-rpc.texi (Creating the Server): Fixed typo in the example.
+
+    modified files:
+     ChangeLog doc/guile-rpc.texi
+
+
 2007-03-04 18:02:38 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-31
 
     Summary:

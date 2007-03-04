@@ -282,7 +282,7 @@ our program.
 (define server-socket (socket PF_INET SOCK_STREAM 0))
 
 ;; Listen for connections on 127.0.0.1, port 6666.
-(bind store-socket AF_INET INADDR_LOOPBACK 6666)
+(bind server-socket AF_INET INADDR_LOOPBACK 6666)
 (listen server-socket 1024)
 
 ;; Go ahead and serve requests.
