@@ -2,6 +2,19 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-03-04 18:02:38 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-31
+
+    Summary:
+      Switch to version 0.1.
+    Revision:
+      guile-rpc--devo--0--patch-31
+
+    * configure.ac: Bumped version number to 0.1.
+
+    modified files:
+     ChangeLog configure.ac
+
+
 2007-03-04 16:59:53 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-30
 
     Summary:

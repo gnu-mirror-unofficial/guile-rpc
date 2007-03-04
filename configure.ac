@@ -2,11 +2,11 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.61)
-AC_INIT([guile-rpc], [0.0], [ludovic.courtes@laas.fr])
+AC_INIT([guile-rpc], [0.1], [ludovic.courtes@laas.fr])
 AC_CONFIG_AUX_DIR(build-aux)
 AC_CONFIG_MACRO_DIR(m4)
 
-AM_INIT_AUTOMAKE(guile-rpc, 0.0)
+AM_INIT_AUTOMAKE(guile-rpc, 0.1)
 
 AC_CONFIG_SRCDIR([modules/rpc/xdr.scm])
 
