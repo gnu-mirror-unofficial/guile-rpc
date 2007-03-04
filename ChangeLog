@@ -2,6 +2,19 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-03-04 16:59:53 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-30
+
+    Summary:
+      Removed useless stuff from `configure.ac'.
+    Revision:
+      guile-rpc--devo--0--patch-30
+
+    * configure.ac: Don't invoke `GUILE_FLAGS', don't look for `guile-snarf'.
+
+    modified files:
+     ChangeLog configure.ac
+
+
 2007-03-04 16:57:23 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-29
 
     Summary:
