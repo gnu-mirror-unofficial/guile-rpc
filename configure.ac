@@ -30,6 +30,9 @@ GUILE_MODULE_REQUIRED([srfi srfi-35])
 AC_CONFIG_FILES([Makefile
 	         doc/Makefile
 	         modules/Makefile
+		 utils/Makefile
 		 tests/Makefile])
+
+AC_CONFIG_FILES([utils/grpc-rpcinfo], [chmod +x utils/grpc-rpcinfo])
 
 AC_OUTPUT

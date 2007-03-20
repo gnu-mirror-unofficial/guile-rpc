@@ -1,1 +1,1 @@
-SUBDIRS = doc modules tests
+SUBDIRS = doc modules utils tests
