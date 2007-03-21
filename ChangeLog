@@ -2,6 +2,25 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-03-21 13:52:49 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-34
+
+    Summary:
+      `grpc-rpcinfo': Added support for `--delete'.
+    Revision:
+      guile-rpc--devo--0--patch-34
+
+    * utils/grpc-rpcinfo.in (%options)[delete]: New.
+      (show-help): Mention `--delete'.
+      (host-portmapper-socket-address): New, formerly in `main'.
+      (rpc-info): Use it.  Handle `--delete'.
+
+    modified files:
+     ChangeLog utils/grpc-rpcinfo.in
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--patch-2
+
+
 2007-03-21 13:52:04 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-33
 
     Summary:
