@@ -2,6 +2,37 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-03-21 13:52:04 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-33
+
+    Summary:
+      Added preliminary support for the RPC portmapper.
+    Revision:
+      guile-rpc--devo--0--patch-33
+
+    * Makefile.am (SUBDIRS): Added `utils'.
+    
+    * configure.ac: Output `utils/Makefile' and `utils/grpc-rpcinfo'.
+    
+    * modules/Makefile.am (nobase_dist_guilemodule_DATA): Added
+      `rpc/rpc/portmap.scm'.
+
+    new files:
+     modules/rpc/rpc/portmap.scm utils/.arch-ids/=id
+     utils/.arch-ids/Makefile.am.id
+     utils/.arch-ids/grpc-rpcinfo.in.id utils/.arch-inventory
+     utils/Makefile.am utils/grpc-rpcinfo.in
+
+    modified files:
+     ChangeLog Makefile.am configure.ac modules/Makefile.am
+
+    new directories:
+     utils utils/.arch-ids
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--base-0
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--patch-1
+
+
 2007-03-04 18:46:46 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-32
 
     Summary:
