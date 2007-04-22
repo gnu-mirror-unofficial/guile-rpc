@@ -18,7 +18,7 @@
 (define-module (rpc rpc server)
   :use-module (rpc rpc)
   :autoload   (rpc rpc types)       (rpc-message)
-  :autoload   (rpc xdr)             (xdr-type-size xdr-decode)
+  :autoload   (rpc xdr)             (xdr-type-size xdr-decode xdr-error?)
   :autoload   (rpc rpc transports)  (rpc-record-marking-input-port
                                      send-rpc-record)
   :autoload   (srfi srfi-1)         (find fold)
@@ -110,7 +110,7 @@
 
 (define-condition-type &rpc-invalid-procedure-error
                        &rpc-procedure-lookup-error
-  rpc-invalid-program-error?
+  rpc-invalid-procedure-error?
   (procedure  rpc-invalid-procedure-error:procedure)
   (program    rpc-invalid-procedure-error:program)
   (version    rpc-invalid-procedure-error:version))
@@ -293,7 +293,7 @@ the appropriate reply message via @var{send-result}."
 three-argument procedure that is passed a bytevector, offset and octet
 count."
   (guard (c ((rpc-procedure-lookup-error? c)
-             (handle-procedure-call c call send-result)))
+             (handle-procedure-lookup-error c call send-result)))
 
     (let* ((proc           (lookup-called-procedure call programs))
            (handler        (rpc-procedure-handler proc))
@@ -397,10 +397,16 @@ is being closed is passed the corresponding @code{<tcp-connection>} object."
                                                  s))
                                           connections))
                               (prog (tcp-connection-rpc-program conn)))
-                         (parameterize ((current-tcp-connection conn))
-                           (serve-one-tcp-request prog s))
+                         (guard (c ((or (rpc-server-error? c)
+                                        (xdr-error? c))
+                                    ;; discard the connection
+                                    (begin
+                                      (close s)
+                                      (delq conn connections))))
+                           (parameterize ((current-tcp-connection conn))
+                             (serve-one-tcp-request prog s))
 
-                         connections))))
+                           connections)))))
               connections
               reads))
 

@@ -2,6 +2,28 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-04-22 22:16:31 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-35
+
+    Summary:
+      Small fixes in the TCP server loop.
+    Revision:
+      guile-rpc--devo--0--patch-35
+
+    * modules/rpc/rpc/server.scm (&rpc-invalid-procedure-error): Fixed
+      predicate name.
+      (handle-procedure-call): Fixed exception handling.
+      (run-tcp-rpc-server): When serving a TCP request, handle
+      `rpc-server-error?' and `xdr-error?' exceptions and remove the
+      connection when one of these is caught.
+
+    modified files:
+     ChangeLog modules/rpc/rpc/server.scm
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--patch-3
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--patch-4
+
+
 2007-03-21 13:52:49 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-34
 
     Summary:
