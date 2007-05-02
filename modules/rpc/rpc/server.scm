@@ -54,6 +54,8 @@
            onc-rpc-version-mismatch-error:peer-version
            &rpc-invalid-call-message-error rpc-invalid-call-message-error?
            rpc-invalid-call-message-error:message
+           &rpc-connection-lost-error rpc-connection-lost-error?
+           rpc-connection-lost-error:port
 
            &rpc-procedure-lookup-error rpc-procedure-lookup-error?
            &rpc-invalid-program-error &rpc-invalid-version-error
@@ -91,6 +93,9 @@
   rpc-invalid-call-message-error?
   (message rpc-invalid-call-message-error:message))
 
+(define-condition-type &rpc-connection-lost-error &rpc-server-error
+  rpc-connection-lost-error?
+  (port    rpc-connection-lost-error:port))
 
 ;; Procedure lookup errors.
 
@@ -321,11 +326,14 @@ count."
 
 (define (serve-one-tcp-request program port)
   "Serve one block store requests for @var{program} on port @var{port}.
-@var{peer-address} should be the IP address where the request originates."
+@var{peer-address} should be the IP address where the request originates.  If
+@var{port} is closed of the end-of-file was reached, an
+@code{&rpc-connection-lost-error} is raised."
   (let* ((input-port (rpc-record-marking-input-port port)))
 
     (if (eof-object? (lookahead-u8 port))
-        #f ;; XXX: The connection should eventually be removed.
+        (raise (condition (&rpc-connection-lost-error
+                           (port port))))
         (let* ((msg (xdr-decode rpc-message input-port))
                (call (procedure-call-information msg)))
           (handle-procedure-call call (list program) input-port
@@ -433,6 +441,6 @@ is being closed is passed the corresponding @code{<tcp-connection>} object."
 
 
 
-;;; server.scm ens here
+;;; server.scm ends here
 
 ;;; arch-tag: 60ab6723-b30d-4c60-809c-f1e54c6c6ac9

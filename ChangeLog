@@ -2,6 +2,26 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-05-02 21:24:03 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-36
+
+    Summary:
+      Raise a condition on EOF in `serve-one-tcp-request'.
+    Revision:
+      guile-rpc--devo--0--patch-36
+
+    * modules/rpc/rpc/server.scm (&rpc-connection-lost-error): New condition
+      type.
+      (serve-one-tcp-request): Raise an `&rpc-connection-lost-error'
+      condition on EOF.  That condition is then properly handled in
+      `run-tcp-rpc-server'.
+
+    modified files:
+     ChangeLog modules/rpc/rpc/server.scm
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--patch-5
+
+
 2007-04-22 22:16:31 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-35
 
     Summary:
