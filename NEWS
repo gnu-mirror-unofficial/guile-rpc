@@ -1,1 +1,6 @@
-No news.
+* New in Guile-RPC 0.1
+
+** Added portmapper interface definitions
+** Added portmapper client `grpc-rpcinfo', similar to `rpcinfo(1)'
+** Bug fixes in the TCP server loop
+
