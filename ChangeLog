@@ -2,6 +2,24 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-05-11 21:17:23 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-39
+
+    Summary:
+      `serve-one-tcp-request': Catch `system-error' and raise conditions.
+    Revision:
+      guile-rpc--devo--0--patch-39
+
+    * modules/rpc/rpc/server.scm (serve-one-tcp-request): Catch
+      `system-error' and raise an `&rpc-connection-lost-error' when this
+      occurs.
+
+    modified files:
+     ChangeLog modules/rpc/rpc/server.scm
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--patch-8
+
+
 2007-05-11 21:17:02 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-38
 
     Summary:
