@@ -43,6 +43,10 @@
            lookup-called-procedure handle-procedure-call
            handle-procedure-lookup-error
 
+           make-i/o-manager i/o-manager?
+           i/o-manager:exception-handler i/o-manager:read-handler
+           run-input-event-loop
+
            serve-one-tcp-request run-tcp-rpc-server current-tcp-connection
            tcp-connection?
            tcp-connection-port tcp-connection-peer-address
@@ -321,6 +325,92 @@ count."
 
 
 ;;;
+;;; Generic event loop.
+;;;
+
+(define-record-type <i/o-manager>
+  (%make-i/o-manager  exception-handler read-handler)
+  i/o-manager?
+  (exception-handler  i/o-manager:exception-handler)
+  (read-handler       i/o-manager:read-handler))
+
+(define (make-i/o-manager exception-handler read-handler)
+  "Return an I/O manager.  When data is available for reading,
+@var{read-handler} will be called and passed a port to read from; when an
+exception occurs on a port, @var{exception-handler} is called and passed the
+failing port."
+  (%make-i/o-manager exception-handler read-handler))
+
+
+(define (run-input-event-loop fd+manager-list timeout idle-thunk)
+  "Run an input event loop based on @var{fd+manager-list}, a list of pairs of
+input ports (or file descriptors) and I/O managers.  I/O managers are invoked
+are invoked and passed the corresponding port when data becomes readable or
+when an exception occurs.  I/O manager handlers can:
+
+@itemize
+@item return @code{#f}, in which case the port and I/O manager are removed
+from the list of watched ports;
+@item return a pair containing an input port and I/O manager, in which case
+this pair is added to the list of watched ports;
+@item return true, in which case the list of watched ports remains unchanged.
+@end itemize
+
+When @var{timeout} (a number of microseconds) is reached, @var{idle-thunk} is
+invoked.  If timeout is @code{#f}, then an infinite timeout is assumed and
+@var{idle-thunk} is never run.  The event loop returns when no watched port
+is left."
+
+  ;; XXX: The code has a nice functional style but is far from optimized.  We
+  ;; should use, e.g., vlists instead of lists
+  ;; (http://en.wikipedia.org/wiki/VList).
+
+  (define timeout-s  (and timeout (quotient  timeout 1000000)))
+  (define timeout-us (and timeout (remainder timeout 1000000)))
+
+  (define (handle-events fd-list fd+manager-list get-handler)
+    ;; Handle events for file descriptors listed in FD-LIST using the
+    ;; FD+MANAGER-LIST alist.  Return a new list of pairs of file descriptor
+    ;; and handler.
+    (let loop ((fd-list   fd-list)
+               (new-alist fd+manager-list))
+      (if (null? fd-list)
+          new-alist
+          (let* ((fd         (car fd-list))
+                 (fd+handler (assoc fd fd+manager-list))
+                 (handler    (get-handler (cdr fd+handler)))
+                 (result     (handler fd)))
+            (loop (cdr fd-list)
+                  (cond ((pair? result)
+                         ;; add a new fd+manager pair.
+                         (cons result new-alist))
+                        ((not result)
+                         ;; remove this fd+manager pair.
+                         (alist-delete! fd new-alist))
+                        (else
+                         ;; keep this fd+manager pair.
+                         new-alist)))))))
+
+  (let loop ((fd+manager-list fd+manager-list))
+
+    (if (not (null? fd+manager-list))
+        (let* ((fd-list  (map car fd+manager-list))
+               (selected (select fd-list '() fd-list
+                                 timeout-s timeout-us))
+               (reads    (car selected))
+               (excepts  (caddr selected)))
+          (loop (if (and (null? reads) (null? excepts))
+                    (begin
+                      (idle-thunk)
+                      fd+manager-list)
+                    (handle-events reads
+                                   (handle-events excepts
+                                                  fd+manager-list
+                                                  i/o-manager:exception-handler)
+                                   i/o-manager:read-handler)))))))
+
+
+;;;
 ;;; High-level aids.
 ;;;
 
@@ -364,81 +454,54 @@ that the loop should wait for input; when no input is available,
 If @var{close-connection-proc} is a procedure, it is called when a connection
 is being closed is passed the corresponding @code{<tcp-connection>} object."
 
-  ;; XXX: The code has a nice functional style but is far from optimized.  We
-  ;; should use, e.g., vlists instead of lists
-  ;; (http://en.wikipedia.org/wiki/VList).
+  (define (make-rpc-request-i/o-manager program conn)
+    ;; Return a new I/O manager for a connected socket.
+    (make-i/o-manager (lambda (socket)
+                        ;; Exception handler: remove the connection.
+                        (false-if-exception (close socket))
+                        #f)
 
-  (define sockets
-    (map car sockets+rpc-programs))
+                      (lambda (socket)
+                        ;; Read handler: process a request.
+                        (guard (c ((or (rpc-server-error? c)
+                                       (xdr-error? c))
+                                   ;; discard the connection
+                                   (begin
+                                     (close socket)
+                                     #f)))
+                               (parameterize ((current-tcp-connection conn))
+                                 (serve-one-tcp-request program socket))
 
-  (define timeout-s  (quotient  timeout 1000000))
-  (define timeout-us (remainder timeout 1000000))
+                               #t))))
 
-  (let server ((connections '()))
-    (let* ((connection-sockets (map tcp-connection-port connections))
-           (selected (select (append sockets
-                                     connection-sockets)
-                             '()
-                             connection-sockets
-                             timeout-s timeout-us))
-           (reads    (car selected))
-           (writes   (cadr selected))
-           (excepts  (caddr selected)))
+  (define (make-connection-request-i/o-manager program)
+    ;; Return a new I/O manager for a listening socket.
+    (make-i/o-manager (lambda (socket)
+                        ;; Exception handler: remove the connection.
+                        (false-if-exception (close socket))
+                        #f)
 
-      (define (handle-reads reads connections)
-        (fold (lambda (s connections)
-                (cond ((assq s sockets+rpc-programs)
-                       =>
-                       (lambda (socket+program)
-                         ;; Initiate a new connection.
-                         (let* ((program  (cdr socket+program))
-                                (accepted (accept s))
-                                (port     (car accepted))
-                                (address  (cdr accepted)))
-                           (cons (make-tcp-connection port address
-                                                      program)
-                                 connections))))
-                      (else
-                       ;; Process a request.
-                       (let* ((conn (find (lambda (c)
-                                            (eq? (tcp-connection-port c)
-                                                 s))
-                                          connections))
-                              (prog (tcp-connection-rpc-program conn)))
-                         (guard (c ((or (rpc-server-error? c)
-                                        (xdr-error? c))
-                                    ;; discard the connection
-                                    (begin
-                                      (close s)
-                                      (delq conn connections))))
-                           (parameterize ((current-tcp-connection conn))
-                             (serve-one-tcp-request prog s))
+                      (lambda (socket)
+                        ;; Read handler: initiate a new connection.
+                        (let* ((accepted (accept socket))
+                               (port     (car accepted))
+                               (address  (cdr accepted))
+                               (conn     (make-tcp-connection port address
+                                                              program)))
+                          (cons port
+                                (make-rpc-request-i/o-manager program
+                                                              conn))))))
 
-                           connections)))))
-              connections
-              reads))
+  (define (socket+rpc-program->socket+handlers p)
+    (let ((socket  (car p))
+          (program (cdr p)))
+      (cons socket
+            (make-connection-request-i/o-manager program))))
 
-      (define (handle-exceptions exceptions connections)
-        (fold (lambda (s connections)
-                (filter (lambda (c)
-                          (if (eq? s (tcp-connection-port c))
-                              (begin
-                                (if (procedure? close-connection-proc)
-                                    (close-connection-proc c))
-                                #f)
-                              #t))
-                        connections))
-              connections
-              exceptions))
-
-
-      (if (and (null? reads) (null? excepts))
-          (begin
-            (idle-thunk)
-            (server connections))
-          (server (handle-exceptions excepts
-                                     (handle-reads reads connections)))))))
-
+  (run-input-event-loop (map socket+rpc-program->socket+handlers
+                             sockets+rpc-programs)
+                        timeout
+                        idle-thunk))
 
 
 ;;; server.scm ends here

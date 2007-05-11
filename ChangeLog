@@ -2,6 +2,26 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-05-11 21:17:02 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-38
+
+    Summary:
+      rpc server: Added a generic input even loop; rewrote TCP loop.
+    Revision:
+      guile-rpc--devo--0--patch-38
+
+    * NEWS: Mention `run-input-event-loop'.
+    
+    * modules/rpc/rpc/server.scm (<i/o-manager>): New record type.
+      (make-i/o-manager, run-input-event-loop): New procedures.
+      (run-tcp-rpc-server): Rewritten in terms of `run-input-event-loop'.
+
+    modified files:
+     ChangeLog NEWS modules/rpc/rpc/server.scm
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--patch-7
+
+
 2007-05-02 21:24:26 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-37
 
     Summary:
