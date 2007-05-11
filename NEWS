@@ -3,4 +3,5 @@
 ** Added portmapper interface definitions
 ** Added portmapper client `grpc-rpcinfo', similar to `rpcinfo(1)'
 ** Bug fixes in the TCP server loop
+** Added a generic event loop, `run-input-event-loop'
 
