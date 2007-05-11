@@ -2,6 +2,21 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-05-11 21:17:39 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-40
+
+    Summary:
+      Updated `NEWS'.
+    Revision:
+      guile-rpc--devo--0--patch-40
+
+
+    modified files:
+     ChangeLog NEWS
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--patch-9
+
+
 2007-05-11 21:17:23 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-39
 
     Summary:
