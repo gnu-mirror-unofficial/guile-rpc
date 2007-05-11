@@ -421,15 +421,22 @@ is left."
 @code{&rpc-connection-lost-error} is raised."
   (let* ((input-port (rpc-record-marking-input-port port)))
 
-    (if (eof-object? (lookahead-u8 port))
-        (raise (condition (&rpc-connection-lost-error
-                           (port port))))
-        (let* ((msg (xdr-decode rpc-message input-port))
-               (call (procedure-call-information msg)))
-          (handle-procedure-call call (list program) input-port
-                                 (lambda (bv offset count)
-                                   (send-rpc-record port bv
-                                                    offset count)))))))
+    (catch 'system-error
+      (lambda ()
+        (if (eof-object? (lookahead-u8 port))
+            (raise (condition (&rpc-connection-lost-error
+                               (port port))))
+            (let* ((msg (xdr-decode rpc-message input-port))
+                   (call (procedure-call-information msg)))
+              (handle-procedure-call call (list program) input-port
+                                     (lambda (bv offset count)
+                                       (send-rpc-record port bv
+                                                        offset count))))))
+      (lambda (key . args)
+        (let ((proc  (car args))
+              (errno (car (cadddr args))))
+          (raise (condition (&rpc-connection-lost-error
+                             (port port)))))))))
 
 (define-record-type <tcp-connection>
   (make-tcp-connection port address rpc-program)
