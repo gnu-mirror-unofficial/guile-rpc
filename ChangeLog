@@ -2,6 +2,25 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-05-12 10:50:59 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-42
+
+    Summary:
+      Added a server-loop test over Unix-domain sockets.
+    Revision:
+      guile-rpc--devo--0--patch-42
+
+    * tests/Makefile.am (TESTS): Added `server-loop.test'.
+
+    new files:
+     tests/server-loop.test
+
+    modified files:
+     ChangeLog tests/Makefile.am
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--patch-11
+
+
 2007-05-12 10:50:42 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-41
 
     Summary:
