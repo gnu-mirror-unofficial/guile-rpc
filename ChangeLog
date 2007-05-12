@@ -2,6 +2,26 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-05-12 10:50:42 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-41
+
+    Summary:
+      Small fixes in `run-tcp-rpc-server', renamed to `run-stream-rpc-server'.
+    Revision:
+      guile-rpc--devo--0--patch-41
+
+    * modules/rpc/rpc/server.scm (run-tcp-rpc-server): Renamed to...
+      (run-stream-rpc-server): Updated comment.
+      [make-rpc-request-i/o-manager](close-conn): New.  Make sure
+      CLOSE-CONNECTION-PROC is called.
+      (run-tcp-rpc-server): Kept as an alias for compatibility.
+
+    modified files:
+     ChangeLog modules/rpc/rpc/server.scm
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--patch-10
+
+
 2007-05-11 21:17:39 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-40
 
     Summary:

@@ -47,8 +47,8 @@
            i/o-manager:exception-handler i/o-manager:read-handler
            run-input-event-loop
 
-           serve-one-tcp-request run-tcp-rpc-server current-tcp-connection
-           tcp-connection?
+           serve-one-tcp-request run-stream-rpc-server run-tcp-rpc-server
+           current-tcp-connection tcp-connection?
            tcp-connection-port tcp-connection-peer-address
            tcp-connection-rpc-program
 
@@ -450,10 +450,11 @@ is left."
   (make-parameter #f))
 
 
-(define (run-tcp-rpc-server sockets+rpc-programs timeout
-                            close-connection-proc idle-thunk)
-  "Run a full-blown TCP RPC server for the given listening sockets and RPC
-programs.  @var{sockets+rpc-programs} should be a list of listening
+(define (run-stream-rpc-server sockets+rpc-programs timeout
+                               close-connection-proc idle-thunk)
+  "Run a full-blown connection-oriented (i.e., @code{SOCK_STREAM}, be it
+@code{PF_UNIX} or @code{PF_INET}) RPC server for the given listening sockets
+and RPC programs.  @var{sockets+rpc-programs} should be a list of listening
 socket-RPC program pairs (where ``RPC programs'' are objects as returned by
 @code{make-rpc-program}).  @var{timeout} should be a number of microseconds
 that the loop should wait for input; when no input is available,
@@ -463,19 +464,23 @@ is being closed is passed the corresponding @code{<tcp-connection>} object."
 
   (define (make-rpc-request-i/o-manager program conn)
     ;; Return a new I/O manager for a connected socket.
+    (define (close-conn socket)
+      (if (procedure? close-connection-proc)
+          (close-connection-proc conn))
+      (false-if-exception (close socket))
+      ;; Return `#f' so that the connection is removed.
+      #f)
+
     (make-i/o-manager (lambda (socket)
                         ;; Exception handler: remove the connection.
-                        (false-if-exception (close socket))
-                        #f)
+                        (close-conn socket))
 
                       (lambda (socket)
                         ;; Read handler: process a request.
                         (guard (c ((or (rpc-server-error? c)
                                        (xdr-error? c))
                                    ;; discard the connection
-                                   (begin
-                                     (close socket)
-                                     #f)))
+                                   (close-conn socket)))
                                (parameterize ((current-tcp-connection conn))
                                  (serve-one-tcp-request program socket))
 
@@ -509,6 +514,9 @@ is being closed is passed the corresponding @code{<tcp-connection>} object."
                              sockets+rpc-programs)
                         timeout
                         idle-thunk))
+
+;; Kept for compatibility.
+(define run-tcp-rpc-server run-stream-rpc-server)
 
 
 ;;; server.scm ends here
