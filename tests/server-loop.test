@@ -18,13 +18,9 @@
 ;;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 (define-module (tests server-loop)
-  :use-module (r6rs bytevector)
-  :use-module (r6rs i/o ports)
   :use-module (rpc xdr)
   :use-module (rpc xdr types)
   :use-module (rpc rpc)
-  :use-module (rpc rpc types)
-  :use-module (rpc rpc transports)
   :use-module (rpc rpc server)
   :use-module (srfi srfi-1)
   :use-module (srfi srfi-64))

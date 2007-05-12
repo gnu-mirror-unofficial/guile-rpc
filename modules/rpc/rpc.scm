@@ -258,8 +258,8 @@ condition is raised."
       (send-message endpoint msg 0 msg-len)
       (force-output endpoint)
 
-      (format #t "request sent (~a = ~a + ~a)!~%" msg-len
-              call-msg-len args-msg-len)
+      ;;(format #t "request sent (~a = ~a + ~a)!~%" msg-len
+      ;;        call-msg-len args-msg-len)
 
       ;; Wait for an answer
       (let* ((endpoint  (wrap-input-port endpoint))
