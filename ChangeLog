@@ -2,6 +2,25 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-05-12 13:22:55 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-43
+
+    Summary:
+      Cosmetic changes.
+    Revision:
+      guile-rpc--devo--0--patch-43
+
+    * modules/rpc/rpc.scm (make-synchronous-rpc-call): Commented out
+      debugging `format'.
+    
+    * tests/server-loop.test: Removed unnecessary `use-module's.
+
+    modified files:
+     ChangeLog modules/rpc/rpc.scm tests/server-loop.test
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--patch-12
+
+
 2007-05-12 10:50:59 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-42
 
     Summary:
