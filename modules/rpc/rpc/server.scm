@@ -47,6 +47,7 @@
            i/o-manager:exception-handler i/o-manager:read-handler
            run-input-event-loop
 
+           make-rpc-listening-socket-i/o-manager
            serve-one-stream-request run-stream-rpc-server
            current-stream-connection stream-connection?
            stream-connection-port stream-connection-peer-address

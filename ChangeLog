@@ -2,6 +2,22 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-05-13 21:47:24 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-45
+
+    Summary:
+      server: Added missing export.
+    Revision:
+      guile-rpc--devo--0--patch-45
+
+    * modules/rpc/rpc/server.scm: Export `make-rpc-listening-socket-i/o-manager'.
+
+    modified files:
+     ChangeLog modules/rpc/rpc/server.scm
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--patch-14
+
+
 2007-05-13 21:47:09 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-44
 
     Summary:
