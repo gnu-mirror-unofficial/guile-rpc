@@ -2,6 +2,27 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-05-13 21:47:09 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-44
+
+    Summary:
+      server: Renamed `tcp' to `stream'; export common I/O manager constructors.
+    Revision:
+      guile-rpc--devo--0--patch-44
+
+    * modules/rpc/rpc/server.scm: Renamed all `tcp' functions to `stream',
+      keeping the `tcp' version for compatibility.
+      (make-rpc-connection-i/o-manager): New, formerly in
+      `run-stream-rpc-server'.
+      (make-rpc-listening-socket-i/o-manager): Likewise.
+      (run-stream-rpc-server): Use them.
+
+    modified files:
+     ChangeLog modules/rpc/rpc/server.scm
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--patch-13
+
+
 2007-05-12 13:22:55 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-43
 
     Summary:

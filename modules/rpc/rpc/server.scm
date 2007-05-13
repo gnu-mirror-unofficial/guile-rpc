@@ -47,7 +47,12 @@
            i/o-manager:exception-handler i/o-manager:read-handler
            run-input-event-loop
 
-           serve-one-tcp-request run-stream-rpc-server run-tcp-rpc-server
+           serve-one-stream-request run-stream-rpc-server
+           current-stream-connection stream-connection?
+           stream-connection-port stream-connection-peer-address
+           stream-connection-rpc-program
+
+           serve-one-tcp-request run-tcp-rpc-server
            current-tcp-connection tcp-connection?
            tcp-connection-port tcp-connection-peer-address
            tcp-connection-rpc-program
@@ -414,7 +419,7 @@ is left."
 ;;; High-level aids.
 ;;;
 
-(define (serve-one-tcp-request program port)
+(define (serve-one-stream-request program port)
   "Serve one block store requests for @var{program} on port @var{port}.
 @var{peer-address} should be the IP address where the request originates.  If
 @var{port} is closed of the end-of-file was reached, an
@@ -438,16 +443,68 @@ is left."
           (raise (condition (&rpc-connection-lost-error
                              (port port)))))))))
 
-(define-record-type <tcp-connection>
-  (make-tcp-connection port address rpc-program)
-  tcp-connection?
-  (port        tcp-connection-port)
-  (address     tcp-connection-peer-address)
-  (rpc-program tcp-connection-rpc-program))
+(define-record-type <stream-connection>
+  (make-stream-connection port address rpc-program)
+  stream-connection?
+  (port        stream-connection-port)
+  (address     stream-connection-peer-address)
+  (rpc-program stream-connection-rpc-program))
 
-(define current-tcp-connection
+(define current-stream-connection
   ;; A fluid that is parameterized upon connection.
   (make-parameter #f))
+
+
+(define (make-rpc-connection-i/o-manager program conn close-connection-proc)
+  "Return a new I/O manager for a connected socket, represented by stream
+connection @var{conn} and serving RPC program @var{program}.  The returned
+I/O manager dispatches RPC calls to the procedures of @var{program} and
+parameterizes @code{current-stream-connection} before actually invoking RPC
+procedure handlers.  If @var{close-connection-proc} is a procedure, it is
+called upon connection termination."
+  (define (close-conn socket)
+    (if (procedure? close-connection-proc)
+        (close-connection-proc conn))
+    (false-if-exception (close socket))
+    ;; Return `#f' so that the connection is removed.
+    #f)
+
+  (make-i/o-manager (lambda (socket)
+                      ;; Exception handler: remove the connection.
+                      (close-conn socket))
+
+                    (lambda (socket)
+                      ;; Read handler: process a request.
+                      (guard (c ((or (rpc-server-error? c)
+                                     (xdr-error? c))
+                                 ;; discard the connection
+                                 (close-conn socket)))
+                             (parameterize ((current-stream-connection conn))
+                               (serve-one-tcp-request program socket))
+
+                             #t))))
+
+(define (make-rpc-listening-socket-i/o-manager program close-connection-proc)
+  "Return a new I/O manager for a listening socket serving RPC program
+@var{program}.  The returned I/O manager will produce I/O managers for its
+connections using @code{make-rpc-connection-i/o-manager}.  If
+@var{close-connection-proc} is a procedure, it will be called upon connection
+termination."
+  (make-i/o-manager (lambda (socket)
+                      ;; Exception handler: remove the connection.
+                      (false-if-exception (close socket))
+                      #f)
+
+                    (lambda (socket)
+                      ;; Read handler: initiate a new connection.
+                      (let* ((accepted (accept socket))
+                             (port     (car accepted))
+                             (address  (cdr accepted))
+                             (conn     (make-stream-connection port address
+                                                               program)))
+                        (cons port
+                              (make-rpc-connection-i/o-manager
+                                 program conn close-connection-proc))))))
 
 
 (define (run-stream-rpc-server sockets+rpc-programs timeout
@@ -460,63 +517,28 @@ socket-RPC program pairs (where ``RPC programs'' are objects as returned by
 that the loop should wait for input; when no input is available,
 @var{idle-thunk} is invoked, thus at most every @var{timeout} microseconds.
 If @var{close-connection-proc} is a procedure, it is called when a connection
-is being closed is passed the corresponding @code{<tcp-connection>} object."
-
-  (define (make-rpc-request-i/o-manager program conn)
-    ;; Return a new I/O manager for a connected socket.
-    (define (close-conn socket)
-      (if (procedure? close-connection-proc)
-          (close-connection-proc conn))
-      (false-if-exception (close socket))
-      ;; Return `#f' so that the connection is removed.
-      #f)
-
-    (make-i/o-manager (lambda (socket)
-                        ;; Exception handler: remove the connection.
-                        (close-conn socket))
-
-                      (lambda (socket)
-                        ;; Read handler: process a request.
-                        (guard (c ((or (rpc-server-error? c)
-                                       (xdr-error? c))
-                                   ;; discard the connection
-                                   (close-conn socket)))
-                               (parameterize ((current-tcp-connection conn))
-                                 (serve-one-tcp-request program socket))
-
-                               #t))))
-
-  (define (make-connection-request-i/o-manager program)
-    ;; Return a new I/O manager for a listening socket.
-    (make-i/o-manager (lambda (socket)
-                        ;; Exception handler: remove the connection.
-                        (false-if-exception (close socket))
-                        #f)
-
-                      (lambda (socket)
-                        ;; Read handler: initiate a new connection.
-                        (let* ((accepted (accept socket))
-                               (port     (car accepted))
-                               (address  (cdr accepted))
-                               (conn     (make-tcp-connection port address
-                                                              program)))
-                          (cons port
-                                (make-rpc-request-i/o-manager program
-                                                              conn))))))
+is being closed is passed the corresponding @code{<stream-connection>} object."
 
   (define (socket+rpc-program->socket+handlers p)
     (let ((socket  (car p))
           (program (cdr p)))
       (cons socket
-            (make-connection-request-i/o-manager program))))
+            (make-rpc-listening-socket-i/o-manager program
+                                                   close-connection-proc))))
 
   (run-input-event-loop (map socket+rpc-program->socket+handlers
                              sockets+rpc-programs)
                         timeout
                         idle-thunk))
 
-;; Kept for compatibility.
-(define run-tcp-rpc-server run-stream-rpc-server)
+;; Kept for compatibility with Guile-RPC 0.0.
+(define serve-one-tcp-request       serve-one-stream-request)
+(define run-tcp-rpc-server          run-stream-rpc-server)
+(define current-tcp-connection      current-stream-connection)
+(define tcp-connection?             stream-connection?)
+(define tcp-connection-port         stream-connection-port)
+(define tcp-connection-rpc-program  stream-connection-rpc-program)
+(define tcp-connection-peer-address stream-connection-peer-address)
 
 
 ;;; server.scm ends here
