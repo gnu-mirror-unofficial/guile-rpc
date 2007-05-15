@@ -2,6 +2,224 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-05-15 16:42:36 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-46
+
+    Summary:
+      Fixed autoload in `(rpc rpc server)'.
+    Revision:
+      guile-rpc--devo--0--patch-46
+
+    * modules/rpc/rpc/server.scm: Autoload `srfi-1' on `alist-delete!' too.
+
+    modified files:
+     ChangeLog modules/rpc/rpc/server.scm
+
+
+2007-05-13 21:47:24 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-45
+
+    Summary:
+      server: Added missing export.
+    Revision:
+      guile-rpc--devo--0--patch-45
+
+    * modules/rpc/rpc/server.scm: Export `make-rpc-listening-socket-i/o-manager'.
+
+    modified files:
+     ChangeLog modules/rpc/rpc/server.scm
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--patch-14
+
+
+2007-05-13 21:47:09 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-44
+
+    Summary:
+      server: Renamed `tcp' to `stream'; export common I/O manager constructors.
+    Revision:
+      guile-rpc--devo--0--patch-44
+
+    * modules/rpc/rpc/server.scm: Renamed all `tcp' functions to `stream',
+      keeping the `tcp' version for compatibility.
+      (make-rpc-connection-i/o-manager): New, formerly in
+      `run-stream-rpc-server'.
+      (make-rpc-listening-socket-i/o-manager): Likewise.
+      (run-stream-rpc-server): Use them.
+
+    modified files:
+     ChangeLog modules/rpc/rpc/server.scm
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--patch-13
+
+
+2007-05-12 13:22:55 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-43
+
+    Summary:
+      Cosmetic changes.
+    Revision:
+      guile-rpc--devo--0--patch-43
+
+    * modules/rpc/rpc.scm (make-synchronous-rpc-call): Commented out
+      debugging `format'.
+    
+    * tests/server-loop.test: Removed unnecessary `use-module's.
+
+    modified files:
+     ChangeLog modules/rpc/rpc.scm tests/server-loop.test
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--patch-12
+
+
+2007-05-12 10:50:59 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-42
+
+    Summary:
+      Added a server-loop test over Unix-domain sockets.
+    Revision:
+      guile-rpc--devo--0--patch-42
+
+    * tests/Makefile.am (TESTS): Added `server-loop.test'.
+
+    new files:
+     tests/server-loop.test
+
+    modified files:
+     ChangeLog tests/Makefile.am
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--patch-11
+
+
+2007-05-12 10:50:42 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-41
+
+    Summary:
+      Small fixes in `run-tcp-rpc-server', renamed to `run-stream-rpc-server'.
+    Revision:
+      guile-rpc--devo--0--patch-41
+
+    * modules/rpc/rpc/server.scm (run-tcp-rpc-server): Renamed to...
+      (run-stream-rpc-server): Updated comment.
+      [make-rpc-request-i/o-manager](close-conn): New.  Make sure
+      CLOSE-CONNECTION-PROC is called.
+      (run-tcp-rpc-server): Kept as an alias for compatibility.
+
+    modified files:
+     ChangeLog modules/rpc/rpc/server.scm
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--patch-10
+
+
+2007-05-11 21:17:39 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-40
+
+    Summary:
+      Updated `NEWS'.
+    Revision:
+      guile-rpc--devo--0--patch-40
+
+
+    modified files:
+     ChangeLog NEWS
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--patch-9
+
+
+2007-05-11 21:17:23 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-39
+
+    Summary:
+      `serve-one-tcp-request': Catch `system-error' and raise conditions.
+    Revision:
+      guile-rpc--devo--0--patch-39
+
+    * modules/rpc/rpc/server.scm (serve-one-tcp-request): Catch
+      `system-error' and raise an `&rpc-connection-lost-error' when this
+      occurs.
+
+    modified files:
+     ChangeLog modules/rpc/rpc/server.scm
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--patch-8
+
+
+2007-05-11 21:17:02 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-38
+
+    Summary:
+      rpc server: Added a generic input even loop; rewrote TCP loop.
+    Revision:
+      guile-rpc--devo--0--patch-38
+
+    * NEWS: Mention `run-input-event-loop'.
+    
+    * modules/rpc/rpc/server.scm (<i/o-manager>): New record type.
+      (make-i/o-manager, run-input-event-loop): New procedures.
+      (run-tcp-rpc-server): Rewritten in terms of `run-input-event-loop'.
+
+    modified files:
+     ChangeLog NEWS modules/rpc/rpc/server.scm
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--patch-7
+
+
+2007-05-02 21:24:26 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-37
+
+    Summary:
+      Updated `NEWS' file.
+    Revision:
+      guile-rpc--devo--0--patch-37
+
+
+    modified files:
+     ChangeLog NEWS
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--patch-6
+
+
+2007-05-02 21:24:03 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-36
+
+    Summary:
+      Raise a condition on EOF in `serve-one-tcp-request'.
+    Revision:
+      guile-rpc--devo--0--patch-36
+
+    * modules/rpc/rpc/server.scm (&rpc-connection-lost-error): New condition
+      type.
+      (serve-one-tcp-request): Raise an `&rpc-connection-lost-error'
+      condition on EOF.  That condition is then properly handled in
+      `run-tcp-rpc-server'.
+
+    modified files:
+     ChangeLog modules/rpc/rpc/server.scm
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--patch-5
+
+
+2007-04-22 22:16:31 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-35
+
+    Summary:
+      Small fixes in the TCP server loop.
+    Revision:
+      guile-rpc--devo--0--patch-35
+
+    * modules/rpc/rpc/server.scm (&rpc-invalid-procedure-error): Fixed
+      predicate name.
+      (handle-procedure-call): Fixed exception handling.
+      (run-tcp-rpc-server): When serving a TCP request, handle
+      `rpc-server-error?' and `xdr-error?' exceptions and remove the
+      connection when one of these is caught.
+
+    modified files:
+     ChangeLog modules/rpc/rpc/server.scm
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--patch-3
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0--patch-4
+
+
 2007-03-21 13:52:49 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-34
 
     Summary:

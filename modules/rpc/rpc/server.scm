@@ -21,7 +21,7 @@
   :autoload   (rpc xdr)             (xdr-type-size xdr-decode xdr-error?)
   :autoload   (rpc rpc transports)  (rpc-record-marking-input-port
                                      send-rpc-record)
-  :autoload   (srfi srfi-1)         (find fold)
+  :autoload   (srfi srfi-1)         (find fold alist-delete!)
   :use-module (srfi srfi-9)
   :use-module (srfi srfi-34)
   :use-module (srfi srfi-35)
