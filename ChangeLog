@@ -2,6 +2,19 @@
 # arch-tag: automatic-ChangeLog--lcourtes@laas.fr--2006-libre/guile-rpc--devo--0
 #
 
+2007-05-15 16:42:36 GMT	Ludovic Court`es <ludovic.courtes@laas.fr>	patch-46
+
+    Summary:
+      Fixed autoload in `(rpc rpc server)'.
+    Revision:
+      guile-rpc--devo--0--patch-46
+
+    * modules/rpc/rpc/server.scm: Autoload `srfi-1' on `alist-delete!' too.
+
+    modified files:
+     ChangeLog modules/rpc/rpc/server.scm
+
+
 2007-05-13 21:47:24 GMT	Ludovic Courtes <ludovic.courtes@laas.fr>	patch-45
 
     Summary:
