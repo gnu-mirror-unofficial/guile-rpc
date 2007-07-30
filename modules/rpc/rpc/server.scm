@@ -50,11 +50,13 @@
 
            make-rpc-listening-socket-i/o-manager
            serve-one-stream-request serve-one-stream-request/asynchronous
+           handle-procedure-call handle-procedure-lookup-error
            run-stream-rpc-server
            current-stream-connection stream-connection?
            stream-connection-port stream-connection-peer-address
            stream-connection-rpc-program
 
+           ;; deprecated
            serve-one-tcp-request run-tcp-rpc-server
            current-tcp-connection tcp-connection?
            tcp-connection-port tcp-connection-peer-address
