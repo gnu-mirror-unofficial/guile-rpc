@@ -1,5 +1,8 @@
 * New in GNU Guile-RPC 0.2
 
+** New features (see manual for details)
+*** Server-side: asynchronous RPC reply
+
 
 * New in GNU Guile-RPC 0.1
 
