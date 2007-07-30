@@ -119,9 +119,74 @@
                           (run-stream-rpc-server (list (cons sock prog))
                                                  1000000
                                                  finish
-                                                 (lambda () #t))))))
+                                                 (lambda () #t))
+                          (primitive-exit 1)))))
                 #t))
 
+(test-equal "client/asynchronous-server" #t
+            (if socket-support?
+                (let ((sockets (socketpair PF_UNIX SOCK_STREAM 0)))
+                  (let ((pid (primitive-fork)))
+                    (if (not (= 0 pid))
+
+                        ;; client
+                        (let ((sock   (car sockets))
+                              (invoke
+                               (make-synchronous-rpc-call %program
+                                                          %version
+                                                          %procedure
+                                                          %argument-type
+                                                          %result-type)))
+                          (close (cdr sockets))
+                          (dynamic-wind
+                              (lambda ()
+                                #t)
+                              (lambda ()
+                                ;; Make sure the server properly implements
+                                ;; the addition.
+                                (every? (lambda (xid a b)
+                                          (let ((res (invoke (list a b)
+                                                             xid sock)))
+                                            ;;(format #t "res: ~a vs ~a~%"
+                                            ;;        res (+ a b))
+                                            (= res (+ a b))))
+                                        (iota %iterations)
+                                        (iota %iterations)
+                                        (reverse! (iota %iterations))))
+                              (lambda ()
+                                ;;(format #t "finishing~%")
+                                (close sock))))
+
+                        ;; server
+                        (let* ((do-+ (lambda (arg return)
+                                       (return (apply + arg))))
+
+                               (sock (cdr sockets))
+                               (proc (make-rpc-procedure %procedure
+                                                         %argument-type
+                                                         %result-type
+                                                         do-+))
+                               (vers (make-rpc-program-version %version
+                                                               (list proc)))
+                               (prog (make-rpc-program %program
+                                                       (list vers))))
+
+                          (close (car sockets))
+                          (dynamic-wind
+                              (lambda () #t)
+                              (lambda ()
+                                (while #t
+                                  ;;(format #t "entered server loop~%")
+                                  (serve-one-stream-request/asynchronous
+                                     prog sock)))
+                              (lambda ()
+                                ;; At the end, an
+                                ;; `&rpc-connection-lost-error' is raised and
+                                ;; caught here.
+                                ;;(format #t "server leaving~%")
+                                (close sock)
+                                (primitive-exit)))))))
+                #t))
 
 (test-end "server-loop")
 
