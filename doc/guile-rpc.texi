@@ -1,0 +1,1204 @@
+\input texinfo  @c -*-texinfo-*-
+
+@c Copyright (C) 2007  Free Software Foundation, Inc.
+@c
+@c Permission is granted to copy, distribute and/or modify this
+@c document under the terms of the GNU Free Documentation License,
+@c Version 1.1 or any later version published by the Free Software
+@c Foundation; with no Invariant Sections, no Front-Cover Texts and
+@c no Back-Cover Texts.  A copy of the license is included in the
+@c section entitled "GNU Free Documentation License".
+
+
+@c %**start of header
+@setfilename guile-rpc.info
+@settitle An ONC RPC Framework for Guile
+@footnotestyle end
+@setchapternewpage odd
+@c %**end of header
+
+@set EDITION 1
+@include version.texi
+
+@copying
+This file documents GNU Guile-RPC @value{VERSION}.
+
+Copyright @copyright{} 2007 Free Software Foundation, Inc.
+
+@quotation
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1 or
+any later version published by the Free Software Foundation; with no
+Invariant Sections, no Front-Cover Texts and no Back-Cover Texts.  A
+copy of the license is included in the section entitled "GNU Free
+Documentation License".
+@end quotation
+@end copying
+
+@dircategory The Algorithmic Language Scheme
+@direntry
+* Guile-RPC: (guile-rpc).      An ONC RPC Framework for Guile.
+@end direntry
+
+@dircategory Network Applications
+@direntry
+* grpc-rpcinfo: (guile-rpc)Invoking grpc-rpcinfo.
+                               Guile-RPC's portmapper client
+@end direntry
+
+@titlepage
+@title An ONC RPC Framework for Guile
+@subtitle for GNU Guile-RPC @value{VERSION}
+@author Ludovic Court@`es
+
+@page
+@vskip 0pt plus 1filll
+Edition @value{EDITION} @*
+@c Updated for Guile-RPC @value{VERSION} @*
+@value{UPDATED} @*
+
+Copyright @copyright{} 2007 Free Software Foundation, Inc.
+
+Permission is granted to make and distribute verbatim copies of this
+manual provided the copyright notice and this permission notice are
+preserved on all copies.
+
+Permission is granted to copy and distribute modified versions of this
+manual under the conditions for verbatim copying, provided that the
+entire resulting derived work is distributed under the terms of a
+permission notice identical to this one.
+
+Permission is granted to copy and distribute translations of this manual
+into another language, under the above conditions for modified versions,
+except that this permission notice may be stated in a translation
+approved by the author.
+@end titlepage
+
+@contents
+
+@c *********************************************************************
+@node Top, Introduction, (dir), (dir)
+@top An ONC RPC Framework for Guile
+
+This document describes GNU Guile-RPC version @value{VERSION}.  It was
+last updated in @value{UPDATED-MONTH}.
+
+@menu
+* Introduction::                   Overview of Guile-RPC
+* Obtaining and Installing::       Notes on installation
+* Quick Start::                    Writing an RPC client/server in a glimpse
+* API Reference::                  Everything about Guile-RPC
+* Stand-Alone Tools::              Command-line tools
+* References::                     Useful documents
+* GNU Free Documentation License:: The license of this manual
+
+* Concept Index::                  Concepts discussed in this document
+* Function Index::                 Index of Scheme procedures
+* Variable Index::                 Index of Scheme variables
+@end menu
+
+
+@c *********************************************************************
+@node Introduction, Obtaining and Installing, Top, Top
+@chapter Introduction
+
+GNU Guile-RPC is a framework for distributed programming under GNU
+Guile.  It is a pure Scheme implementation of the ONC RPC standard,
+i.e., the ``Open Network Computing'' Remote Procedure Call standard.
+ONC RPC is standardized by the Internet Engineering Task Force (IETF) as
+RFC 1831.  It is based on the External Data Representation standard
+(XDR), known as RFC 4506 (@pxref{References}).
+
+@cindex marshalling
+@cindex distributed programming
+Remote procedure calls allow programs on different, potentially remote
+machines to interact together.  A @dfn{remote procedure call} is the
+invocation of the procedure of a program located on a remote host (the
+@dfn{RPC server}), as the name implies.  Doing so requires the
+procedure arguments on the client-side to be encoded, or
+@dfn{marshalled}, i.e., converted to a representation suitable for
+transfer over the network.  On the server-side, upon reception of the
+RPC, those arguments must be decoded or @dfn{unmarshalled}, i.e.,
+converted back to a form that is directly understandable by the server
+program---for instance, data using Scheme data types, should the
+server program be written in Scheme.  The value returned by the RPC
+server must be encoded and decoded similarly.
+
+When using the ONC RPC protocol, the way data items are encoded is
+dictated by the XDR standard.  This encoding has the advantage of being
+particularly compact, allowing for relatively low bandwidth requirements
+and fast implementations, especially compared to more verbose RPC
+protocols such as XML-RPC and SOAP.
+
+The XDR encoding is not @dfn{self-describing}, i.e., it is impossible
+given an arbitrary XDR encoded sequence to determine the XDR type of the
+encoded data.  This is different from
+@uref{http://dbus.freedesktop.org/, D-Bus}, for example, which uses a
+compact and self-describing encoding.  In practice, this is sufficient
+for a wide range of applications.
+
+GNU Guile-RPC provides an easy access to the ONC RPC protocol for the
+Guile Scheme programmer.  In particular, it allows standard Scheme
+types to be mapped to XDR data types, so that Scheme objects are
+easily encoded to or decoded from XDR.
+
+Please send bug reports, comments and patches to the
+@email{bug-guile-rpc@@gnu.org, Guile-RPC mailing list}.
+
+
+@c *********************************************************************
+@node Obtaining and Installing, Quick Start, Introduction, Top
+@chapter Obtaining and Installing GNU Guile-RPC
+
+The GNU Guile-RPC web page is located at
+@uref{http://www.gnu.org/software/guile-rpc/}.  You can obtain copy of
+GNU Guile-RPC from @uref{ftp://alpha.gnu.org/gnu/guile-rpc/}.
+
+In order to use GNU Guile-RPC, all that is needed is
+@uref{http://www.gnu.org/software/guile/guile.html, GNU Guile 1.8}
+along with the R6RS library package for Guile 1.8, known as
+@uref{http://www.laas.fr/~lcourtes/software/guile/guile-r6rs-libs-0.0.tar.gz,
+@code{guile-r6rs-libs}}@footnote{Hopefully, this package will be
+integrated into core Guile when the final @uref{http://www.r6rs.org/,
+R6RS Standard} is accepted.}.
+
+As of this writing, Guile 1.8 does not contain an implementation of
+@uref{http://srfi.schemers.org/srfi-35/srfi-35.html, SRFI-35}.  Thus,
+you may need to install @uref{http://home.gna.org/guile-lib/,
+Guile-Lib}, which contains the relevant module.
+
+
+@c *********************************************************************
+@node Quick Start, API Reference, Obtaining and Installing, Top
+@chapter Quick Start
+
+Currently, Guile-RPC lacks a compiler for the XDR and RPC languages.
+So one has to write data type and RPC definitions ``by hand'', using
+the Guile-RPC's programming interface.  Hopefully, this should be
+quite straightforward.
+
+Consider the following RPC definitions:
+
+@example
+typedef struct
+@{
+  int          integer_part;
+  unsigned int decimal_part;
+@} result_t;
+
+program ARITHMETIC_PROGRAM
+@{
+  version ARITHMETIC_VERSION
+  @{
+    /* Return the integer and decimal part of NUMBER.  */
+    result_t split_number (double number) = 1;
+  @} = 0;
+@} = 80000;
+@end example
+
+This defines a simple RPC @dfn{interface} named @code{ARITHMETIC}
+which contains only one procedure called @code{split_number ()}.  The
+interface itself has a @dfn{program number} that identifies it (here,
+80000).  Normally, program numbers below 20000000 (hexadecimal) are
+assigned by Sun Microsystems, Inc. and thus should not be used unless
+the number has been properly registered (@pxref{References, RFC 1831},
+for details).  It also has a @dfn{version number} (here, 0) that is
+user-defined and should be increased when the interface changes (e.g.,
+when procedures are added, modified, etc.).  Finally, the procedure
+@code{split_number ()} has a procedure number (here, 1) that allows it
+to be distinguished from other procedures.
+
+People vaguely familiar with the C programming language should have
+guessed by now that this simple interface defines a procedure that
+takes a double-precision floating-point number and returns a structure
+that contains two fields.
+
+Client and server creation are two-step.  Since the first step---data
+type definition---is the same for both, that leaves us with a total of
+three steps, described below.
+
+@menu
+* Defining Data Types::         Defining RPC data types
+* Creating the Client::         Creating the RPC client
+* Creating the Server::         Creating the RPC server
+@end menu
+
+More details about the XDR type definition as well as client and
+server creation are available in the API reference (@pxref{API
+Reference}).
+
+
+@node Defining Data Types, Creating the Client, Quick Start, Quick Start
+@subsection Defining Data Types
+
+Before actually creating a client or server for this interface, one
+must define the types it uses.  To that end, one must first import the
+relevant Guile-RPC modules:
+
+@example
+(use-modules (rpc xdr)
+             (rpc xdr types))
+@end example
+
+Then, the @code{result_t} type must be defined:
+
+@example
+(define result-type
+  (make-xdr-struct-type (list xdr-integer             ;; `integer_part'
+                              xdr-unsigned-integer))) ;; `decimal_part'
+@end example
+
+@node Creating the Client, Creating the Server, Defining Data Types, Quick Start
+@subsection Creating the Client
+
+Producing a client to invoke @code{split_number ()} is as simple as
+this:
+
+@example
+(use-modules (rpc rpc))
+
+(define invoke-split-number
+  (make-synchronous-rpc-call 80000 0    ;; program and version
+                             1          ;; procedure number
+                             xdr-double ;; argument type
+                             result-type))
+@end example
+
+Once this is done, invoking the procedure is as simple as this:
+
+@example
+(invoke-split-number 3.14 #x7777 socket)
+@end example
+
+@cindex transaction ID (xid)
+
+The first argument to @code{invoke-split-number} is the argument of
+@code{split_number ()}; the second argument is a transaction ID, i.e.,
+an arbitrarily chosen number that identifies the remote procedure
+call; the third argument should be an output port, typically one
+bound to a connection to the RPC server:
+
+@example
+(define socket (socket PF_INET SOCK_STREAM 0))
+(connect socket AF_INET INADDR_LOOPBACK 6666)
+@end example
+
+This example creates an IPv4 connection to the local host on port 6666
+(@pxref{Network Sockets and Communication,,, guile, The GNU Guile
+Reference Manual}).
+
+On success, @code{invoke-split-number} returns a two-element list
+where the first element corresponds to the @code{integer_part} field
+of the result and the second element correspond to the
+@code{decimal_part} field of the result, both represented as Scheme
+exact integers.
+
+@node Creating the Server,  , Creating the Client, Quick Start
+@subsection Creating the Server
+
+Creating a TCP server for our RPC interface should be quite easy as
+well.  We can re-use our previous type definitions (@pxref{Defining
+Data Types}).  Then, all we have to do is to create a definition for
+our program.
+
+@example
+(use-modules (rpc rpc server))
+
+(define (split-number-handler number)
+  ;; Handle a `split-number' request.
+  (let* ((int (floor number))
+         (dec (floor (* 1000 (- number int)))))
+    (list (inexact->exact int)
+          (inexact->exact dec))))
+
+(define my-rpc-program
+  ;; Define our RPC program.
+  (let* ((proc (make-rpc-procedure number xdr-double result-type
+                                   split-number-handler))
+         (version (make-rpc-program-version 0 (list proc))))
+    (make-rpc-program 80000 (list version))))
+
+;; Creating a listening TCP socket.
+(define server-socket (socket PF_INET SOCK_STREAM 0))
+
+;; Listen for connections on 127.0.0.1, port 6666.
+(bind server-socket AF_INET INADDR_LOOPBACK 6666)
+(listen server-socket 1024)
+
+;; Go ahead and serve requests.
+(run-stream-rpc-server (list (cons server-socket my-rpc-program))
+                       1000000 ;; a one-second timeout
+                       #f      ;; we don't care about closed connections
+                       (lambda () ;; our idle thunk
+                         (format #t "one second passed~%")))
+@end example
+
+And now we're all set: We have a working TCP client and server for
+this wonderful RPC interface!  This would work similarly for other
+stream-oriented transports such as Unix-domain sockets: only the
+@code{socket} and @code{bind} calls need to be adapted.
+
+
+@c *********************************************************************
+@node API Reference, Stand-Alone Tools, Quick Start, Top
+@chapter API Reference
+
+This section first details facilities available to manipulate XDR
+types.  It then describes Scheme procedures that should be used to
+build ONC RPC clients and servers.
+
+@menu
+* Usage Notes::                 Preliminary remarks
+* Implementation of XDR::       The external data representation
+* Implementation of ONC RPC::   Remote procedure calls
+* Standard RPC Programs::       Interfaces to common RPC programs
+@end menu
+
+@node Usage Notes, Implementation of XDR, API Reference, API Reference
+@section Usage Notes
+
+Guile-RPC makes use of the
+@uref{http://srfi.schemers.org/srfi-34/srfi-34.html, SRFI-34 exception
+mechanism} along with
+@uref{http://srfi.schemers.org/srfi-35/srfi-35.html, SRFI-35 error
+conditions} to deal with the various protocol errors@footnote{Guile
+1.8 provides an implementation of the former in the @code{(srfi
+srfi-34)} module, while the latter is currently provided by the
+@uref{http://home.gna.org/guile-lib/, @code{guile-lib} package}.}.
+Thus, users are expected to use these mechanisms to handle the error
+conditions described in the following sections.  Hopefully, in most
+cases, error conditions raised by Guile-RPC code provide users
+with detailed information about the error.
+
+@node Implementation of XDR, Implementation of ONC RPC, Usage Notes, API Reference
+@section Implementation of XDR
+
+This section describes how XDR types are represented in Guile-RPC, as
+well as how one can encode Scheme values to XDR and decode XDR binary
+data to Scheme values.
+
+@menu
+* XDR Type Representations::    Foundations
+* XDR Standard Data Types::     The XDR standard types
+* XDR Encoding and Decoding::   Encoding to and decoding from XDR
+@end menu
+
+@node XDR Type Representations, XDR Standard Data Types, Implementation of XDR, Implementation of XDR
+@subsection XDR Type Representations
+
+@cindex XDR type objects
+
+The XDR standard defines various basic data types and allows for the
+definition of compound data types (``structs''), fixed-size and
+variable-size arrays as well as ``unions''.  Fixed-size arrays and
+structs can actually be thought as the same type: Their size if known
+in advance and they are encoded as the succession of the data they
+contain.  Thus, those types can be summarized as 4 great classes:
+``basic'' types, variable-length arrays, structs and unions.
+
+The @code{(rpc xdr)} module provides facilities to represent and
+handle these classes of types which we describe below.
+
+@deffn {Scheme Procedure} make-xdr-basic-type name size type-pred encoder decoder [vector-decoder]
+This returns an @code{<xdr-basic-type>} object describing a type whose
+encoding fits on @var{size} octets, and which is encoded/decoded using
+the @var{encoder} and @var{decoder} procedures.  @var{type-pred}
+should be a predicate checking the validity of an input Scheme value
+for encoding into this type.  Optionally, @var{vector-decoder} can be
+passed and should be a procedure that efficiently decodes sequences of
+data items of this type (for instance, the vector decoder could use
+the @code{bytevector->int-list} procedure of the @code{(r6rs
+bytevector)} module to speed up decoding).
+
+Users should normally not need to define new basic types since all the
+basic types defined by XDR are already available in @code{(rpc xdr
+types)} (@pxref{XDR Standard Data Types}).  Thus, we will not describe
+its use further.
+@end deffn
+
+@deffn {Scheme Procedure} make-xdr-struct-type base-types
+Return a new XDR struct type made of a sequence of XDR data items
+whose types are listed in @var{base-types}.
+
+Struct types encode from/decode to Scheme lists whose length is that
+of @var{base-types}.
+@end deffn
+
+@deffn {Scheme Procedure} make-xdr-vector-type base-type max-element-count
+Return an object describing an XDR variable-length array of elements
+of types @var{base-type} (again, an XDR type object).  If
+@var{max-element-count} is a number, then it describes the maximum
+number of items of type @var{base-type} that are allow in actual
+arrays of this type.  If @var{base-type} is @code{#f}, then arrays of
+this type may contain up to 2^32 - 1 items of type @var{base-type}.
+
+Vector types encode from/decode to Scheme vectors.  If
+@var{max-element-count} is specified and a vector to be encoded
+contains more than @var{max-element-count} elements, then an
+@code{&xdr-vector-size-exceeded-error} error condition is raised.
+Likewise, if XDR data to be decoded describes vectors larger than
+@var{max-element-count}, this error condition is raised.
+@end deffn
+
+@deffn {Scheme Procedure} make-xdr-union-type discr-type discr/type-alist default-type
+Return a new XDR discriminated union type, using @var{discr-type} as the
+discriminant type (which must be a 32-bit basic type) and
+@var{discr/type-alist} to select the ``arm'' type depending on the
+discriminant value.  If no suitable value is found in @var{discr/type-alist}
+and @var{default-type} is not @code{#f}, then default type is used as the arm
+type.
+
+Union types encode from/decode to Scheme pairs whose @code{car} is the
+discriminant's value and whose @code{cdr} is the actual union value.
+@end deffn
+
+@deffn {Scheme Procedure} xdr-union-arm-type union discriminant
+Return the type that should be used for @var{union}'s arm given
+@var{discriminant} (a Scheme value).
+@end deffn
+
+It is often useful to know the size in octets it takes to encode a
+given value according to an XDR type.  However, as we just saw, the
+size of some XDR types (variable-length arrays and unions) cannot be
+known in advance: The encoding size depends on the actual value to
+encode.  The following procedure allow the computation of the size of
+the XDR representation of some value.
+
+@deffn {Scheme Procedure} xdr-type-size type value
+Return the size (in octets) of @var{type} when applied to
+@var{value}.  @var{type} must be an XDR type object returned by one of
+the above procedures, while @var{value} should be a Scheme value
+suitable for encoding with @var{type}.
+@end deffn
+
+The following section lists the standard XDR data types.
+
+
+@node XDR Standard Data Types, XDR Encoding and Decoding, XDR Type Representations, Implementation of XDR
+@subsection XDR Standard Data Types
+
+All the basic data types defined by XDR are defined in the @code{(rpc
+xdr types)} module.
+
+@defvr {Scheme Variable} xdr-integer
+@defvrx {Scheme Variable} xdr-unsigned-integer
+@defvrx {Scheme Variable} xdr-hyper-integer
+@defvrx {Scheme Variable} xdr-unsigned-hyper-integer
+XDR's 32-bit and 64-bit signed and unsigned integer types.  This type
+decodes to/encodes from Scheme exact numbers.
+@end defvr
+
+@defvr {Scheme Variable} xdr-float
+@defvrx {Scheme Variable} xdr-double
+32-bit and 64-bit IEEE-754 floating point numbers.  This type decodes
+to/encodes from Scheme inexact numbers.  Note that XDR also defines a
+``quadruple-precision floating point type'' (i.e., 128-bit long) that
+is currently not available (FIXME).
+@end defvr
+
+@defvr {Scheme Variable} xdr-void
+@vindex %void
+The ``void'' type that yields zero bits.  Any Scheme value is suitable
+as an input when encoding with this type.  When decoding this type,
+the @code{%void} value (which may be compared via @code{eq?}) is
+returned.
+@end defvr
+
+XDR provides support for ``enumerations'', similar to that found in C.
+An enumeration type maps symbols to integers and are actually encoded
+as 32-bit integers.
+
+@deffn {Scheme Procedure} make-xdr-enumeration name enum-alist
+Return an enumeration type that obeys the symbol-integer mapping
+provided in @var{enum-alist} which should be a list of symbol-integer
+pairs.  The returned type decodes to/encodes from Scheme symbols, as
+provided in @var{enum-alist}.  Upon decoding/encoding of an
+enumeration, an @code{&xdr-enumeration-error} is raised if an
+incorrect value (i.e., one not listed in @var{enum-alist}) is found.
+@end deffn
+
+@deffn {Scheme Variable} xdr-boolean
+XDR's boolean type which is an enumeration.  It encodes to/decodes
+from Scheme symbols @code{TRUE} and @code{FALSE}.
+@end deffn
+
+Several fixed-size and variable-size are predefined in the standard.
+
+@deffn {Scheme Procedure} make-xdr-fixed-length-opaque-array size
+Return a fixed-length ``opaque'' array of @var{size} octets.  An
+opaque array is simply a sequence of octets.
+
+The returned XDR type object is actually an @code{<xdr-struct-type>}
+object.  Thus, it encodes from/decodes to Scheme lists of exact
+integers.  Conversion to a Scheme string, if needed, is left to the
+user.
+@end deffn
+
+@deffn {Scheme Procedure} make-xdr-variable-length-opaque-array limit
+Return a variable-length opaque array.  As for
+@code{make-xdr-vector-type} (@pxref{XDR Type Representations}),
+@var{limit} can be either a number specifying the maximum number of
+elements that can be held by the created type, or @code{#f} in which
+case the variable-length array can hold up to 2^32 - 1 octets.
+
+The returned XDR type object is actually an @code{<xdr-vector-type>}
+object.  Thus, it encodes from/decodes to Scheme vectors of exact
+integers.
+@end deffn
+
+@deffn {Scheme Procedure} make-xdr-string limit
+This is a synonym of @code{make-xdr-variable-length-opaque-array}
+since XDR's string type actually represents ASCII strings, i.e.,
+sequences of octets.
+@end deffn
+
+@defvr {Scheme Variable} xdr-variable-length-opaque-array
+@defvrx {Scheme Variable} xdr-string
+These convenience variables contain the unlimited variable-length
+opaque array.
+@end defvr
+
+
+@node XDR Encoding and Decoding,  , XDR Standard Data Types, Implementation of XDR
+@subsection XDR Encoding and Decoding
+
+The following primitives are exported by the @code{(rpc xdr)} module.
+They implement the encoding of Scheme values to XDR data types, and
+the decoding of binary XDR data to Scheme values.  The exact mapping
+between XDR data types and Scheme data types has been discussed
+earlier.
+
+@deffn {Scheme Procedure} xdr-encode! bv index type value
+Encode @var{value} (a suitable Scheme value), using XDR type
+@var{type}, into bytevector @var{bv} at @var{index}.  Return the index
+where encoding ended.
+
+@var{bv} should be an R6RS bytevector large enough to hold the XDR
+representation of value according to @var{type}.  To that end, users
+may rely on @code{xdr-type-size} (@pxref{XDR Type Representations}).
+
+Error conditions sub-classing @code{&xdr-error} may be raised during
+encoding.  The exact exceptions that may be raised are type-dependent
+and have been discussed in the previous sections.
+@end deffn
+
+@deffn {Scheme Procedure} xdr-decode type port
+Decode from @var{port} (a binary input port) a value of XDR type
+@var{type}.  Return the decoded value.
+
+Error conditions sub-classing @code{&xdr-error} may be raised during
+encoding.  The exact exceptions that may be raised are type-dependent
+and have been discussed in the previous sections.
+@end deffn
+
+
+@node Implementation of ONC RPC, Standard RPC Programs, Implementation of XDR, API Reference
+@section Implementation of ONC RPC
+
+This section describes facilities available for the creation of ONC
+RPC clients and servers, as well as lower-level details about raw RPC
+messages.
+
+@menu
+* Building an RPC Client::      Sending RPC requests
+* Building an RPC Server::      Processing RPC requests
+* ONC RPC Message Types::       Low-level details
+* Record Marking Standard::     Standard encoding for ONC RPC over TCP
+@end menu
+
+@node Building an RPC Client, Building an RPC Server, Implementation of ONC RPC, Implementation of ONC RPC
+@subsection Building an RPC Client
+
+Basic building blocks for the creation of RPC clients are provided by
+the @code{(rpc rpc)} module.  The easiest way to build an RPC client
+is through @code{make-synchronous-rpc-call}.
+
+@deffn {Scheme Procedure} make-synchronous-rpc-call program version procedure arg-type result-type
+Return a procedure that may be applied to a list of arguments,
+transaction ID (any unsigned number representable on 32 bits), and I/O
+port, to make a synchronous RPC call to the remote procedure numbered
+@var{procedure} in @var{program}, version @var{version}.  On success,
+the invocation result is eventually returned.  Otherwise, an error
+condition is raised.  @var{arg-type} and @var{result-type} should be
+XDR type objects (@pxref{XDR Type Representations}).
+
+Error conditions that may be raised include those related to XDR
+encoding and decoding (@pxref{XDR Encoding and Decoding}), as well as
+RPC-specific error conditions inheriting from @code{&rpc-error} (i.e.,
+conditions that pass the @code{rpc-error?} predicate).  These are
+detailed in @ref{ONC RPC Message Types,
+@code{assert-successful-reply}}.
+@end deffn
+
+For an example, see @ref{Creating the Client}.
+
+@node Building an RPC Server, ONC RPC Message Types, Building an RPC Client, Implementation of ONC RPC
+@subsection Building an RPC Server
+
+@cindex event loop
+
+The @code{(rpc rpc server)} module provides helpful facilities for
+building an ONC RPC server.  In particular, it provides tools to
+decode RPC call messages, as well as an event loop mechanisms that
+allows RPC calls to be automatically dispatched to the corresponding
+Scheme handlers.
+
+@deffn {Scheme Procedure} procedure-call-information call-msg
+Return an @code{<rpc-call>} object that denotes the procedure call
+requested in @var{call-msg} (the result of an @code{(xdr-decode
+rpc-message port)} operation).  If @var{call-msg} is not an
+appropriate RPC call message, an error condition is raised.
+
+The error condition raised may be either
+@code{onc-rpc-version-mismatch-error?} or
+@code{rpc-invalid-call-message-error?}.
+
+The returned object can be queried using the @code{rpc-call-}
+procedures described below.
+@end deffn
+
+@deffn {Scheme Procedure} rpc-call-xid call
+@cindex transaction ID (xid)
+Return the transaction ID (``xid'' for short) of @var{call}.
+@end deffn
+
+@deffn {Scheme Procedure} rpc-call-program call
+@deffnx {Scheme Procedure} rpc-call-version call
+@deffnx {Scheme Procedure} rpc-call-procedure call
+Return the program, version or procedure number of @var{call}.
+@end deffn
+
+@deffn {Scheme Procedure} rpc-call-credentials call
+@deffnx {Scheme Procedure} rpc-call-verifier call
+Return the credentials and verifier provided by the client for
+@var{call}.  FIXME: As of version @value{VERSION}, this information is
+not usable.
+@end deffn
+
+The following procedures allow the description of RPC ``programs''.
+Such descriptions can then be readily used to produced a full-blown
+RPC processing loop.
+
+@deffn {Scheme Procedure} make-rpc-program number versions
+Return a new object describing the RPC program identified by @var{number}
+and consisting of the versions listed in @var{versions}.
+@end deffn
+
+@deffn {Scheme Procedure} make-rpc-program-version number procedures
+Return a new object describing the RPC program version identified by
+@var{number} and consisting of the procedures listed in
+@var{procedures}.
+@end deffn
+
+@deffn {Scheme Procedure} make-rpc-procedure number argument-xdr-type result-xdr-type handler
+Return a new object describing a procedure whose number is
+@var{number}, whose argument type is @var{argument-xdr-type} and whose
+result type is @var{result-xdr-type} (@pxref{XDR Type
+Representations}).  @var{handler} should be a one-argument procedure
+that will be invoked upon reception of an RPC call for that procedure;
+it will be passed the decoded argument and should return a result type
+that may be encoded as @var{result-xdr-type}.
+@end deffn
+
+@vindex @code{SOCK_STREAM}
+
+Once a program, its versions and procedures have been defined, an RPC
+server for that program (and possibly others) can be run using the
+following procedures.
+
+@deffn {Scheme Procedure} run-stream-rpc-server sockets+rpc-programs timeout close-connection-proc idle-thunk
+Run a full-blown connection-oriented (i.e., @code{SOCK_STREAM}, be it
+@code{PF_UNIX} or @code{PF_INET}) RPC server for the given listening
+sockets and RPC programs.  @var{sockets+rpc-programs} should be a list
+of listening socket-RPC program pairs (where ``RPC programs'' are
+objects as returned by @code{make-rpc-program}).  @var{timeout} should
+be a number of microseconds that the loop should wait for input; when no
+input is available, @var{idle-thunk} is invoked, thus at most every
+@var{timeout} microseconds.  If @var{close-connection-proc} is a
+procedure, it is called when a connection is being closed is passed the
+corresponding @code{<stream-connection>} object.
+@end deffn
+
+While an RPC server is running over a stream-oriented transport such as
+TCP using @code{run-stream-rpc-server}, its procedure handlers can get
+information about the current connection and client:
+
+@deffn {Scheme Procedure} current-stream-connection
+This procedure returns a @code{<stream-connection>} object describing the
+current TCP connection (when within a @code{run-stream-rpc-server}
+invocation).  This object can be queried with the procedures described
+below.
+@end deffn
+
+@deffn {Scheme Procedure} stream-connection? obj
+Return @code{#t} if @var{obj} is a @code{<stream-connection>} object.
+@end deffn
+
+@deffn {Scheme Procedure} stream-connection-port connection
+Return the I/O port (@emph{not} the TCP port) for @var{connection}.
+@end deffn
+
+@deffn {Scheme Procedure} stream-connection-peer-address connection
+Return the IP address of the peer/client of @var{connection}
+(@pxref{Network Socket Address,,, guile, The GNU Guile Reference
+Manual}).
+@end deffn
+
+@deffn {Scheme Procedure} stream-connection-rpc-program connection
+Return the RPC program object corresponding to @var{connection}.
+@end deffn
+
+For a complete RPC server example, @ref{Creating the Server}.
+
+@cindex I/O manager
+
+The @code{run-stream-rpc-server} mechanism is limited to servers
+managing only RPC connections, and only over stream-oriented
+transports.  Should your server need to handle other input sources, a
+more geneneral event handling mechanism is available.  This works by
+first creating a set of @dfn{I/O managers} and then passing
+@code{run-input-event-loop} a list of I/O manager-file descriptor pairs
+to actually handle I/O events.
+
+@deffn {Scheme Procedure} make-i/o-manager exception-handler read-handler
+Return an I/O manager.  When data is available for reading,
+@var{read-handler} will be called and passed a port to read from; when
+an exception occurs on a port, @var{exception-handler} is called and
+passed the failing port.
+@end deffn
+
+@deffn {Scheme Procedure} i/o-manager? obj
+Return @code{#t} if @var{obj} is an I/O manager.
+@end deffn
+
+@deffn {Scheme Procedure} i/o-manager-exception-handler manager
+@deffnx {Scheme Procedure} i/o-manager-read-handler manager
+Return, respectively, the exception handler and the read handler of
+@var{manager}.
+@end deffn
+
+@deffn {Scheme Procedure} run-input-event-loop fd+manager-list timeout idle-thunk
+Run an input event loop based on @var{fd+manager-list}, a list of pairs of
+input ports (or file descriptors) and I/O managers.  I/O managers are invoked
+are invoked and passed the corresponding port when data becomes readable or
+when an exception occurs.  I/O manager handlers can:
+
+@itemize
+@item return @code{#f}, in which case the port and I/O manager are removed
+from the list of watched ports;
+@item return a pair containing an input port and I/O manager, in which case
+this pair is added to the list of watched ports;
+@item return true, in which case the list of watched ports remains unchanged.
+@end itemize
+
+When @var{timeout} (a number of microseconds) is reached, @var{idle-thunk} is
+invoked.  If timeout is @code{#f}, then an infinite timeout is assumed and
+@var{idle-thunk} is never run.  The event loop returns when no watched port
+is left.
+@end deffn
+
+The event loop provided by @code{run-input-event-loop} should cover a
+wide range of applications.  However, it will turn out to be
+insufficient in situations where tasks must be executed at specific
+times, and where the interval between consecutive executions varies over
+the program's lifetime.
+
+Finally, a lower-level mechanism is available to handle a single
+incoming RPC:
+
+@deffn {Scheme Procedure} serve-one-stream-request program port
+Serve one RPC for @var{program}, reading the RPC from @var{port} (using
+the record-marking protocol) and writing the reply to @var{port}.  If
+@var{port} is closed or the end-of-file was reached, an
+@code{&rpc-connection-lost-error} is raised.
+@end deffn
+
+
+@node ONC RPC Message Types, Record Marking Standard, Building an RPC Server, Implementation of ONC RPC
+@subsection ONC RPC Message Types
+
+@cindex @code{rpc_msg} struct type
+
+The @code{(rpc rpc types)} module provides a representation of the
+various XDR types defined in the standard to represent RPC messages
+(@pxref{References}).  We only describe the most important ones as
+well as procedures from the @code{(rpc rpc)} module that help use it.
+
+@defvr {Scheme Variable} rpc-message
+This variable contains a XDR struct type representing all possible RPC
+messages---the @code{rpc_msg} struct type defined in RFC 1831.  By
+``rpc message'' we mean the header that is transmitted before the
+actual procedure argument to describe the procedure call being made.
+
+Roughly, this header contains a transaction ID allowing clients to
+match call/reply pairs, plus information describing either the call or
+the reply being made.  Calls essentially contain a program, version
+and procedure numbers.  Replies, on the other hand, can be more
+complex since they can describe a large class of errors.
+@end defvr
+
+@defvr {Scheme Variable} rpc-message-type
+This variable is bound to an XDR enumeration.  Its two possible values
+are @code{CALL} and @code{REPLY} (both represented in Scheme using
+symbols), denoting a procedure call and a reply to a procedure call,
+respectively.
+@end defvr
+
+@deffn {Scheme Procedure} make-rpc-message xid type args ...
+Return an @code{rpc-message} datum.  @var{type} should be either
+@code{CALL} or @code{REPLY} (the two values of the
+@code{rpc-message-type} enumeration).  The arguments @var{args} are
+message-type-specific.  For example, a message denoting a procedure
+call to procedure number 5 of version 1 of program 77 can be created
+as follows:
+
+@example
+(define my-call-msg
+  (make-rpc-message #x123 ;; the transaction ID
+                    'CALL ;; the message type
+                    77 1 5))
+@end example
+
+It can then be encoded in the usual way (@pxref{XDR Encoding and
+Decoding}):
+
+@example
+(let* ((size (xdr-type-size rpc-message my-call-msg))
+       (bv   (make-bytevector size)))
+  (xdr-encode! bv 0 rpc-message my-call-msg)
+  ;;; ...
+  )
+@end example
+
+Likewise, a reply message denoting a successful RPC call can be
+produced as follows:
+
+@example
+(make-rpc-message xid 'REPLY 'MSG_ACCEPTED 'SUCCESS)
+@end example
+
+It is worth noting that in practice, ``messages'' of type
+@var{rpc-message} are followed by additional data representing either
+the procedure call arguments (if the message is a @code{CALL} message)
+or the procedure return value (if the message is a @code{REPLY}
+message).
+@end deffn
+
+@deffn {Scheme Procedure} assert-successful-reply rpc-msg xid
+@cindex transaction ID (xid)
+
+Return true if @var{rpc-msg} (an RPC message as returned by a previous
+@code{(xdr-decode rpc-message port)} call) is a valid reply for the
+invocation labeled with transaction ID @var{xid} indicating that it
+was accepted.  If @var{xid} is @code{#t}, any reply transaction ID is
+accepted and it is returned (provided the rest of the message denotes
+an accepted message).  On failure, an appropriate error condition is
+raised.
+
+@findex rpc-error?
+@findex rpc-call-error?
+The error conditions that may be raised obey @code{rpc-error?} and
+@code{rpc-call-error?}.  More precisely, error conditions include the
+following:
+
+@table @code
+@item rpc-program-unavailable-error?
+@findex rpc-program-unavailable-error?
+If @var{rpc-msg} denotes the fact that the program requested by the
+corresponding RPC call is not available.
+
+@item rpc-program-mismatch-error?
+@findex rpc-program-mismatch-error?
+If the corresponding RPC call requested a program version that is not
+available.  The procedures
+@code{rpc-program-mismatch-error:low-version} and
+@code{rpc-program-mismatch-error:high-version} return, respectively,
+the lowest and highest version numbers supported by the remote server.
+
+@item rpc-procedure-unavailable-error?
+@findex rpc-procedure-unavailable-error?
+If the corresponding RPC call requested a procedure that is not
+available.
+
+@item rpc-garbage-arguments-error?
+@findex rpc-garbage-arguments-error?
+If the remote server failed to decode the procedure arguments.
+
+@item rpc-system-error?
+@findex rpc-system-error?
+If the remote server failed to allocate enough memory for argument
+decoding, for instance.
+
+@end table
+@end deffn
+
+
+@node Record Marking Standard,  , ONC RPC Message Types, Implementation of ONC RPC
+@subsection Record Marking Standard
+
+@cindex record-marking protocol
+
+The ONC RPC standard defines a @dfn{record-marking protocol} for
+stream-oriented transport layers such as TCP whereby (1) each RPC
+message is sent out as a single @dfn{record} and (2) where records may
+be split into several @dfn{fragments}.  This allows implementations to
+``delimit one message from another in order to detect and possibly
+recover from protocol errors'' (@pxref{References, @code{RFC
+1831}@comma{} Section 10}).
+
+This protocol is implemented by the @code{(rpc rpc transports)}
+module.  It is automatically used by the high-level client and server
+facilities, namely @ref{Building an RPC Client,
+@code{make-synchronous-rpc-call}} and @ref{Building an RPC Server,
+@code{run-stream-rpc-server}}.  The available facilities are described
+below.
+
+@deffn {Scheme Procedure} send-rpc-record port bv offset len
+Send the RPC message of @var{len} octets encoded at offset
+@var{offset} in @var{bv} (a bytevector) to @var{port}.  This procedure
+sends the @var{len} octets of the record without fragmenting them.
+@end deffn
+
+@deffn {Scheme Procedure} make-rpc-record-sender fragment-len
+This procedure is a generalization of @code{send-rpc-record}.
+
+Return a procedure that sends data according to the record marking
+standard, chopping its input bytevector into fragments of size
+@var{fragment-len} octets.
+@end deffn
+
+@deffn {Scheme Procedure} rpc-record-marking-input-port port
+Return a binary input port that proxies @var{port} in order to implement
+decoding of the record marking standard (RFC 1831, Section 10).
+@end deffn
+
+
+@node Standard RPC Programs,  , Implementation of ONC RPC, API Reference
+@section Standard RPC Programs
+
+GNU Guile-RPC provides client-side and/or server-side of some commonly
+found ONC RPC program, which are described below.  Currently, this is
+limited to the portmapper interface, but other interfaces (e.g.,
+``mount'', NFSv2) may follow.
+
+@menu
+* The Portmapper Program::      A directory of instances of RPC programs
+@end menu
+
+@node The Portmapper Program,  , Standard RPC Programs, Standard RPC Programs
+@subsection The Portmapper Program
+
+@cindex portmapper
+
+The @code{(rpc rpc portmap)} module implements the widespread
+@dfn{portmapper} RPC program defined in RFC 1833 (@pxref{References, RFC
+1833@comma{} Section 3}).  As the name suggests, the portmapper
+interface allows servers to be queried for the association between an
+RPC service and the port it is listening to.  It also allows clients to
+query the list of services registered.
+
+@cindex @code{portmap} daemon
+@cindex service discovery
+
+In practice, most machines run a system-wide @code{portmap} daemon on
+port 111 (TCP or UDP), and it is this server that is queried for
+information about locally hosted RPC programs.  The @code{grpc-rpcinfo}
+program is a portmapper client that can be used to query a portmapper
+server (@pxref{Invoking grpc-rpcinfo, the @code{grpc-rpcinfo} tool})
+
+Note that registering RPC programs with the portmapper is optional: it
+is basically a directory mechanism that allows servers to be located
+quite easily, but other existing mechanisms could be used for that
+purpose, e.g., decentralized @dfn{service discovery}
+(@pxref{Introduction,, service discovery with DNS-SD in Guile-Avahi,
+guile-avahi, Using Avahi in Guile Scheme Programs}).
+
+The module exports client-side procedures, as returned by
+@code{make-synchronous-rpc-call} (@pxref{Building an RPC Client}), for
+the various portmapper procedures.  They are listed below.
+
+@deffn {Scheme Procedure} portmapper-null arg xid port
+Invoke the @code{null} RPC over @var{port}, ignoring @var{arg}, and
+return @code{%void}.
+@end deffn
+
+@deffn {Scheme Procedure} portmapper-set arg xid port
+Invoke the @code{set} RPC over @var{port} with argument @var{arg}.  The
+invoked server should register the RPC program specified by @var{arg},
+where @var{arg} must be an XDR struct (i.e., a Scheme list) containing
+these four elements: the RPC program number, its version number, its
+protocol and its port.  The protocol number should be one of
+@code{IPPROTO_TCP} or @code{IPPROTO_UDP} (@pxref{Network Sockets and
+Communication,,, guile, The GNU Guile Reference Manual}).  An XDR
+boolean is returned, indicating whether the request successful.
+@end deffn
+
+@deffn {Scheme Procedure} portmapper-unset arg xid port
+Invoke the @code{unset} RPC over @var{port} with argument @var{arg}.
+The invoked server should unregister the RPC program specified by
+@var{arg}, where @var{arg} must have the same form as for
+@code{portmapper-set}.  Again, an XDR boolean is returned, indicating
+whether the request was successful.
+@end deffn
+
+@deffn {Scheme Procedure} portmapper-get-port arg xid port
+Invoke the @code{get-port} RPC over @var{port} with argument @var{arg},
+which must have the same form as previously mentioned (except that its
+port number is ignored).  The invoked server returns an unsigned integer
+indicating the port of that RPC program.
+@end deffn
+
+@deffn {Scheme Procedure} portmapper-dump arg xid port
+Invoke the @code{dump} RPC over @var{port}, ignoring @var{arg}.  The
+invoked server should return a list of 4-element lists describing the
+registered RPC programs.  Those four element list are the same as for
+@code{portmapper-set} and @code{portmapper-get}, namely the RPC program
+number and version, its protocol and its port.
+@end deffn
+
+@deffn {Scheme Procedure} portmapper-call-it arg xid port
+Invoke the @var{call-it} procedure over @var{port}.  Quoting RFC 1833,
+this procedure ``allows a client to call another remote procedure on the
+same machine without knowing the remote procedure's port number''.
+Concretely, it makes the portmapper invoke over UDP the procedure of the
+program matching the description in @var{arg}, where @var{arg} is an XDR
+struct (i.e., a Scheme list) containing an RPC program and version
+number, a procedure number, and an opaque array denoting the procedure
+arguments (an @code{xdr-variable-length-opaque-array}).
+
+On success, it returns a struct consisting of the port number of the
+matching program and an opaque array representing the RPC reply.  On
+failure, it does not return.  Therefore, this synchronous call version
+may be inappropriate.  We recommend that you do not use it.
+@end deffn
+
+The @code{portmap} module also provides convenience functions to
+retrieve the symbolic name associated with common RPC program numbers.
+The association between program numbers and their name is usually stored
+in @file{/etc/rpc} on Unix systems and it can be parsed using the
+@code{read-rpc-service-list} procedure.
+
+@deffn {Scheme Procedure} read-rpc-service-list port
+Return a list of name-program pairs read from @var{port} (e.g., the
+@file{/etc/rpc} file), showing the connection between an RPC program
+human-readable name and its program number.
+@end deffn
+
+@deffn {Scheme Procedure} lookup-rpc-service-name service-list program
+Lookup RPC program numbered @var{program} in @var{service-list} (a list as
+returned by @code{read-rpc-service-list}) and return its human-readable
+name.
+@end deffn
+
+@deffn {Scheme Procedure} lookup-rpc-service-number service-list program
+Lookup RPC program named @var{program} in @var{service-list} (a list as
+returned by @code{read-rpc-service-list}) and return its RPC program
+number.
+@end deffn
+
+
+@c *********************************************************************
+@node Stand-Alone Tools, References, API Reference, Top
+@chapter Stand-Alone Tools
+
+GNU Guile-RPC comes with stand-alone tools that can be used from the
+command-line.  Actually, there's currently only one such tool,
+@code{grpc-rpcinfo}.
+
+@menu
+* Invoking grpc-rpcinfo::       Querying the portmapper
+@end menu
+
+@node Invoking grpc-rpcinfo,  , Stand-Alone Tools, Stand-Alone Tools
+@section Invoking @code{grpc-rpcinfo}
+
+@cindex @code{rpcinfo}
+
+This program is equivalent to the @code{rpcinfo} program available on
+most Unix systems and notably provided by the GNU C Library.  In is a
+client of the portmapper RPC program (@pxref{The Portmapper Program}).
+Among the options supported by @code{rpcinfo}, only a few of them are
+supported at this moment:
+
+@table @option
+
+@item --help
+Print a summary of the command-line options and exit.
+
+@item --version
+Print the version number of GNU Guile-RPC and exit.
+
+@item --dump
+@itemx -p
+Query the portmapper and list the registered RPC services.
+
+@item --delete
+@itemx -d
+Unregister the RPC program with the given RPC program and version
+numbers from the portmapper.
+
+@end table
+
+Note that the host where the portmapper lives can be specified as the
+last argument to @code{grpc-rpcinfo}:
+
+@example
+# Query the portmapper at host `klimt'.
+
+$ grpc-rpcinfo -p klimt
+program vers    proto   port    name
+100000  2       tcp     111     portmapper
+100000  2       udp     111     portmapper
+$ grpc-rpcinfo -d 100000 2 klimt 
+ERROR: `portmapper-unset' failed FALSE
+@end example
+
+
+@c *********************************************************************
+@node References, GNU Free Documentation License, Stand-Alone Tools, Top
+@chapter References
+
+@table @code
+@item RFC 1831
+R. Srinivasan et al., @uref{http://tools.ietf.org/html/rfc1831,``RPC:
+Remote Procedure Call Protocol Specification Version 2''}, August
+1995.
+@item RFC 4506
+M. Eisler et al., @uref{http://tools.ietf.org/html/rfc4506, ``XDR:
+External Data Representation Standard''}, May 2006.
+@item RFC 1833
+R. Srinivasan et al., @uref{http://tools.ietf.org/html/rfc1833,
+``Binding Protocols for ONC RPC Version 2''}, August 2005.
+@end table
+
+@c *********************************************************************
+@node GNU Free Documentation License, Concept Index, References, Top
+@appendix GNU Free Documentation License
+
+@include fdl.texi
+
+
+@c *********************************************************************
+@node Concept Index, Function Index, GNU Free Documentation License, Top
+@unnumbered Concept Index
+@printindex cp
+
+@node Function Index, Variable Index, Concept Index, Top
+@unnumbered Function Index
+@printindex fn
+
+@node Variable Index,  , Function Index, Top
+@unnumbered Variable Index
+@printindex vr
+
+
+@bye
+
+@ignore
+;;; arch-tag: 412a400f-ccbb-42d8-97a2-036301f92235
+@end ignore
+
+@c Local Variables:
+@c ispell-local-dictionary: "american"
+@c End:
+

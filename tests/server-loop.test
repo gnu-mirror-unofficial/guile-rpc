@@ -1,0 +1,131 @@
+;;; Excercise the RPC server API.                  -*- Scheme -*-
+;;;
+;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
+;;; Copyright (C) 2007  Free Software Foundation, Inc.
+;;;
+;;; This file is part of GNU Guile-RPC.
+;;;
+;;; GNU Guile-RPC is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU Lesser General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guile-RPC is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+;;; General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU Lesser General Public License
+;;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (tests server-loop)
+  :use-module (rpc xdr)
+  :use-module (rpc xdr types)
+  :use-module (rpc rpc)
+  :use-module (rpc rpc server)
+  :use-module (srfi srfi-1)
+  :use-module (srfi srfi-64))
+
+
+;;;
+;;; Overall settings.
+;;;
+
+(define socket-support?
+  (and (provided? 'socket) (provided? 'posix)))
+
+(define (every? . args)
+  (not (not (apply every args))))
+
+;; Number of iterations.
+(define %iterations 10)
+
+;; The RPC program and procedure
+(define %program   7777)
+(define %version      7)
+(define %procedure    7)
+
+(define %argument-type
+  ;; Argument type for the procedure.
+  (make-xdr-struct-type (list xdr-integer xdr-integer)))
+(define %result-type
+  ;; Result type of the procedure.
+  xdr-integer)
+
+
+;;;
+;;; Running the client and server.
+;;;
+
+(test-begin "server-loop")
+
+(test-equal "client/server" #t
+            (if socket-support?
+                (let ((path (tmpnam))
+                      (sock (socket PF_UNIX SOCK_STREAM 0)))
+                  ;; Create a Unix-domain socket and have client and server
+                  ;; communicate over it.
+                  (bind sock AF_UNIX path)
+
+                  (let ((pid (primitive-fork)))
+                    (if (not (= 0 pid))
+
+                        ;; client
+                        (let ((sock   (socket PF_UNIX SOCK_STREAM 0))
+                              (invoke
+                               (make-synchronous-rpc-call %program
+                                                          %version
+                                                          %procedure
+                                                          %argument-type
+                                                          %result-type)))
+                          (connect sock AF_UNIX path)
+                          (dynamic-wind
+                              (lambda ()
+                                #t)
+                              (lambda ()
+                                ;; Make sure the server properly implements
+                                ;; the addition.
+                                (every? (lambda (xid a b)
+                                          (let ((res (invoke (list a b)
+                                                             xid sock)))
+                                            ;;(format #t "res: ~a vs ~a~%"
+                                            ;;        res (+ a b))
+                                            (= res (+ a b))))
+                                        (iota %iterations)
+                                        (iota %iterations)
+                                        (reverse! (iota %iterations))))
+                              (lambda ()
+                                ;;(format #t "finishing~%")
+                                (close sock)
+                                (delete-file path))))
+
+                        ;; server
+                        (let* ((do-+ (lambda (arg)
+                                       (apply + arg)))
+                               (finish (lambda (sock)
+                                         ;;(format #t "server finishing~%")
+                                         (primitive-exit)))
+
+                               (proc (make-rpc-procedure %procedure
+                                                         %argument-type
+                                                         %result-type
+                                                         do-+))
+                               (vers (make-rpc-program-version %version
+                                                               (list proc)))
+                               (prog (make-rpc-program %program
+                                                       (list vers))))
+
+                          (listen sock 1024)
+                          (run-stream-rpc-server (list (cons sock prog))
+                                                 1000000
+                                                 finish
+                                                 (lambda () #t))))))
+                #t))
+
+
+(test-end "server-loop")
+
+(exit (= (test-runner-fail-count (test-runner-current)) 0))
+
+
+;;; arch-tag: 64064bb5-81ab-4ebb-a058-45230735a8f6

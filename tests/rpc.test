@@ -1,0 +1,178 @@
+;;; Excercise the RPC message API.                  -*- Scheme -*-
+;;;
+;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
+;;; Copyright (C) 2007  Free Software Foundation, Inc.
+;;;
+;;; This file is part of GNU Guile-RPC.
+;;;
+;;; GNU Guile-RPC is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU Lesser General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guile-RPC is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+;;; General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU Lesser General Public License
+;;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (tests xdr)
+  :use-module (r6rs bytevector)
+  :use-module (r6rs i/o ports)
+  :use-module (rpc xdr)
+  :use-module (rpc xdr types)
+  :use-module (rpc rpc)
+  :use-module (rpc rpc types)
+  :use-module (rpc rpc transports)
+  :use-module (rpc rpc server)
+  :use-module (srfi srfi-11)
+  :use-module (srfi srfi-34)
+  :use-module (srfi srfi-64))
+
+
+;;;
+;;; RPC message type.
+;;;
+
+(define %error-raised (list 'error))
+
+(test-begin "rpc-message")
+
+(define bv (make-bytevector 1024))
+
+(test-equal "call" #t
+            (let ((msg (make-rpc-message #x9999 'CALL 70000 1 2)))
+              (xdr-encode! bv 0 rpc-message msg)
+              (equal? (xdr-decode rpc-message
+                                  (open-bytevector-input-port bv))
+                      msg)))
+
+(test-equal "reply (accepted, success)" #x9999
+            (let* ((xid #x9999)
+                   (msg (make-rpc-message xid 'REPLY
+                                          'MSG_ACCEPTED 'SUCCESS)))
+              (xdr-encode! bv 0 rpc-message msg)
+              (assert-successful-reply
+               (xdr-decode rpc-message (open-bytevector-input-port bv))
+               xid)))
+
+(test-eq    "reply (accepted, mismatch)" %error-raised
+            (let ((msg (make-rpc-message #x99 'REPLY
+                                         'MSG_ACCEPTED 'PROG_MISMATCH
+                                         2 3)))
+              (xdr-encode! bv 0 rpc-message msg)
+              (guard (c ((rpc-program-mismatch-error? c)
+                         (and
+                          (equal? (list
+                                   (rpc-program-mismatch-error:low-version c)
+                                   (rpc-program-mismatch-error:high-version c))
+                                  '(2 3))
+                          %error-raised)))
+                (assert-successful-reply
+                 (xdr-decode rpc-message (open-bytevector-input-port bv))
+                 #t))))
+
+(test-eq    "reply (accepted, program unavailable)" %error-raised
+            (let ((msg (make-rpc-message #x99 'REPLY
+                                         'MSG_ACCEPTED 'PROG_UNAVAIL)))
+              (xdr-encode! bv 0 rpc-message msg)
+              (guard (c ((rpc-program-unavailable-error? c) %error-raised))
+                (assert-successful-reply
+                 (xdr-decode rpc-message (open-bytevector-input-port bv))
+                 #t))))
+
+(test-eq    "reply (denied, mismatch)" %error-raised
+            (let ((msg (make-rpc-message #x99 'REPLY
+                                         'MSG_DENIED 'RPC_MISMATCH
+                                         2 3)))
+              (xdr-encode! bv 0 rpc-message msg)
+              (guard (c ((rpc-program-mismatch-error? c)
+                         (and
+                          (equal? (list
+                                   (rpc-program-mismatch-error:low-version c)
+                                   (rpc-program-mismatch-error:high-version c))
+                                  '(2 3))
+                          %error-raised)))
+                (assert-successful-reply
+                 (xdr-decode rpc-message (open-bytevector-input-port bv))
+                 #t))))
+
+(test-equal "record marking" #t
+            (let-values (((port get-content)
+                          (open-bytevector-output-port)))
+              (let ((source      (make-bytevector 999))
+                    (send-record (make-rpc-record-sender 103)))
+                (send-record port source 0 (bytevector-length source))
+                (let* ((raw-result (get-content))
+                       (input (rpc-record-marking-input-port
+                               (open-bytevector-input-port raw-result))))
+                  (bytevector=? (get-bytevector-all input)
+                                source)))))
+
+
+;; Server stuff.
+
+(test-equal "procedure-call-information" (list #x9999 70 0 5)
+            (let* ((call-msg (make-rpc-message #x9999 'CALL 70 0 5))
+                   (call     (procedure-call-information call-msg)))
+              (list (rpc-call-xid call)
+                    (rpc-call-program call)
+                    (rpc-call-version call)
+                    (rpc-call-procedure call))))
+
+(test-eq    "procedure lookup" #t
+            (let* ((proc     (make-rpc-procedure 5 xdr-void xdr-void
+                                                 (lambda (arg) #t)))
+                   (version  (make-rpc-program-version 0 (list proc)))
+                   (program  (make-rpc-program 70 (list version)))
+                   (call-msg (make-rpc-message #x9999 'CALL 70 0 5))
+                   (call     (procedure-call-information call-msg)))
+              (eq? (lookup-called-procedure call (list program))
+                   proc)))
+
+(test-eq    "procedure lookup error" %error-raised
+            (let* ((proc     (make-rpc-procedure 5 xdr-void xdr-void
+                                                 (lambda (arg) #t)))
+                   (version  (make-rpc-program-version 0 (list proc)))
+                   (program  (make-rpc-program 70 (list version)))
+                   (call-msg (make-rpc-message #x9999 'CALL 70 9 5))
+                   (call     (procedure-call-information call-msg)))
+              (guard (c ((rpc-invalid-version-error? c)
+                         (and (= (rpc-invalid-version-error:version c) 9)
+                              (eq? (rpc-invalid-version-error:program c)
+                                   program)
+                              %error-raised)))
+                (lookup-called-procedure call (list program)))))
+
+(test-eq    "procedure lookup error handling" #t
+            (let-values (((port get-content)
+                          (open-bytevector-output-port)))
+              (let* ((proc     (make-rpc-procedure 5 xdr-void xdr-void
+                                                 (lambda (arg) #t)))
+                     (version1 (make-rpc-program-version 0 (list proc)))
+                     (version2 (make-rpc-program-version 1 (list proc)))
+                     (program  (make-rpc-program 70 (list version1
+                                                          version2)))
+                     (call-msg (make-rpc-message #x9999 'CALL 70 9 5))
+                     (call     (procedure-call-information call-msg))
+                     (send     (lambda (bv offset count)
+                                 (put-bytevector port bv offset count))))
+                (guard (c ((rpc-procedure-lookup-error? c)
+                           (handle-procedure-lookup-error c call send)))
+                  (lookup-called-procedure call (list program)))
+
+                (equal? (xdr-decode rpc-message
+                                    (open-bytevector-input-port
+                                     (get-content)))
+                        (make-rpc-message #x9999 'REPLY 'MSG_ACCEPTED
+                                          'PROG_MISMATCH 0 1)))))
+
+(test-end "rpc-message")
+
+
+(exit (= (test-runner-fail-count (test-runner-current)) 0))
+
+
+;;; arch-tag: a294fa9c-8df4-48bc-9cdc-99785aa03980

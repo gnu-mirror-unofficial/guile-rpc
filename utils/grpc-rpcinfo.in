@@ -1,0 +1,156 @@
+#!/bin/sh
+# aside from this initial boilerplate, this is actually -*- scheme -*- code
+main='(module-ref (resolve-module '\''(guile-rpc rpc-info)) '\'main')'
+exec ${GUILE-@GUILE@} -l "$0" -c "(apply $main (command-line))" "$@"
+!#
+;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
+;;; Copyright (C) 2007  Free Software Foundation, Inc.
+;;;
+;;; This program is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by the
+;;; Free Software Foundation; either version 3 of the License, or (at your
+;;; option) any later version.
+;;;
+;;; This program is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+;;; Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License along
+;;; with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+;;;
+;;; Query the local portmapper, like `rpcinfo(1)'.
+;;;
+
+(define-module (guile-rpc rpc-info)
+  :use-module (rpc rpc portmap)
+  :use-module (srfi srfi-1)
+  :use-module (ice-9 getopt-long)
+  :export (main rpc-info))
+
+
+;;;
+;;; Options.
+;;;
+
+(define %options
+  '((help     (value #f))
+    (version  (value #f))
+    (dump     (single-char #\p) (value #f))
+    (delete   (single-char #\d) (value #f))))
+
+(define (show-help)
+  (format #t "Usage: grpc-rpcinfo [OPTIONS] [HOST]~%")
+  (format #t "Query the ONC RPC portmapper at HOST or localhost.~%~%")
+  (format #t "  --help         Show this help message~%")
+  (format #t "  --version      Show program version~%~%")
+  (format #t "  -p, --dump     List registered RPC services~%")
+  (format #t "  -d, --delete   Unregister the given program and version from~%")
+  (format #t "                 the local portmapper~%")
+  (format #t "~%")
+  (format #t "Report bugs to <@PACKAGE_BUGREPORT@>.~%"))
+
+(define (show-version)
+  (format #t "grpc-rpcinfo (GNU Guile-RPC) @PACKAGE_VERSION@
+Copyright (C) 2007 Free Software Foundation
+
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.~%"))
+
+
+
+;;;
+;;; Helpers.
+;;;
+
+(define (display-portmap-info pmap service-list)
+  (define (proto->string proto)
+    (cond ((equal? proto IPPROTO_TCP) "tcp")
+          ((equal? proto IPPROTO_UDP) "udp")
+          (else (number->string proto))))
+
+  (format #t "~a\t~a\t~a\t~a\t~a~%"
+          (car pmap)
+          (cadr pmap)
+          (proto->string (caddr pmap))
+          (cadddr pmap)
+          (or (lookup-rpc-service-name service-list (car pmap))
+              (car pmap))))
+
+(define (host-portmapper-socket-address host)
+  (let* ((host         (gethostbyname host))
+         (address      (car (hostent:addr-list host)))
+         (address-type (hostent:addrtype host)))
+    (make-socket-address address-type address %portmapper-port)))
+
+
+;;;
+;;; Main.
+;;;
+
+(define (rpc-info . args)
+  (let ((opt (getopt-long args %options)))
+    (cond ((option-ref opt 'help #f)
+           (show-help))
+
+          ((option-ref opt 'version #f)
+           (show-version))
+
+          ((option-ref opt 'dump #f)
+           (let ((hosts (option-ref opt '() '("localhost")))
+                 (service-list
+                  (if (file-exists? "/etc/rpc")
+                      (read-rpc-service-list (open-input-file "/etc/rpc"))
+                      '()))
+                 (s (socket PF_INET SOCK_STREAM 0)))
+
+             (catch 'system-error
+               (lambda ()
+                 (let ((sockaddr
+                        (host-portmapper-socket-address (if (null? hosts)
+                                                            "localhost"
+                                                            (car hosts)))))
+                   (connect s sockaddr)
+
+                   (format #t "program\tvers\tproto\tport\tname~%")
+                   (for-each (lambda (pmap)
+                               (display-portmap-info pmap service-list))
+                             (portmapper-dump #t 0 s))))
+               (lambda (key . args)
+                 (error "portmapper unreachable")))))
+
+          ((option-ref opt 'delete #f)
+           (let* ((args (option-ref opt '() '()))
+                  (argc (length args)))
+             (if (and (>= argc 2) (<= argc 3))
+                 (let ((program (string->number (car args)))
+                       (version (string->number (cadr args)))
+                       (hosts   (cddr args)))
+                   (catch 'system-error
+                     (lambda ()
+                       (let ((s (socket PF_INET SOCK_STREAM 0))
+                             (sockaddr
+                              (host-portmapper-socket-address
+                               (if (null? hosts)
+                                   "localhost"
+                                   (car hosts)))))
+                         (connect s sockaddr)
+                         (let ((result
+                                (portmapper-unset (list program version 0 0)
+                                                  0 s)))
+                           (if (eq? result 'TRUE)
+                               #t
+                               (error "`portmapper-unset' failed" result)))))
+                     (lambda (key . args)
+                       (error "portmapper unreachable"))))
+                 (error "delete: wrong argument count" args)))))))
+
+(define main rpc-info)
+
+;;; Local Variables:
+;;; mode: scheme
+;;; coding: latin-1
+;;; End:

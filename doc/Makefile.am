@@ -16,16 +16,6 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-guilemoduledir = $(GUILE_SITE)
+info_TEXINFOS = guile-rpc.texi
 
-nobase_dist_guilemodule_DATA =				\
-  rpc/xdr.scm rpc/xdr/types.scm				\
-  rpc/rpc.scm rpc/rpc/types.scm rpc/rpc/transports.scm	\
-  rpc/rpc/server.scm rpc/rpc/portmap.scm
-
-EXTRA_DIST = srfi/srfi-64.scm srfi/srfi-64.upstream.scm
-
-if HAVE_GUILE_LINT
-all-local: $(nobase_dist_guilemodule_DATA)
-	$(GUILE_LINT) -L $(srcdir) $^
-endif
+EXTRA_DIST = fdl.texi

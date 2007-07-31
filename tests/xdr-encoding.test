@@ -1,25 +1,30 @@
 ;;; Encoding/decoding of XDR data.                    -*- Scheme -*-
 ;;;
-;;; Guile-RPC --- Implementation of R6RS standard libraries.
-;;; Copyright (C) 2007  Ludovic Courtès <ludovic.courtes@laas.fr>
+;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
+;;; Copyright (C) 2007  Free Software Foundation, Inc.
 ;;;
-;;; Guile-RPC is free software; you can redistribute it and/or
-;;; modify it under the terms of the GNU Lesser General Public
-;;; License as published by the Free Software Foundation; either
-;;; version 2.1 of the License, or (at your option) any later version.
+;;; This file is part of GNU Guile-RPC.
 ;;;
-;;; Guile-RPC is distributed in the hope that it will be useful,
-;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
-;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-;;; Lesser General Public License for more details.
+;;; GNU Guile-RPC is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU Lesser General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
 ;;;
-;;; You should have received a copy of the GNU Lesser General Public
-;;; License along with Guile-RPC; if not, write to the Free Software
-;;; Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+;;; GNU Guile-RPC is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+;;; General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU Lesser General Public License
+;;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-module (tests xdr-encoding)
-  :use-module (r6rs bytevector)
   :use-module (rpc xdr)
+  :use-module (rpc xdr types)
+  :use-module (r6rs bytevector)
+  :use-module (r6rs i/o ports)
+  :use-module (srfi srfi-34)
+  :use-module (srfi srfi-35)
   :use-module (srfi srfi-64))
 
 
@@ -27,57 +32,186 @@
 ;;; Encoding/decoding.
 ;;;
 
-(test-begin "encoding+decoding")
+(test-begin "xdr-encoding")
 
 (define bv (make-bytevector 123))
 
-(test-equal "integer" (values 123 4)
+;; XXX: srfi-64's `test-error' doesn't work with Guile so we use our own
+;; trick.
+(define %error-raised (list 'error))
+
+(test-equal "integer" 123
             (begin
               (xdr-encode! bv 0 xdr-integer 123)
-              (xdr-decode bv 0 xdr-integer)))
+              (xdr-decode xdr-integer (open-bytevector-input-port bv))))
 
-(test-equal "integer (shifted)" (values 123 14)
+(test-equal "integer (shifted)" 123
             (begin
               (xdr-encode! bv 10 xdr-integer 123)
-              (xdr-decode bv 10 xdr-integer)))
+              (let ((port (open-bytevector-input-port bv)))
+                (get-bytevector-n port 10)
+                (xdr-decode xdr-integer port))))
 
-(test-equal "vector" (values (vector 1 2 3 4) 20)
-            (let ((v (xdr-vector-type xdr-integer)))
+(test-equal "vector" (vector 1 2 3 4)
+            (let ((v (make-xdr-vector-type xdr-integer #f)))
               (xdr-encode! bv 0 v (vector 1 2 3 4))
-              (xdr-decode bv 0 v)))
+              (xdr-decode v (open-bytevector-input-port bv))))
 
-(test-equal "struct" (values (list 1 2 3.0) 20)
-            (let ((s (xdr-struct-type (list xdr-integer
-                                            xdr-hyper-integer
-                                            xdr-double))))
+(test-eq    "limited vector (encoding)" %error-raised
+            (let ((v (make-xdr-vector-type xdr-integer 2)))
+              (guard (c ((xdr-vector-size-exceeded-error? c)
+                         %error-raised))
+                (xdr-encode! bv 0 v (vector 1 2 3 4)))))
+
+(test-eq    "limited vector (decoding)" %error-raised
+            (let ((v (make-xdr-vector-type xdr-integer 2)))
+              (guard (c ((xdr-vector-size-exceeded-error? c)
+                         %error-raised))
+                (bytevector-u32-set! bv 0 55 %xdr-endianness)
+                (xdr-decode v (open-bytevector-input-port bv)))))
+
+(test-equal "struct" (list 1 2 3.0)
+            (let ((s (make-xdr-struct-type (list xdr-integer
+                                                 xdr-hyper-integer
+                                                 xdr-double))))
               (xdr-encode! bv 0 s (list 1 2 3.0))
-              (xdr-decode bv 0 s)))
+              (xdr-decode s (open-bytevector-input-port bv))))
 
-(test-equal "enumeration" (values 'one 4)
-            (let ((e (xdr-enumeration 'ordinals '((one . 1) (two . 2)))))
+(test-equal "enumeration" 'one
+            (let ((e (make-xdr-enumeration 'ordinals
+                                           '((one . 1) (two . 2)))))
               (xdr-encode! bv 0 e 'one)
-              (xdr-decode bv 0 e)))
+              (xdr-decode e (open-bytevector-input-port bv))))
 
-(test-equal "fixed-length opaque array" (values (make-list 10 77) 10)
-            (let ((o (xdr-fixed-length-opaque-array 10)))
+(test-eq    "invalid enumeration (encoding)" %error-raised
+            (guard (c ((xdr-type-error? c) %error-raised))
+              (let ((e (make-xdr-enumeration 'ordinals
+                                             '((one . 1) (two . 2)))))
+                (xdr-encode! bv 0 e 'invalid)
+                #f)))
+
+(test-eq    "invalid enumeration (decoding)" %error-raised
+            (guard (c ((xdr-enumeration-error? c) %error-raised))
+              (let ((e (make-xdr-enumeration 'ordinals
+                                             '((one . 1) (two . 2)))))
+                (bytevector-u32-set! bv 0 777 %xdr-endianness)
+                (xdr-decode e (open-bytevector-input-port bv)))))
+
+(test-equal "boolean" 'TRUE
+            (begin
+              (xdr-encode! bv 0 xdr-boolean 'TRUE)
+              (xdr-decode xdr-boolean (open-bytevector-input-port bv))))
+
+(test-equal "fixed-length opaque array with padding"
+            (list (make-list 77 99) -77)
+
+            (let* ((o (make-xdr-fixed-length-opaque-array 77))
+                   (s (make-xdr-struct-type (list o xdr-integer))))
+              (and (= (xdr-encode! bv 0 s
+                                   (list (make-list 77 99) -77))
+                      (+ 80 4))
+                   (xdr-decode s (open-bytevector-input-port bv)))))
+
+(test-equal "variable-length opaque array with padding"
+            (list (make-vector 77 99) -77)
+
+            (let* ((o xdr-variable-length-opaque-array)
+                   (s (make-xdr-struct-type (list o xdr-integer))))
+              (and (= (xdr-encode! bv 0 s
+                                   (list (make-vector 77 99) -77))
+                      (+ 4 80 4))
+                   (xdr-decode s (open-bytevector-input-port bv)))))
+
+(test-equal "empty variable-length opaque array (without padding)"
+            (list (vector) (vector))
+
+            (let* ((o xdr-variable-length-opaque-array)
+                   (s (make-xdr-struct-type (list o o))))
+              (and (= (xdr-encode! bv 0 s
+                                   (list (vector) (vector)))
+                      (+ 4 4))
+                   (xdr-decode s (open-bytevector-input-port bv)))))
+
+(test-equal "consecutive strings with padding"
+            (list (make-vector 35 97) (make-vector 35 98) 7777)
+
+            (let* ((s (make-xdr-struct-type (list xdr-string xdr-string
+                                                  xdr-integer))))
+              (and (= (xdr-encode! bv 0 s
+                                   (list (make-vector 35 97)
+                                         (make-vector 35 98)
+                                         7777))
+                      84)
+                   (xdr-decode s (open-bytevector-input-port bv)))))
+
+(test-equal "union (1)" (cons 1 77)
+            (let* ((o (make-xdr-fixed-length-opaque-array 77))
+                   (u (make-xdr-union-type xdr-integer
+                                           `((1 . ,xdr-integer)
+                                             (2 . ,o))
+                                           #f)))
+              (xdr-encode! bv 0 u (cons 1 77))
+              (xdr-decode u (open-bytevector-input-port bv))))
+
+(test-equal "union (2)" (cons 2 (make-list 77 255))
+            (let* ((o (make-xdr-fixed-length-opaque-array 77))
+                   (u (make-xdr-union-type xdr-integer
+                                           `((1 . ,xdr-integer)
+                                             (2 . ,o))
+                                           #f)))
+              (xdr-encode! bv 0 u (cons 2 (make-list 77 255)))
+              (xdr-decode u (open-bytevector-input-port bv))))
+
+(test-equal "union (default)" (cons 55 7777)
+            (let ((u (make-xdr-union-type xdr-integer
+                                           `((1 . ,xdr-integer))
+                                           xdr-hyper-integer)))
+              (xdr-encode! bv 0 u (cons 55 7777))
+              (xdr-decode u (open-bytevector-input-port bv))))
+
+(test-equal "invalid union (encoding)" %error-raised
+            (guard (c ((xdr-type-error? c) %error-raised))
+              (let ((u (make-xdr-union-type xdr-integer
+                                           `((1 . ,xdr-integer))
+                                           #f)))
+                (xdr-encode! bv 0 u (cons 33 ;; invalid discriminant
+                                          'some-value))
+                #f)))
+
+(test-equal "invalid union (decoding)" %error-raised
+            (guard (c ((xdr-type-error? c) %error-raised))
+              (let ((u (make-xdr-union-type xdr-integer
+                                           `((1 . ,xdr-integer))
+                                           #f)))
+                (bytevector-u32-set! bv 0 777 %xdr-endianness)
+                (xdr-decode u (open-bytevector-input-port bv))
+                #f)))
+
+(test-equal "fixed-length opaque array" (make-list 10 77)
+            (let ((o (make-xdr-fixed-length-opaque-array 10)))
               (xdr-encode! bv 0 o (make-list 10 77))
-              (xdr-decode bv 0 o)))
+              (xdr-decode o (open-bytevector-input-port bv))))
 
-(test-equal "variable-length opaque array" (values (make-vector 10 77) 14)
+(test-equal "variable-length opaque array" (make-vector 10 77)
             (let ((o xdr-variable-length-opaque-array))
               (xdr-encode! bv 0 o (make-vector 10 77))
-              (xdr-decode bv 0 o)))
+              (xdr-decode o (open-bytevector-input-port bv))))
 
-(test-equal "complex" (values (list 1.0 (vector -1 -2 -3 -4) 2.0)
-                              36)
-            (let* ((v (xdr-vector-type xdr-integer))
-                   (s (xdr-struct-type (list xdr-double v
-                                             xdr-double))))
+(test-equal "void (encoding)" 0
+            (xdr-encode! bv 0 xdr-void 'nothing))
+
+(test-eq    "void (decoding)" %void
+            (xdr-decode xdr-void (open-bytevector-input-port bv)))
+
+(test-equal "complex" (list 1.0 (vector -1 -2 -3 -4) 2.0)
+            (let* ((v (make-xdr-vector-type xdr-integer #f))
+                   (s (make-xdr-struct-type (list xdr-float v
+                                                  xdr-double))))
               (xdr-encode! bv 0 s (list 1.0 (vector -1 -2 -3 -4)
                                         2.0))
-              (xdr-decode bv 0 s)))
+              (xdr-decode s (open-bytevector-input-port bv))))
 
-(test-end "encoding+decoding")
+(test-end "xdr-encoding")
 
 (exit (= (test-runner-fail-count (test-runner-current)) 0))
 

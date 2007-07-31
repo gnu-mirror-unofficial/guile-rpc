@@ -16,16 +16,11 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-guilemoduledir = $(GUILE_SITE)
+EXTRA_DIST = grpc-rpcinfo.in
 
-nobase_dist_guilemodule_DATA =				\
-  rpc/xdr.scm rpc/xdr/types.scm				\
-  rpc/rpc.scm rpc/rpc/types.scm rpc/rpc/transports.scm	\
-  rpc/rpc/server.scm rpc/rpc/portmap.scm
-
-EXTRA_DIST = srfi/srfi-64.scm srfi/srfi-64.upstream.scm
+bin_SCRIPTS = grpc-rpcinfo
 
 if HAVE_GUILE_LINT
-all-local: $(nobase_dist_guilemodule_DATA)
-	$(GUILE_LINT) -L $(srcdir) $^
+all-local: $(bin_SCRIPTS)
+	$(GUILE_LINT) -L $(top_srcdir)/modules $^
 endif
