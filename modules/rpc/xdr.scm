@@ -58,6 +58,10 @@
 ;;;
 ;;; A framework to describe the data types defined in RFC 4506.
 ;;;
+;;; Note: For greater flexibility, we use Guile's "arrays" (which encompasses
+;;; vectors, strings, u8vectors, etc.) instead of raw R5RS vectors.  Other
+;;; implementations could use, e.g., SRFI-63.
+;;;
 ;;; Code:
 
 
@@ -208,18 +212,29 @@ type."
 ;;; Type size.
 ;;;
 
+(define (array-length vec)
+  "Return the length of a one-dimensional array (e.g., a vector) or @code{#f}
+if @var{vec} is not a one-dimensional array."
+  (let ((dim (array-dimensions vec)))
+    (and (null? (cdr dim))
+         (car dim))))
+
 (define (xdr-type-size type value)
   "Return the size (in octets) of @var{type} when applied to @var{value}."
 
-  (define (vector-map proc v)
-    (let ((len (vector-length v)))
-      (let loop ((i 0)
-                 (result '()))
-        (if (>= i len)
-            result
-            (loop (+ 1 i)
-                  (cons (proc (vector-ref v i))
-                        result))))))
+  (define (array-map type proc v)
+    (let ((len (array-length v)))
+      (if len
+          (let loop ((i 0)
+                     (result '()))
+            (if (>= i len)
+                result
+                (loop (+ 1 i)
+                      (cons (proc (array-ref v i))
+                            result))))
+          (raise (condition
+                  (&xdr-input-type-error (type  type)
+                                         (value v)))))))
 
   ;; We allow the size of basic types to not be a multiple of 4 and only
   ;; round up the size on structs and vectors.  This is so that we can, e.g.,
@@ -236,9 +251,10 @@ type."
            (let ((base (xdr-vector-base-type type)))
              (round-up-size
               (apply + 4 ;; 4 octets to encode the length
-                     (vector-map (lambda (value)
-                                   (loop base value))
-                                 value)))))
+                     (array-map type
+                                (lambda (value)
+                                  (loop base value))
+                                value)))))
 
           ((xdr-struct-type? type)
            (or (xdr-struct-size type)
@@ -288,8 +304,11 @@ type."
 
           ((xdr-vector-type? type)
            (let ((base (xdr-vector-base-type type))
-                 (len  (vector-length value))
+                 (len  (array-length value))
                  (max  (xdr-vector-max-element-count type)))
+
+             (if (not len)
+                 (type-error type value))
 
              ;; check whether LEN exceeds the maximum element count
              (if (or (and max (> len max))
@@ -307,7 +326,7 @@ type."
                (if (< value-index len)
                    (liip (+ 1 value-index)
                          (loop base
-                               (vector-ref value value-index)
+                               (array-ref value value-index)
                                index))
                    (round-up-size index)))))
 
@@ -377,7 +396,7 @@ type."
                               (let liip ((index 0))
                                 (if (< index len)
                                     (let ((value (loop type)))
-                                      (vector-set! vec index value)
+                                      (array-set! vec index value)
                                       (liip (+ 1 index)))
                                     vec))))))
 

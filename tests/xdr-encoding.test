@@ -23,6 +23,7 @@
   :use-module (rpc xdr types)
   :use-module (r6rs bytevector)
   :use-module (r6rs i/o ports)
+  :use-module (srfi srfi-4)
   :use-module (srfi srfi-34)
   :use-module (srfi srfi-35)
   :use-module (srfi srfi-64))
@@ -55,6 +56,11 @@
 (test-equal "vector" (vector 1 2 3 4)
             (let ((v (make-xdr-vector-type xdr-integer #f)))
               (xdr-encode! bv 0 v (vector 1 2 3 4))
+              (xdr-decode v (open-bytevector-input-port bv))))
+
+(test-equal "u8vector" (vector 1 2 3 4)
+            (let ((v (make-xdr-vector-type xdr-integer #f)))
+              (xdr-encode! bv 0 v (u8vector 1 2 3 4))
               (xdr-decode v (open-bytevector-input-port bv))))
 
 (test-eq    "limited vector (encoding)" %error-raised
@@ -195,6 +201,11 @@
 (test-equal "variable-length opaque array" (make-vector 10 77)
             (let ((o xdr-variable-length-opaque-array))
               (xdr-encode! bv 0 o (make-vector 10 77))
+              (xdr-decode o (open-bytevector-input-port bv))))
+
+(test-equal "variable-length opaque array (u8vector)" (make-vector 10 77)
+            (let ((o xdr-variable-length-opaque-array))
+              (xdr-encode! bv 0 o (make-u8vector 10 77))
               (xdr-decode o (open-bytevector-input-port bv))))
 
 (test-equal "void (encoding)" 0
