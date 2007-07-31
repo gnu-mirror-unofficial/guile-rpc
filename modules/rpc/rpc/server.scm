@@ -42,15 +42,15 @@
            rpc-procedure-number rpc-procedure-handler
            rpc-procedure-argument-xdr-type rpc-procedure-result-xdr-type
 
-           lookup-called-procedure handle-procedure-call
-           handle-procedure-lookup-error
+           lookup-called-procedure
 
            make-i/o-manager i/o-manager?
            i/o-manager-exception-handler i/o-manager-read-handler
            run-input-event-loop
 
            make-rpc-listening-socket-i/o-manager
-           serve-one-stream-request run-stream-rpc-server
+           serve-one-stream-request serve-one-stream-request/asynchronous
+           run-stream-rpc-server
            current-stream-connection stream-connection?
            stream-connection-port stream-connection-peer-address
            stream-connection-rpc-program
@@ -329,6 +329,40 @@ count."
                    result-type result)
       (send-result raw-result 0 total-size))))
 
+(define (handle-procedure-call/asynchronous call programs input-port
+                                            send-result)
+  "Handle procedure call @var{call} using @var{programs}, reading input from
+@var{input-port} and sending the result via @var{send-result}, a
+three-argument procedure that is passed a bytevector, offset and octet
+count.  Unlike with @code{handle-procedure-call}, the procedure from
+@var{programs} that is called is passed a continuation argument that it must
+invoke explicitly with the value to return to the client."
+  (define (make-result-handler result-type)
+    (lambda (result)
+      (let* ((result-size    (xdr-type-size result-type result))
+
+             (reply-prologue (make-rpc-message (rpc-call-xid call)
+                                               'REPLY 'MSG_ACCEPTED
+                                               'SUCCESS))
+             (prologue-size  (xdr-type-size rpc-message reply-prologue))
+             (total-size     (+ result-size prologue-size))
+             (raw-result     (make-bytevector total-size)))
+        (xdr-encode! raw-result
+                     (xdr-encode! raw-result 0
+                                  rpc-message reply-prologue)
+                     result-type result)
+        (send-result raw-result 0 total-size))))
+
+
+  (guard (c ((rpc-procedure-lookup-error? c)
+             (handle-procedure-lookup-error c call send-result)))
+
+    (let* ((proc           (lookup-called-procedure call programs))
+           (handler        (rpc-procedure-handler proc))
+           (input-type     (rpc-procedure-argument-xdr-type proc)))
+      (handler (xdr-decode input-type input-port)
+               (make-result-handler (rpc-procedure-result-xdr-type proc))))))
+
 
 ;;;
 ;;; Generic event loop.
@@ -420,27 +454,37 @@ is left."
 ;;; High-level aids.
 ;;;
 
-(define (serve-one-stream-request program port)
-  "Serve one RPC for @var{program}, reading the RPC from @var{port} (using
-the record-marking protocol) and writing the reply to @var{port}.  If
-@var{port} is closed or the end-of-file was reached, an
-@code{&rpc-connection-lost-error} is raised."
-  (let ((input-port (rpc-record-marking-input-port port)))
+(define (make-stream-request-server handle-call)
+  (lambda (program port)
+    ;; Serve one RPC for @var{program}, reading the RPC from @var{port}
+    ;; (using the record-marking protocol) and writing the reply to
+    ;; @var{port}.  If @var{port} is closed or the end-of-file was reached,
+    ;; an @code{&rpc-connection-lost-error} is raised."
+    (let ((input-port (rpc-record-marking-input-port port)))
 
-    (catch 'system-error
-      (lambda ()
-        (if (eof-object? (lookahead-u8 port))
-            (raise (condition (&rpc-connection-lost-error
-                               (port port))))
-            (let* ((msg  (xdr-decode rpc-message input-port))
-                   (call (procedure-call-information msg)))
-              (handle-procedure-call call (list program) input-port
-                                     (lambda (bv offset count)
-                                       (send-rpc-record port bv
-                                                        offset count))))))
-      (lambda (key . args)
-        (raise (condition (&rpc-connection-lost-error
-                           (port port))))))))
+      (catch 'system-error
+        (lambda ()
+          (if (eof-object? (lookahead-u8 port))
+              (raise (condition (&rpc-connection-lost-error
+                                 (port port))))
+              (let* ((msg  (xdr-decode rpc-message input-port))
+                     (call (procedure-call-information msg)))
+                (handle-call call (list program) input-port
+                             (lambda (bv offset count)
+                               (send-rpc-record port bv
+                                                offset count))))))
+        (lambda (key . args)
+          (raise (condition (&rpc-connection-lost-error
+                             (port port)))))))))
+
+(define serve-one-stream-request
+  ;; The synchronous variant.
+  (make-stream-request-server handle-procedure-call))
+
+(define serve-one-stream-request/asynchronous
+  ;; The asynchronous, continuation-passing style RPC server.
+  (make-stream-request-server handle-procedure-call/asynchronous))
+
 
 (define-record-type <stream-connection>
   (make-stream-connection port address rpc-program)
