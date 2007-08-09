@@ -298,8 +298,9 @@ if @var{vec} is not a one-dimensional array."
     (cond ((xdr-basic-type? type)
            (let ((valid?  (xdr-basic-type-type-pred type))
                  (encode! (xdr-basic-type-encoder type)))
-             (if (not (valid? value)) (type-error type value))
-             (encode! type value bv index)
+             (if (valid? value)
+                 (encode! type value bv index)
+                 (type-error type value))
              (+ index (xdr-basic-type-size type))))
 
           ((xdr-vector-type? type)
@@ -307,16 +308,15 @@ if @var{vec} is not a one-dimensional array."
                  (len  (array-length value))
                  (max  (xdr-vector-max-element-count type)))
 
-             (if (not len)
+             (if len
+                 ;; check whether LEN exceeds the maximum element count
+                 (if (or (and max (> len max))
+                         (> len %max-vector-size))
+                     (raise (condition
+                             (&xdr-vector-size-exceeded-error
+                              (type type)
+                              (element-count len)))))
                  (type-error type value))
-
-             ;; check whether LEN exceeds the maximum element count
-             (if (or (and max (> len max))
-                     (> len %max-vector-size))
-                 (raise (condition
-                         (&xdr-vector-size-exceeded-error
-                          (type type)
-                          (element-count len)))))
 
              ;; encode the vector length.
              (bytevector-u32-set! bv index len %xdr-endianness)
