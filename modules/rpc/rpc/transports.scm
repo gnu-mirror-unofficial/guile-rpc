@@ -70,62 +70,58 @@ standard, chopping its input bytevector into fragments of size
   "Return a binary input port that proxies @var{port} in order to implement
 decoding of the record marking standard (RFC 1831, Section 10)."
 
-  (let* ((in-fragment? #f)
-         (last-fragment? #f)
-         (fragment-len 0)
-         (octet-count 0))
+  (define in-fragment?   #f)
+  (define last-fragment? #f)
+  (define fragment-len    0)  ;; size of fragment being read
+  (define octet-count     0)  ;; total number of octets read from the fragment
 
-    ;; An awful imperative implementation of "record marking" (Section 10).
-    ;; We could probably achieve a similar result more elegantly by using
-    ;; continuations.
+  ;; An awful imperative implementation of "record marking" (Section 10).
 
-    (define (read! bv start count)
-      (define (have-read-from-fragment! count)
-        (set! octet-count (+ octet-count count))
-        (if (>= octet-count fragment-len)
-            (set! in-fragment? #f)))
+  (define (read! bv start count)
 
-      ;;(format #t "gotta read ~a~%" count)
+    ;;(format #t "gotta read ~a~%" count)
+    (let record-marking-read ((start start)
+                              (count count)
+                              (total 0))
 
-      (let loop ((start start)
-                 (count count)
-                 (total 0))
+      ;;(format #t "looping: ~a ~a ~a~%" start count total)
+      (if in-fragment?
+          (let* ((remaining (- fragment-len octet-count))
+                 (result    (get-bytevector-n! port bv start
+                                               (min remaining count))))
+            (if (eof-object? result)
+                0
+                (let ((last? last-fragment?))
+                  (set! octet-count (+ octet-count count))
+                  (if (>= octet-count fragment-len)
+                      (set! in-fragment? #f))
 
-        ;;(format #t "looping: ~a ~a ~a~%" start count total)
-        (if in-fragment?
-            (let* ((remaining (- fragment-len octet-count))
-                   (result (get-bytevector-n! port bv start
-                                              (min remaining count))))
-              (if (eof-object? result)
-                  0
-                  (let ((last? last-fragment?))
-                    (have-read-from-fragment! result)
-                    (if (and (not last?) (> count result))
-                        (loop (+ start result) (- count result)
-                              (+ total result))
-                        (+ total result)))))
-            (let (;;(zzz (format #t "getting record header...~%"))
-                  (raw (get-bytevector-n port 4)))
-              (if (eof-object? raw)
-                  (begin
-                    ;;(format #t "failed to get record header~%")
-                    total)
-                  (let* ((header
-                          (bytevector-u32-ref raw 0
-                                              %record-header-endianness))
-                         (len (bitwise-and #x7fffffff header)))
-                    ;; enter the new fragment
-                    (set! last-fragment? (bit-set? 31 header))
-                    (set! fragment-len   len)
-                    (set! octet-count    0)
-                    (set! in-fragment?   #t)
+                  (if (or last? (<= count result))
+                      (+ total result)
+                      (record-marking-read (+ start result) (- count result)
+                                           (+ total result))))))
+          (let (;;(zzz (format #t "getting record header...~%"))
+                (raw (get-bytevector-n port 4)))
+            (if (eof-object? raw)
+                (begin
+                  ;;(format #t "failed to get record header~%")
+                  total)
+                (let* ((header
+                        (bytevector-u32-ref raw 0
+                                            %record-header-endianness))
+                       (len (bitwise-and #x7fffffff header)))
+                  ;; enter the new fragment
+                  (set! last-fragment? (bit-set? 31 header))
+                  (set! fragment-len   len)
+                  (set! octet-count    0)
+                  (set! in-fragment?   #t)
 
-                    ;;(format #t "starting new frag: len=~a last=~a~%"
-                    ;;        fragment-len last-fragment?)
-                    (loop start count total)))))))
+                  ;;(format #t "starting new frag: len=~a last=~a~%"
+                  ;;        fragment-len last-fragment?)
+                  (record-marking-read start count total)))))))
 
     (make-custom-binary-input-port "record-marking input port"
-                                   read!)))
+                                   read!))
 
 
 ;;; transports.scm ends here
