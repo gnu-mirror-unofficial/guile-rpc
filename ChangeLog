@@ -2,6 +2,24 @@
 # arch-tag: automatic-ChangeLog--guile-rpc@sv.gnu.org--2007/guile-rpc--devo--0.2
 #
 
+2007-08-10 10:00:15 GMT	Ludovic Courtes <ludo@gnu.org>	patch-8
+
+    Summary:
+      Slightly optimized `xdr-encode!'.
+    Revision:
+      guile-rpc--devo--0.2--patch-8
+
+    * modules/rpc/xdr.scm: Rewrote expressions like `(if (not c) a b)'
+      to `(if c b a)'.  This makes `xdr-encode!' slightly faster, especially
+      when viewed from `statprof'.
+
+    modified files:
+     ChangeLog modules/rpc/xdr.scm
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0.2--patch-7
+
+
 2007-07-31 08:48:28 GMT	Ludovic Courtes <ludo@gnu.org>	patch-7
 
     Summary:
