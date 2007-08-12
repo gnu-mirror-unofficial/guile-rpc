@@ -2,6 +2,22 @@
 # arch-tag: automatic-ChangeLog--guile-rpc@sv.gnu.org--2007/guile-rpc--devo--0.2
 #
 
+2007-08-12 14:18:10 GMT	Ludovic Courtes <ludo@gnu.org>	patch-13
+
+    Summary:
+      Fixed `benchmarks/Makefile.am'.
+    Revision:
+      guile-rpc--devo--0.2--patch-13
+
+    * benchmarks/Makefile.am (all-local): Pass the right `-L' flags.
+
+    modified files:
+     ChangeLog benchmarks/Makefile.am
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0.2--patch-12
+
+
 2007-08-12 14:17:47 GMT	Ludovic Courtes <ludo@gnu.org>	patch-12
 
     Summary:
