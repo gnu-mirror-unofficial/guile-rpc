@@ -2,6 +2,25 @@
 # arch-tag: automatic-ChangeLog--guile-rpc@sv.gnu.org--2007/guile-rpc--devo--0.2
 #
 
+2007-08-12 14:08:10 GMT	Ludovic Courtes <ludo@gnu.org>	patch-9
+
+    Summary:
+      Slightly optimized the record-marking input port.
+    Revision:
+      guile-rpc--devo--0.2--patch-9
+
+    * modules/rpc/rpc/transports.scm (rpc-record-marking-input-port)[read!]:
+      No longer allocate the `have-read-from-fragment!' closure within the
+      body; in-lined the code of `have-read-from-fragment!'.
+      Renamed `loop' to `record-marking-read' for easier profiling.
+
+    modified files:
+     ChangeLog modules/rpc/rpc/transports.scm
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0.2--patch-8
+
+
 2007-08-10 10:00:15 GMT	Ludovic Courtes <ludo@gnu.org>	patch-8
 
     Summary:
