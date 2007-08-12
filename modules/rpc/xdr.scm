@@ -166,19 +166,12 @@ type."
         (let* ((rem (modulo size %xdr-atom-size))
                (padding (if (= 0 rem) 0 (- %xdr-atom-size rem))))
           (%make-xdr-struct-type base-types (+ size padding) padding))
-        (let ((type (car types)))
-          (cond ((xdr-basic-type? type)
-                 (loop (cdr types)
-                       (+ size (xdr-basic-type-size type))))
-                ((xdr-struct-type? type)
-                 (let ((s (xdr-struct-size type)))
-                   (if (number? s)
-                       (loop (cdr types)
-                             (+ size s))
-                       (%make-xdr-struct-type base-types #f #f))))
-                (else
-                 ;; Cannot determine struct size statically.
-                 (%make-xdr-struct-type base-types #f #f)))))))
+        (let ((type-size (xdr-type-static-size (car types))))
+          (if type-size
+              (loop (cdr types)
+                    (+ size type-size))
+              ;; Cannot determine struct size statically.
+              (%make-xdr-struct-type base-types #f #f))))))
 
 (define (make-xdr-union-type discr-type discr/type-alist default-type)
   "Return a new XDR discriminated union type, using @var{discr-type} as the
@@ -187,6 +180,7 @@ discriminant type (which must be a 32-bit basic type) and
 discriminant value.  If no suitable value is found in @var{discr/type-alist}
 and @var{default-type} is not @code{#f}, then default type is used as the arm
 type."
+  ;; XXX: We should be able to pre-compute the size of union in some cases.
   (if (and (xdr-basic-type? discr-type)
            (= 4 (xdr-basic-type-size discr-type))
            (list? discr/type-alist))
@@ -219,6 +213,18 @@ if @var{vec} is not a one-dimensional array."
     (and (null? (cdr dim))
          (car dim))))
 
+(define (xdr-type-static-size type)
+  "If @var{type} has a fixed size (once encoded), known statically, i.e.,
+independently of the value of type @var{type} being encoded, then return it
+(in octets), otherwise return @code{#f}."
+  (cond ((xdr-basic-type? type)
+         (xdr-basic-type-size type))
+        ((xdr-struct-type? type)
+         (xdr-struct-size type))
+        (else
+         ;; XXX: We should be able to do something for unions too.
+         #f)))
+
 (define (xdr-type-size type value)
   "Return the size (in octets) of @var{type} when applied to @var{value}."
 
@@ -248,13 +254,16 @@ if @var{vec} is not a one-dimensional array."
            (xdr-basic-type-size type))
 
           ((xdr-vector-type? type)
-           (let ((base (xdr-vector-base-type type)))
-             (round-up-size
-              (apply + 4 ;; 4 octets to encode the length
-                     (array-map type
-                                (lambda (value)
-                                  (loop base value))
-                                value)))))
+           (let* ((base      (xdr-vector-base-type type))
+                  (base-size (xdr-type-static-size base)))
+             (+ 4 ;; 4 octets to encode the length
+                (round-up-size
+                 (if base-size
+                     (* (array-length value) base-size)
+                     (apply + (array-map type
+                                         (lambda (value)
+                                           (loop base value))
+                                         value)))))))
 
           ((xdr-struct-type? type)
            (or (xdr-struct-size type)
@@ -267,7 +276,8 @@ if @var{vec} is not a one-dimensional array."
                         (cdr value)))))
 
           (else
-           (raise (condition (&xdr-unknown-type-error (type type))))))))
+           (raise (condition
+                   (&xdr-unknown-type-error (type type))))))))
 
 
 ;;;
@@ -292,9 +302,9 @@ if @var{vec} is not a one-dimensional array."
     (raise (condition (&xdr-input-type-error (type  type)
                                              (value value)))))
 
-  (let loop ((type  type)
-             (value value)
-             (index index))
+  (let encode ((type  type)
+               (value value)
+               (index index))
     (cond ((xdr-basic-type? type)
            (let ((valid?  (xdr-basic-type-type-pred type))
                  (encode! (xdr-basic-type-encoder type)))
@@ -325,9 +335,9 @@ if @var{vec} is not a one-dimensional array."
                         (index       (+ 4 index)))
                (if (< value-index len)
                    (liip (+ 1 value-index)
-                         (loop base
-                               (array-ref value value-index)
-                               index))
+                         (encode base
+                                 (array-ref value value-index)
+                                 index))
                    (round-up-size index)))))
 
           ((xdr-struct-type? type)
@@ -338,16 +348,16 @@ if @var{vec} is not a one-dimensional array."
                  (round-up-size index)
                  (liip (cdr types)
                        (cdr values)
-                       (loop (car types)
-                             (car values)
-                             index)))))
+                       (encode (car types)
+                               (car values)
+                               index)))))
 
           ((xdr-union-type? type)
            (let ((discr (car value))
                  (arm   (cdr value)))
-             (loop (xdr-union-discriminant-type type) discr index)
+             (encode (xdr-union-discriminant-type type) discr index)
              ;; We can safely assume that the discriminant is 32-bit.
-             (loop (xdr-union-arm-type type discr) arm (+ index 4))))
+             (encode (xdr-union-arm-type type discr) arm (+ index 4))))
 
           (else
            (raise (condition (&xdr-unknown-type-error (type type))))))))
@@ -370,7 +380,7 @@ if @var{vec} is not a one-dimensional array."
               (- %xdr-atom-size rem)))
         0))
 
-  (let loop ((type  type))
+  (let decode ((type  type))
     (cond ((xdr-basic-type? type)
            (let ((decode (xdr-basic-type-decoder type)))
              (decode type port)))
@@ -395,7 +405,7 @@ if @var{vec} is not a one-dimensional array."
                             (let ((vec (make-vector len)))
                               (let liip ((index 0))
                                 (if (< index len)
-                                    (let ((value (loop type)))
+                                    (let ((value (decode type)))
                                       (array-set! vec index value)
                                       (liip (+ 1 index)))
                                     vec))))))
@@ -410,13 +420,13 @@ if @var{vec} is not a one-dimensional array."
                  (let ((padding (or (xdr-struct-padding type) 0)))
                    (if (> padding 0) (get-bytevector-n port padding))
                    (reverse! result))
-                 (let ((value (loop (car types))))
+                 (let ((value (decode (car types))))
                    (liip (cdr types)
                          (cons value result))))))
 
           ((xdr-union-type? type)
-           (let* ((discr (loop (xdr-union-discriminant-type type)))
-                  (value (loop (xdr-union-arm-type type discr))))
+           (let* ((discr (decode (xdr-union-discriminant-type type)))
+                  (value (decode (xdr-union-arm-type type discr))))
              (cons discr value)))
 
           (else

@@ -2,6 +2,28 @@
 # arch-tag: automatic-ChangeLog--guile-rpc@sv.gnu.org--2007/guile-rpc--devo--0.2
 #
 
+2007-08-12 14:16:57 GMT	Ludovic Courtes <ludo@gnu.org>	patch-10
+
+    Summary:
+      Optimized `xdr-type-size'.
+    Revision:
+      guile-rpc--devo--0.2--patch-10
+
+    * modules/rpc/xdr.scm (make-xdr-struct-type): Use
+      `xdr-type-static-size'.
+      (xdr-type-static-size): New.
+      (xdr-type-size): For vectors, multiply the array length by the element
+      size (when available) instead of iterating on all values.
+      (xdr-encode!): Renamed `loop' to `encode' for easier profiling.
+      (xdr-decode): Renamed `loop' to `decode' for easier profiling.
+
+    modified files:
+     ChangeLog modules/rpc/xdr.scm
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0.2--patch-9
+
+
 2007-08-12 14:08:10 GMT	Ludovic Courtes <ludo@gnu.org>	patch-9
 
     Summary:
