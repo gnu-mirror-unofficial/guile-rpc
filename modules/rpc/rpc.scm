@@ -239,6 +239,12 @@ message).  On failure, an appropriate error condition is raised."
 ;;; Client-side helpers.
 ;;;
 
+(define %rpc-call-message-size
+  ;; Pre-compute the size of an RPC call message.  We can do that since
+  ;; `rpc-call-body' has a fixed length.
+  (xdr-type-size rpc-message
+                 (make-rpc-message 0 'CALL 0 0 0)))
+
 (define (make-synchronous-rpc-call program version procedure
                                    arg-type result-type)
   "Return a procedure that may be applied to an argument list, transaction
@@ -251,7 +257,7 @@ condition is raised."
                             (wrap-input-port rpc-record-marking-input-port))
     (let* ((call-msg     (make-rpc-message xid 'CALL program version
                                            procedure))
-           (call-msg-len (xdr-type-size rpc-message call-msg))
+           (call-msg-len %rpc-call-message-size)
            (args-msg-len (xdr-type-size arg-type args))
            (msg-len      (+ call-msg-len args-msg-len))
            (msg          (make-bytevector msg-len)))
