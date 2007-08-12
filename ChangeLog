@@ -2,6 +2,35 @@
 # arch-tag: automatic-ChangeLog--guile-rpc@sv.gnu.org--2007/guile-rpc--devo--0.2
 #
 
+2007-08-12 14:17:47 GMT	Ludovic Courtes <ludo@gnu.org>	patch-12
+
+    Summary:
+      Added basic support for benchmarks.
+    Revision:
+      guile-rpc--devo--0.2--patch-12
+
+    * Makefile.am (SUBDIRS): Added `benchmarks'.
+    
+    * configure.ac: Check for `statprof' and define Automake conditional
+      `HAVE_STATPROF'.
+      Produce `benchmarks/Makefile'.
+
+    new files:
+     benchmarks/.arch-ids/=id benchmarks/.arch-ids/Makefile.am.id
+     benchmarks/Makefile.am benchmarks/benchmark.scm
+     benchmarks/record-marking.scm benchmarks/xdr-decode.scm
+     benchmarks/xdr-encode.scm
+
+    modified files:
+     ChangeLog Makefile.am configure.ac
+
+    new directories:
+     benchmarks benchmarks/.arch-ids
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0.2--patch-11
+
+
 2007-08-12 14:17:24 GMT	Ludovic Courtes <ludo@gnu.org>	patch-11
 
     Summary:

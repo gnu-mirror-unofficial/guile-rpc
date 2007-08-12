@@ -29,13 +29,17 @@ GUILE_MODULE_REQUIRED([srfi srfi-34])
 # Need SRFI-35 (available in `guile-library').
 GUILE_MODULE_REQUIRED([srfi srfi-35])
 
+# Optionally, `statprof' can be used when available.
+GUILE_MODULE_AVAILABLE([have_statprof], [(statprof)])
+AM_CONDITIONAL([HAVE_STATPROF], test "x$have_statprof" = "xyes")
 
 # Output.
 AC_CONFIG_FILES([Makefile
 	         doc/Makefile
 	         modules/Makefile
 		 utils/Makefile
-		 tests/Makefile])
+		 tests/Makefile
+		 benchmarks/Makefile])
 
 AC_CONFIG_FILES([utils/grpc-rpcinfo], [chmod +x utils/grpc-rpcinfo])
 
