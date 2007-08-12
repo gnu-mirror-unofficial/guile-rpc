@@ -16,5 +16,37 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-SUBDIRS = doc modules utils tests benchmarks
+benchmarks = record-marking.scm xdr-encode.scm xdr-decode.scm
 
+EXTRA_DIST = benchmark.scm $(benchmarks)
+
+run:
+	for bench in $(benchmarks) ; do			\
+	echo "running \`$$bench'..." &&			\
+	$(GUILE) -L $(top_srcdir)/modules -L $(srcdir)	\
+	         "$(top_srcdir)/benchmarks/$$bench" ;	\
+	done
+
+if HAVE_STATPROF
+
+profile:
+	for bench in $(benchmarks) ; do			\
+	echo "profiling \`$$bench'..." &&		\
+	GUILE_RPC_PROFILING=yes				\
+	$(GUILE) -L $(top_srcdir)/modules -L $(srcdir)	\
+	         "$(top_srcdir)/benchmarks/$$bench" ;	\
+	done
+
+.PHONY: run profile
+
+else !HAVE_STATPROF
+
+.PHONY: run
+
+endif !HAVE_STATPROF
+
+
+if HAVE_GUILE_LINT
+all-local: $(benchmarks)
+	$(GUILE_LINT) -L $(srcdir) $^
+endif
