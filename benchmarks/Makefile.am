@@ -48,5 +48,5 @@ endif !HAVE_STATPROF
 
 if HAVE_GUILE_LINT
 all-local: $(benchmarks)
-	$(GUILE_LINT) -L $(srcdir) $^
-endif
+	$(GUILE_LINT) -L $(top_srcdir)/modules -L $(srcdir) $^
+endif HAVE_GUILE_LINT
