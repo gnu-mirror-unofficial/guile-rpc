@@ -2,7 +2,7 @@
 
 ** New features (see manual for details)
 *** Server-side: asynchronous RPC reply
-*** Client-side: `make-one-way-rpc-call'
+*** Support for one-way/batched RPC calls
 *** XDR vectors can be represented as any Guile array type
 
 
