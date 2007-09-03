@@ -640,6 +640,21 @@ detailed in @ref{ONC RPC Message Types,
 
 For an example, see @ref{Creating the Client}.
 
+@cindex batched calls
+@cindex one-way calls
+
+It is also possible to create ``one-way'' calls, i.e., RPC calls that do
+not expect a reply (i.e., no return value, not even @code{void}).  This
+is useful, for instance, to implement batched calls where clients do not
+wait for the server to reply (@pxref{References, Section 7.4.1 of RFC
+1831}).  Asynchronous calls can be implemented in terms of this, too.
+
+@deffn {Scheme Procedure} make-one-way-rpc-call program version procedure arg-type result-type
+Similar to @code{make-synchronous-rpc-call}, except that the returned
+procedure does @emph{not} wait for a reply.
+@end deffn
+
+
 @node Building an RPC Server, ONC RPC Message Types, Building an RPC Client, Implementation of ONC RPC
 @subsection Building an RPC Server
 

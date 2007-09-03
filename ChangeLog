@@ -2,6 +2,31 @@
 # arch-tag: automatic-ChangeLog--guile-rpc@sv.gnu.org--2007/guile-rpc--devo--0.2
 #
 
+2007-09-03 22:53:27 GMT	Ludovic Courtes <ludo@gnu.org>	patch-14
+
+    Summary:
+      rpc: Added support for one-way calls.
+    Revision:
+      guile-rpc--devo--0.2--patch-14
+
+    * NEWS: Updated.
+    
+    * doc/guile-rpc.texi (Building an RPC Client): Documented
+      `make-one-way-rpc-call'.
+    
+    * modules/rpc/rpc.scm (make-one-way-rpc-call): New.
+      (make-synchronous-rpc-call): Use it.
+    
+    * tests/rpc.test (one-way call): New test.
+
+    modified files:
+     ChangeLog NEWS doc/guile-rpc.texi modules/rpc/rpc.scm
+     tests/rpc.test
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0.2--patch-13
+
+
 2007-08-12 14:18:10 GMT	Ludovic Courtes <ludo@gnu.org>	patch-13
 
     Summary:
