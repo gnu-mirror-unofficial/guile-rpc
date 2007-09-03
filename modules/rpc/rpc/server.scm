@@ -41,6 +41,7 @@
            rpc-program-version-lookup-procedure
            rpc-procedure-number rpc-procedure-handler
            rpc-procedure-argument-xdr-type rpc-procedure-result-xdr-type
+           rpc-procedure-one-way?
 
            lookup-called-procedure
 
@@ -186,12 +187,21 @@ call message, an error condition is raised."
   (lookup-procedure %rpc-program-version-lookup-procedure))
 
 (define-record-type <rpc-procedure>
-  (make-rpc-procedure number argument-xdr-type result-xdr-type handler)
+  (%make-rpc-procedure number argument-xdr-type result-xdr-type handler
+                       one-way?)
   rpc-procedure?
   (number             rpc-procedure-number)
   (argument-xdr-type  rpc-procedure-argument-xdr-type)
   (result-xdr-type    rpc-procedure-result-xdr-type)
-  (handler            rpc-procedure-handler))
+  (handler            rpc-procedure-handler)
+  (one-way?           rpc-procedure-one-way?))
+
+(define (make-rpc-procedure number argument-xdr-type result-xdr-type handler
+                            . rest)
+  (%make-rpc-procedure number argument-xdr-type result-xdr-type handler
+                       (if (null? rest)
+                           #f
+                           (car rest))))
 
 
 (define (compile-numbered-items get-number items)
@@ -315,21 +325,23 @@ count."
     (let* ((proc           (lookup-called-procedure call programs))
            (handler        (rpc-procedure-handler proc))
            (input-type     (rpc-procedure-argument-xdr-type proc))
-           (result         (handler (xdr-decode input-type input-port)))
-           (result-type    (rpc-procedure-result-xdr-type proc))
-           (result-size    (xdr-type-size result-type result))
+           (result         (handler (xdr-decode input-type input-port))))
 
-           (reply-prologue (make-rpc-message (rpc-call-xid call)
-                                             'REPLY 'MSG_ACCEPTED
-                                             'SUCCESS))
-           (prologue-size  (xdr-type-size rpc-message reply-prologue))
-           (total-size     (+ result-size prologue-size))
-           (raw-result     (make-bytevector total-size)))
-      (xdr-encode! raw-result
-                   (xdr-encode! raw-result 0
-                                rpc-message reply-prologue)
-                   result-type result)
-      (send-result raw-result 0 total-size))))
+      (if (not (rpc-procedure-one-way? proc))
+          (let* ((result-type    (rpc-procedure-result-xdr-type proc))
+                 (result-size    (xdr-type-size result-type result))
+
+                 (reply-prologue (make-rpc-message (rpc-call-xid call)
+                                                   'REPLY 'MSG_ACCEPTED
+                                                   'SUCCESS))
+                 (prologue-size  (xdr-type-size rpc-message reply-prologue))
+                 (total-size     (+ result-size prologue-size))
+                 (raw-result     (make-bytevector total-size)))
+            (xdr-encode! raw-result
+                         (xdr-encode! raw-result 0
+                                      rpc-message reply-prologue)
+                         result-type result)
+            (send-result raw-result 0 total-size))))))
 
 (define (handle-procedure-call/asynchronous call programs input-port
                                             send-result)
@@ -363,7 +375,10 @@ invoke explicitly with the value to return to the client."
            (handler        (rpc-procedure-handler proc))
            (input-type     (rpc-procedure-argument-xdr-type proc)))
       (handler (xdr-decode input-type input-port)
-               (make-result-handler (rpc-procedure-result-xdr-type proc))))))
+               (if (rpc-procedure-one-way? proc)
+                   (lambda (result) result)
+                   (make-result-handler
+                    (rpc-procedure-result-xdr-type proc)))))))
 
 
 ;;;

@@ -713,7 +713,10 @@ Return a new object describing the RPC program version identified by
 @var{procedures}.
 @end deffn
 
-@deffn {Scheme Procedure} make-rpc-procedure number argument-xdr-type result-xdr-type handler
+@cindex batched calls
+@cindex one-way calls
+
+@deffn {Scheme Procedure} make-rpc-procedure number argument-xdr-type result-xdr-type handler [one-way?]
 Return a new object describing a procedure whose number is
 @var{number}, whose argument type is @var{argument-xdr-type} and whose
 result type is @var{result-xdr-type} (@pxref{XDR Type
@@ -721,6 +724,13 @@ Representations}).  @var{handler} should be a one-argument procedure
 that will be invoked upon reception of an RPC call for that procedure;
 it will be passed the decoded argument and should return a result type
 that may be encoded as @var{result-xdr-type}.
+
+If @var{one-way?} is passed and is true, then the returned procedure is
+marked as ``one-way'' (@pxref{Building an RPC Client,
+@code{make-one-way-rpc-call}}).  For one-way procedures,
+@code{run-stream-rpc-server} and similar procedures ignores the return
+value of @var{handler} and don't send any reply when procedure
+@var{number} is invoked.
 @end deffn
 
 @vindex @code{SOCK_STREAM}
