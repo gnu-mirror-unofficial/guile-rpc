@@ -184,6 +184,31 @@
                         (make-rpc-message #x9999 'REPLY 'MSG_ACCEPTED
                                           'PROG_MISMATCH 0 1)))))
 
+(test-equal "one-way procedure" #t
+            (let-values (((port get-content)
+                          (open-bytevector-output-port)))
+              (define program
+                (let* ((proc
+                        (make-rpc-procedure 7 xdr-integer xdr-integer
+                                            (lambda (arg) (+ arg 1))
+                                            #t))
+                       (version
+                        (make-rpc-program-version 77 (list proc))))
+                  (make-rpc-program 77777 (list version))))
+
+              (let ((call (make-one-way-rpc-call 77777 77 7
+                                                 xdr-integer xdr-integer)))
+                (call 123 999 port)
+                (let* ((input    (rpc-record-marking-input-port
+                                  (open-bytevector-input-port (get-content))))
+                       (call-msg (xdr-decode rpc-message input))
+                       (call     (procedure-call-information call-msg)))
+                  (handle-procedure-call call (list program) input
+                                         (lambda args
+                                           (error "should not be called"
+                                                  args)))
+                  #t))))
+
 (test-end "rpc-message")
 
 

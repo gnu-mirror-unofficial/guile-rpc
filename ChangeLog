@@ -2,6 +2,29 @@
 # arch-tag: automatic-ChangeLog--guile-rpc@sv.gnu.org--2007/guile-rpc--devo--0.2
 #
 
+2007-09-03 22:53:55 GMT	Ludovic Courtes <ludo@gnu.org>	patch-15
+
+    Summary:
+      Added server-side support for one-way procedures.
+    Revision:
+      guile-rpc--devo--0.2--patch-15
+
+    * doc/guile-rpc.texi (Building an RPC Server): Documented the ONE-WAY?
+      argument of `make-rpc-procedure'.
+    
+    * modules/rpc/rpc/server.scm (rpc-procedure-one-way?): New.
+      (handle-procedure-call, handle-procedure-call/asynchronous): Honor it.
+    
+    * tests/rpc.test (one-way procedure): New test.
+
+    modified files:
+     ChangeLog doc/guile-rpc.texi modules/rpc/rpc/server.scm
+     tests/rpc.test
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0.2--patch-14
+
+
 2007-09-03 22:53:27 GMT	Ludovic Courtes <ludo@gnu.org>	patch-14
 
     Summary:
