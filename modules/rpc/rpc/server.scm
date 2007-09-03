@@ -314,6 +314,15 @@ the appropriate reply message via @var{send-result}."
            (xdr-encode! raw-reply 0 rpc-message reply)
            (send-result raw-reply 0 reply-size)))))
 
+
+
+(define %rpc-reply-message-size
+  ;; Pre-compute the size of a successful reply message.
+  (xdr-type-size rpc-message
+                 (make-rpc-message 0
+                                   'REPLY 'MSG_ACCEPTED
+                                   'SUCCESS)))
+
 (define (handle-procedure-call call programs input-port send-result)
   "Handle procedure call @var{call} using @var{programs}, reading input from
 @var{input-port} and sending the result via @var{send-result}, a
@@ -334,8 +343,7 @@ count."
                  (reply-prologue (make-rpc-message (rpc-call-xid call)
                                                    'REPLY 'MSG_ACCEPTED
                                                    'SUCCESS))
-                 (prologue-size  (xdr-type-size rpc-message reply-prologue))
-                 (total-size     (+ result-size prologue-size))
+                 (total-size     (+ result-size %rpc-reply-message-size))
                  (raw-result     (make-bytevector total-size)))
             (xdr-encode! raw-result
                          (xdr-encode! raw-result 0
@@ -358,8 +366,7 @@ invoke explicitly with the value to return to the client."
              (reply-prologue (make-rpc-message (rpc-call-xid call)
                                                'REPLY 'MSG_ACCEPTED
                                                'SUCCESS))
-             (prologue-size  (xdr-type-size rpc-message reply-prologue))
-             (total-size     (+ result-size prologue-size))
+             (total-size     (+ result-size %rpc-reply-message-size))
              (raw-result     (make-bytevector total-size)))
         (xdr-encode! raw-result
                      (xdr-encode! raw-result 0
