@@ -2,6 +2,21 @@
 # arch-tag: automatic-ChangeLog--guile-rpc@sv.gnu.org--2007/guile-rpc--devo--0.2
 #
 
+2007-09-03 22:54:38 GMT	Ludovic Courtes <ludo@gnu.org>	patch-17
+
+    Summary:
+      Updated `NEWS'.
+    Revision:
+      guile-rpc--devo--0.2--patch-17
+
+
+    modified files:
+     ChangeLog NEWS
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0.2--patch-16
+
+
 2007-09-03 22:54:16 GMT	Ludovic Courtes <ludo@gnu.org>	patch-16
 
     Summary:
