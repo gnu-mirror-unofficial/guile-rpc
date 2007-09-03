@@ -33,6 +33,7 @@
 
            ;; high-level
            make-synchronous-rpc-call
+           make-one-way-rpc-call
 
            ;; error conditions
            &rpc-error &rpc-call-error
@@ -245,16 +246,14 @@ message).  On failure, an appropriate error condition is raised."
   (xdr-type-size rpc-message
                  (make-rpc-message 0 'CALL 0 0 0)))
 
-(define (make-synchronous-rpc-call program version procedure
-                                   arg-type result-type)
+(define (make-one-way-rpc-call program version procedure
+                               arg-type result-type)
   "Return a procedure that may be applied to an argument list, transaction
 ID, and I/O port, to make a synchronous RPC call to the remote procedure
-numbered @var{procedure} in @var{program}, version @var{version}.  On
-success, the invocation result is eventually returned.  Otherwise, an error
-condition is raised."
-  (lambda* (args xid endpoint
-                 #:optional (send-message send-rpc-record)
-                            (wrap-input-port rpc-record-marking-input-port))
+numbered @var{procedure} in @var{program}, version @var{version}; its result
+is unspecified.  The returned procedure does @emph{not} wait for a reply.
+This is useful to implement batched calls or asynchronous invocations."
+  (lambda* (args xid endpoint #:optional (send-message send-rpc-record))
     (let* ((call-msg     (make-rpc-message xid 'CALL program version
                                            procedure))
            (call-msg-len %rpc-call-message-size)
@@ -269,6 +268,24 @@ condition is raised."
 
       ;;(format #t "request sent (~a = ~a + ~a)!~%" msg-len
       ;;        call-msg-len args-msg-len)
+      )))
+
+
+(define (make-synchronous-rpc-call program version procedure
+                                   arg-type result-type)
+  "Return a procedure that may be applied to an argument list, transaction
+ID, and I/O port, to make a synchronous RPC call to the remote procedure
+numbered @var{procedure} in @var{program}, version @var{version}.  On
+success, the invocation result is eventually returned.  Otherwise, an error
+condition is raised."
+  (let ((call (make-one-way-rpc-call program version procedure
+                                     arg-type result-type)))
+    (lambda* (args xid endpoint
+                   #:optional (send-message send-rpc-record)
+                              (wrap-input-port rpc-record-marking-input-port))
+
+      ;; Send the call message.
+      (call args xid endpoint send-message)
 
       ;; Wait for an answer
       (let* ((endpoint  (wrap-input-port endpoint))

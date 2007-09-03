@@ -111,6 +111,21 @@
                   (bytevector=? (get-bytevector-all input)
                                 source)))))
 
+(test-equal "one-way call" (list 999 77777 77 7)
+            (let-values (((port get-content)
+                          (open-bytevector-output-port)))
+              (let ((call (make-one-way-rpc-call 77777 77 7
+                                                 xdr-integer xdr-integer)))
+                (call 123 999 port)
+                (let* ((raw      (open-bytevector-input-port (get-content)))
+                       (call-msg (xdr-decode rpc-message
+                                          (rpc-record-marking-input-port raw)))
+                       (call     (procedure-call-information call-msg)))
+                  (list (rpc-call-xid call)
+                        (rpc-call-program call)
+                        (rpc-call-version call)
+                        (rpc-call-procedure call))))))
+
 
 ;; Server stuff.
 
