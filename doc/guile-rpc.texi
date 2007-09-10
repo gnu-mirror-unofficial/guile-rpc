@@ -399,16 +399,20 @@ contain.  Thus, those types can be summarized as 4 great classes:
 The @code{(rpc xdr)} module provides facilities to represent and
 handle these classes of types which we describe below.
 
-@deffn {Scheme Procedure} make-xdr-basic-type name size type-pred encoder decoder [vector-decoder]
+@deffn {Scheme Procedure} make-xdr-basic-type name size type-pred encoder decoder [vector-encoder [vector-decoder]]
 This returns an @code{<xdr-basic-type>} object describing a type whose
 encoding fits on @var{size} octets, and which is encoded/decoded using
 the @var{encoder} and @var{decoder} procedures.  @var{type-pred}
 should be a predicate checking the validity of an input Scheme value
-for encoding into this type.  Optionally, @var{vector-decoder} can be
-passed and should be a procedure that efficiently decodes sequences of
-data items of this type (for instance, the vector decoder could use
-the @code{bytevector->int-list} procedure of the @code{(r6rs
-bytevector)} module to speed up decoding).
+for encoding into this type.
+
+Optionally, @var{vector-encoder} and @var{vector-decoder} can be passed
+and should be procedures that efficiently encode/decode sequences of
+data items of this type (for instance, the vector decoder could use the
+@code{bytevector->int-list} procedure of the @code{(r6rs bytevector)}
+module to speed up decoding).  The vector encoder is invoked as
+@code{(@var{vector-encoder} type value bv index)} while the vector
+decoder is invoked as @code{(@var{vector-decoder} type count port)}.
 
 Users should normally not need to define new basic types since all the
 basic types defined by XDR are already available in @code{(rpc xdr

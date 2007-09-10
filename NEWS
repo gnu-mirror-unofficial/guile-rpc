@@ -1,5 +1,8 @@
 * New in GNU Guile-RPC 0.2
 
+** Incompatible API changes
+*** `make-xdr-basic-type' now takes an optional `vector-encoder' argument
+
 ** New features (see manual for details)
 *** Server-side: asynchronous RPC reply
 *** Support for one-way/batched RPC calls
