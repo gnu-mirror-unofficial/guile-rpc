@@ -113,7 +113,7 @@
 (define-condition-type &xdr-error &error
   xdr-error?)
 
-(define-condition-type &xdr-type-error &error
+(define-condition-type &xdr-type-error &xdr-error
   xdr-type-error?
   (type      xdr-type-error:type))
 

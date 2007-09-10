@@ -2,6 +2,25 @@
 # arch-tag: automatic-ChangeLog--guile-rpc@sv.gnu.org--2007/guile-rpc--devo--0.2
 #
 
+2007-09-10 18:41:51 GMT	Ludovic Courtes <ludo@gnu.org>	patch-18
+
+    Summary:
+      Fix inheritance of `&xdr-type-error'.
+    Revision:
+      guile-rpc--devo--0.2--patch-18
+
+    * modules/rpc/xdr.scm (&xdr-type-error): Inherit from `&xdr-error'
+      instead of `&error'.
+    
+    * NEWS: Update.
+
+    modified files:
+     ChangeLog NEWS modules/rpc/xdr.scm
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0.2--patch-17
+
+
 2007-09-03 22:54:38 GMT	Ludovic Courtes <ludo@gnu.org>	patch-17
 
     Summary:
