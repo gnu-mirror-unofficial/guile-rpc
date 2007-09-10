@@ -72,13 +72,15 @@
 
 (define-record-type <xdr-basic-type>
   ;; Basic fixed-size XDR types.
-  (%make-xdr-basic-type name size type-pred encoder decoder vector-decoder)
+  (%make-xdr-basic-type name size type-pred encoder decoder
+                        vector-encoder vector-decoder)
   xdr-basic-type?
   (name           xdr-basic-type-name)
   (size           xdr-basic-type-size)         ;; encoded size (in octets)
   (type-pred      xdr-basic-type-type-pred)    ;; input type predicate
   (encoder        xdr-basic-type-encoder)
   (decoder        xdr-basic-type-decoder)
+  (vector-encoder xdr-basic-type-vector-encoder)
   (vector-decoder xdr-basic-type-vector-decoder))
 
 (define-record-type <xdr-vector-type>
@@ -138,15 +140,19 @@
 ;;;
 
 (define (make-xdr-basic-type name size type-pred
-                             encoder decoder . vector-decoder)
+                             encoder decoder . vector-encoder+decoder)
   "Return a new basic XDR type.  If @var{vector-decoder} is provided, then it
 should be a procedure that will be used to efficiently decode vectors of that
 type."
-  (let ((vector-decoder (if (null? vector-decoder)
-                            '(#f)
-                            vector-decoder)))
-    (apply %make-xdr-basic-type name size type-pred encoder decoder
-           vector-decoder)))
+  (let ((vector-encoder (if (null? vector-encoder+decoder)
+                            #f
+                            (car vector-encoder+decoder)))
+        (vector-decoder (if (or (null? vector-encoder+decoder)
+                                (null? (cdr vector-encoder+decoder)))
+                            #f
+                            (cadr vector-encoder+decoder))))
+    (%make-xdr-basic-type name size type-pred encoder decoder
+                          vector-encoder vector-decoder)))
 
 ;; Section 3: the "basic block size" is 32 bits.
 (define %xdr-atom-size 4)
@@ -314,9 +320,11 @@ independently of the value of type @var{type} being encoded, then return it
              (+ index (xdr-basic-type-size type))))
 
           ((xdr-vector-type? type)
-           (let ((base (xdr-vector-base-type type))
-                 (len  (array-length value))
-                 (max  (xdr-vector-max-element-count type)))
+           (let* ((base    (xdr-vector-base-type type))
+                  (len     (array-length value))
+                  (max     (xdr-vector-max-element-count type))
+                  (encode! (and (xdr-basic-type? base)
+                                (xdr-basic-type-vector-encoder base))))
 
              (if len
                  ;; check whether LEN exceeds the maximum element count
@@ -331,14 +339,20 @@ independently of the value of type @var{type} being encoded, then return it
              ;; encode the vector length.
              (bytevector-u32-set! bv index len %xdr-endianness)
 
-             (let liip ((value-index 0)
-                        (index       (+ 4 index)))
-               (if (< value-index len)
-                   (liip (+ 1 value-index)
-                         (encode base
-                                 (array-ref value value-index)
-                                 index))
-                   (round-up-size index)))))
+             (if encode!
+                 (begin
+                   ;; use the custom vector encoder
+                   (encode! type value bv (+ 4 index))
+                   (round-up-size (+ 4 index
+                                     (* (xdr-basic-type-size base) len))))
+                 (let liip ((value-index 0)
+                            (index       (+ 4 index)))
+                   (if (< value-index len)
+                       (liip (+ 1 value-index)
+                             (encode base
+                                     (array-ref value value-index)
+                                     index))
+                       (round-up-size index))))))
 
           ((xdr-struct-type? type)
            (let liip ((types  (xdr-struct-base-types type))

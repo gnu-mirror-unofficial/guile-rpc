@@ -2,6 +2,32 @@
 # arch-tag: automatic-ChangeLog--guile-rpc@sv.gnu.org--2007/guile-rpc--devo--0.2
 #
 
+2007-09-10 23:04:27 GMT	Ludovic Courtes <ludo@gnu.org>	patch-19
+
+    Summary:
+      make-xdr-basic-type: Take an optional `vector-encoder' argument.
+    Revision:
+      guile-rpc--devo--0.2--patch-19
+
+    * modules/rpc/xdr.scm (<xdr-basic-type>)[vector-encoder]: New field.
+      (make-xdr-basic-type): Accept an optional VECTOR-ENCODER argument that
+      comes before VECTOR-DECODER.  This is an incompatible API change.
+      (xdr-encode!): When encoding a vector, honor BASE's vector-encoder if
+      supplied.
+    
+    * modules/rpc/xdr/types.scm (array-for-each/index): New.
+      (xdr-integer, xdr-unsigned-integer, make-xdr-enumeration,
+      xdr-hyper-integer, xdr-unsigned-hyper-integer, xdr-single-opaque): Use
+      a custom vector encoder.  This improves encoding throughput by a
+      factor of 3 to 4, according to the `xdr-encode.scm' benchmark.
+
+    modified files:
+     ChangeLog modules/rpc/xdr.scm modules/rpc/xdr/types.scm
+
+    new patches:
+     lcourtes@laas.fr--2005-mobile/guile-rpc--devo--0.2--patch-18
+
+
 2007-09-10 18:41:51 GMT	Ludovic Courtes <ludo@gnu.org>	patch-18
 
     Summary:
