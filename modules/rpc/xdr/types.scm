@@ -65,6 +65,16 @@
 ;;; Actual base types.
 ;;;
 
+(define (array-for-each/index proc array start step)
+  ;; XXX: Hack to iterate on ARRAY's elements while maintaining an index
+  ;; starting at START and increased by STEP for each element.
+  (array-for-each (let ((index start))
+                    (lambda (value)
+                      (proc value index)
+                      (set! index (+ index step))))
+                  array))
+
+
 (define xdr-integer
   ;; Section 4.1.
   (make-xdr-basic-type 'int32 4
@@ -72,13 +82,21 @@
                          (and (integer? value)
                               (>= value -2147483648)
                               (<  value  2147483648)))
+
                        (lambda (type value bv index)
                          (bytevector-s32-set! bv index value
                                               %xdr-endianness))
                        (lambda (type port)
                          (bytevector-s32-ref (get-bytevector-n port 4)
                                              0 %xdr-endianness))
-                       (lambda (type count port)
+
+                       (lambda (type value bv index) ;; vector-encode
+                         (array-for-each/index
+                          (lambda (value index)
+                            (bytevector-s32-set! bv index value
+                                                 %xdr-endianness))
+                          value index 4))
+                       (lambda (type count port)     ;; vector-decode
                          (let ((bv (get-bytevector-n port (* 4 count))))
                            (list->vector
                             (bytevector->sint-list bv %xdr-endianness 4))))))
@@ -96,7 +114,14 @@
                        (lambda (type port)
                          (bytevector-u32-ref (get-bytevector-n port 4)
                                              0 %xdr-endianness))
-                       (lambda (type count port)
+
+                       (lambda (type value bv index) ;; vector-encode
+                         (array-for-each/index
+                          (lambda (value index)
+                            (bytevector-u32-set! bv index value
+                                                 %xdr-endianness))
+                          value index 4))
+                       (lambda (type count port)     ;; vector-decode
                          (let ((bv (get-bytevector-n port (* 4 count))))
                            (list->vector
                             (bytevector->uint-list bv %xdr-endianness 4))))))
@@ -144,7 +169,15 @@
                            (bytevector-u32-set! bv index value
                                                 %xdr-endianness)))
                        decode-enum
-                       (lambda (type count port)
+
+                       (lambda (type value bv index) ;; vector-encode
+                         (array-for-each/index
+                          (lambda (value index)
+                            (let ((value (symbol->integer value)))
+                              (bytevector-u32-set! bv index value
+                                                   %xdr-endianness)))
+                          value index 4))
+                       (lambda (type count port)     ;; vector-decode
                          (let ((bv (get-bytevector-n port (* 4 count))))
                            (list->vector
                             (map (lambda (value)
@@ -167,7 +200,14 @@
                        (lambda (type port)
                          (bytevector-s64-ref (get-bytevector-n port 8)
                                              0 %xdr-endianness))
-                       (lambda (type count port)
+
+                       (lambda (type value bv index) ;; vector-encode
+                         (array-for-each/index
+                          (lambda (value index)
+                            (bytevector-s64-set! bv index value
+                                                 %xdr-endianness))
+                          value index 8))
+                       (lambda (type count port)     ;; vector-decode
                          (let ((bv (get-bytevector-n port (* 8 count))))
                            (list->vector
                             (bytevector->sint-list bv %xdr-endianness 8))))))
@@ -184,7 +224,14 @@
                        (lambda (type port)
                          (bytevector-u64-ref (get-bytevector-n port 8)
                                              0 %xdr-endianness))
-                       (lambda (type count port)
+
+                       (lambda (type value bv index) ;; vector-encode
+                         (array-for-each/index
+                          (lambda (value index)
+                            (bytevector-u64-set! bv index value
+                                                 %xdr-endianness))
+                          value index 8))
+                       (lambda (type count port)     ;; vector-decode
                          (let ((bv (get-bytevector-n port (* 8 count))))
                            (list->vector
                             (bytevector->uint-list bv %xdr-endianness 8))))))
@@ -229,7 +276,14 @@
                            (if (eof-object? c)
                                (error "input shallow" c) ;; FIXME: raise
                                c)))
-                       (lambda (type count port)
+
+                       (lambda (type value bv index) ;; vector-encode
+                         (array-for-each/index
+                          (lambda (value index)
+                            (bytevector-u8-set! bv index
+                                                value))
+                          value index 1))
+                       (lambda (type count port)     ;; vector-decode
                          (let ((bv (get-bytevector-n port count)))
                            (list->vector (bytevector->u8-list bv))))))
 
