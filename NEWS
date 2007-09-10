@@ -5,6 +5,9 @@
 *** Support for one-way/batched RPC calls
 *** XDR vectors can be represented as any Guile array type
 
+** Bug fixes
+*** `&xdr-type-error' now inherits from `&xdr-error'
+
 
 * New in GNU Guile-RPC 0.1
 
