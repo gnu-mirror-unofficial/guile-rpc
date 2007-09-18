@@ -11,6 +11,9 @@
 ** Bug fixes
 *** `&xdr-type-error' now inherits from `&xdr-error'
 
+** Administration
+*** Switched from GNU Arch to Git for revision control
+
 
 * New in GNU Guile-RPC 0.1
 

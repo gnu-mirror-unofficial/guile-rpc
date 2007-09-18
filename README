@@ -21,14 +21,16 @@ Requirements
 Development
 -----------
 
-GNU Guile-RPC is hosted at Savannah and development uses the GNU Arch
-revision control system (http://www.gnu.org/software/gnu-arch/).
+GNU Guile-RPC is hosted at Savannah and development uses the Git
+revision control system (http://git.or.cz/).
 
-The main GNU Arch repository is located at:
+The main Git repository is located at:
 
-  http://arch.sv.gnu.org/archives/guile-rpc/2007/
+  http://git.sv.gnu.org/r/guile-rpc.git
 
-Look for branch `guile-rpc--devo--0.1' or similar.
+To obtain a local copy, just run:
+
+  git-clone http://git.sv.gnu.org/r/guile-rpc.git
 
 Please email <bug-guile-rpc@gnu.org> for bug reports, comments, patches,
 etc.
