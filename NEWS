@@ -11,7 +11,8 @@
 ** Bug fixes
 *** `&xdr-type-error' now inherits from `&xdr-error'
 
-** Administration
+** Packaging
+*** New `--with-guilemoduledir' configure option
 *** Switched from GNU Arch to Git for revision control
 
 

@@ -1,7 +1,8 @@
 #!/bin/sh
 # aside from this initial boilerplate, this is actually -*- scheme -*- code
 main='(module-ref (resolve-module '\''(guile-rpc rpc-info)) '\'main')'
-exec ${GUILE-@GUILE@} -l "$0" -c "(apply $main (command-line))" "$@"
+exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -l "$0"    \
+         -c "(apply $main (command-line))" "$@"
 !#
 ;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
 ;;; Copyright (C) 2007  Free Software Foundation, Inc.

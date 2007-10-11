@@ -9,6 +9,14 @@ AC_CONFIG_MACRO_DIR(m4)
 
 AM_INIT_AUTOMAKE([gnu no-define check-news])
 
+AC_ARG_WITH([guilemoduledir],
+  [use the specified installation path for Guile modules],
+  [case "x$withval" in
+     xyes|xno) guilemoduledir="";;
+     *)        guilemoduledir="$withval";;
+   esac],
+  [guilemoduledir=""])
+   
 
 # Checks for Guile.
 GUILE_PROGS
@@ -33,6 +41,21 @@ GUILE_MODULE_REQUIRED([srfi srfi-35])
 GUILE_MODULE_AVAILABLE([have_statprof], [(statprof)])
 AM_CONDITIONAL([HAVE_STATPROF], test "x$have_statprof" = "xyes")
 
+
+pkgdatadir="$datadir/$PACKAGE_NAME"
+if test "x$guilemoduledir" = "x"; then
+  guilemoduledir="$pkgdatadir"
+fi
+AC_SUBST([guilemoduledir])
+
+if test "$guilemoduledir" != "$GUILE_SITE"; then
+   # Guile won't be able to locate the module "out of the box", so
+   # warn the user.
+   AC_MSG_WARN([`guilemoduledir' is different from `GUILE_SITE' ($GUILE_SITE).])
+   AC_MSG_WARN([Make sure to adjust the `GUILE_LOAD_PATH' environment variable accordingly,])
+   AC_MSG_WARN([or re-run `configure' with `--with-guilemoduledir=$GUILE_SITE'.])
+fi
+
 # Output.
 AC_CONFIG_FILES([Makefile
 	         doc/Makefile
@@ -40,7 +63,5 @@ AC_CONFIG_FILES([Makefile
 		 utils/Makefile
 		 tests/Makefile
 		 benchmarks/Makefile])
-
-AC_CONFIG_FILES([utils/grpc-rpcinfo], [chmod +x utils/grpc-rpcinfo])
 
 AC_OUTPUT

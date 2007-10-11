@@ -19,6 +19,22 @@
 EXTRA_DIST = grpc-rpcinfo.in
 
 bin_SCRIPTS = grpc-rpcinfo
+CLEANFILES  = $(bin_SCRIPTS)
+
+
+substitute = sed -e 's,[@]guilemoduledir[@],$(guilemoduledir),g'	\
+		 -e 's,[@]GUILE[@],$(GUILE),g'				\
+		 -e 's,[@]PACKAGE_STRING[@],$(PACKAGE_STRING),g'	\
+		 -e 's,[@]PACKAGE_NAME[@],$(PACKAGE_NAME),g'		\
+		 -e 's,[@]PACKAGE_VERSION[@],$(PACKAGE_VERSION),g'
+
+SUFFIXES = .in
+
+.in:
+	$(substitute) "$^" > "$@.tmp" &&	\
+	chmod +x "$@.tmp" &&			\
+	mv "$@.tmp" "$@"
+
 
 if HAVE_GUILE_LINT
 all-local: $(bin_SCRIPTS)
