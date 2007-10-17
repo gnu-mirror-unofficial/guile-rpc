@@ -28,7 +28,7 @@
   :use-module (srfi srfi-35)
   :use-module (srfi srfi-39)
   :use-module (r6rs bytevector)
-  :autoload   (r6rs i/o ports)      (lookahead-u8)
+  :autoload   (r6rs io ports)       (lookahead-u8)
 
   :export (procedure-call-information rpc-call?
            rpc-call-xid rpc-call-program rpc-call-version

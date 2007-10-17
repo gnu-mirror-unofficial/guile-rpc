@@ -18,7 +18,7 @@
 
 (define-module (rpc rpc transports)
   :use-module (r6rs bytevector)
-  :use-module (r6rs i/o ports)
+  :use-module (r6rs io ports)
   :use-module (srfi srfi-60)
   :export (make-rpc-record-sender send-rpc-record
            rpc-record-marking-input-port))

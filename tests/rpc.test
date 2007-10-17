@@ -20,7 +20,7 @@
 
 (define-module (tests xdr)
   :use-module (r6rs bytevector)
-  :use-module (r6rs i/o ports)
+  :use-module (r6rs io ports)
   :use-module (rpc xdr)
   :use-module (rpc xdr types)
   :use-module (rpc rpc)

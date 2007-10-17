@@ -11,10 +11,11 @@ Requirements
   * GNU Guile 1.8.x or later
     http://www.gnu.org/software/guile/guile.html
 
-  * guile-r6rs-libs 0.0 or later
-    http://www.laas.fr/~lcourtes/software/guile/guile-r6rs-libs-0.0.tar.gz
+  * guile-r6rs-libs 0.1 or later
+    http://www.laas.fr/~lcourtes/software/guile/guile-r6rs-libs-0.1.tar.gz
+    http://repo.or.cz/w/guile-r6rs-libs.git
 
-  * Guile-Lib, any recent version
+  * Guile-Lib (unless you are using Guile >= 1.8.3), any recent version
     http://home.gna.org/guile-lib/
 
 

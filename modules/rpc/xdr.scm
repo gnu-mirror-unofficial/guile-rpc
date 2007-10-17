@@ -21,7 +21,7 @@
   :autoload   (srfi srfi-34)   (raise)
   :use-module (srfi srfi-35)
   :use-module (r6rs bytevector)
-  :autoload   (r6rs i/o ports) (get-bytevector-n)
+  :autoload   (r6rs io ports)  (get-bytevector-n)
 
   :export (make-xdr-basic-type xdr-basic-type?
            xdr-basic-type-name xdr-basic-type-size

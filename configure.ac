@@ -29,7 +29,7 @@ AM_CONDITIONAL([HAVE_GUILE_LINT], test "x$GUILE_LINT" != "x")
 
 # Need the R6RS libs.
 GUILE_MODULE_REQUIRED([r6rs bytevector])
-GUILE_MODULE_REQUIRED([r6rs i/o ports])
+GUILE_MODULE_REQUIRED([r6rs io ports])
 
 # SRFI-34 is available in Guile 1.8, just checking to make sure.
 GUILE_MODULE_REQUIRED([srfi srfi-34])
@@ -51,7 +51,7 @@ AC_SUBST([guilemoduledir])
 if test "$guilemoduledir" != "$GUILE_SITE"; then
    # Guile won't be able to locate the module "out of the box", so
    # warn the user.
-   AC_MSG_WARN([`guilemoduledir' is different from `GUILE_SITE' ($GUILE_SITE).])
+   AC_MSG_WARN([`guilemoduledir' ($guilemoduledir) is different from `GUILE_SITE' ($GUILE_SITE).])
    AC_MSG_WARN([Make sure to adjust the `GUILE_LOAD_PATH' environment variable accordingly,])
    AC_MSG_WARN([or re-run `configure' with `--with-guilemoduledir=$GUILE_SITE'.])
 fi

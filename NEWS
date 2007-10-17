@@ -1,6 +1,7 @@
 * New in GNU Guile-RPC 0.2
 
-** Incompatible API changes
+** Incompatible changes
+*** Require Guile-R6RS-Libs >= 0.1
 *** `make-xdr-basic-type' now takes an optional `vector-encoder' argument
 
 ** New features (see manual for details)
