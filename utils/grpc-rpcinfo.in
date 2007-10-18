@@ -25,6 +25,9 @@ exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -l "$0"    \
 ;;; Query the local portmapper, like `rpcinfo(1)'.
 ;;;
 
+;; Tell Guile to not issue warnings about duplicate bindings.
+(default-duplicate-binding-handler '(last))
+
 (define-module (guile-rpc rpc-info)
   :use-module (rpc rpc portmap)
   :use-module (srfi srfi-1)
