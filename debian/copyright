@@ -1,0 +1,30 @@
+This package was debianized by Ludovic Courtès <ludo@gnu.org> on
+Thu, 18 Oct 2007 11:06:15 +0200.
+
+It was downloaded from <ftp://alpha.gnu.org/pub/gnu/guile-rpc>
+
+Upstream Author(s): 
+
+    Ludovic Courtès <ludo@gnu.org>
+
+Copyright: 
+
+    Copyright (C) 2007  Free Software Foundation, Inc.
+
+License:
+
+    GNU Guile-RPC is free software; you can redistribute it and/or modify it
+    under the terms of the GNU Lesser General Public License as published by
+    the Free Software Foundation; either version 3 of the License, or (at
+    your option) any later version.
+   
+    GNU Guile-RPC is distributed in the hope that it will be useful, but
+    WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+    General Public License for more details.
+   
+    You should have received a copy of the GNU Lesser General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+The Debian packaging is (C) 2007, Ludovic Courtès <ludo@gnu.org> and
+is licensed under the GPL, see `/usr/share/common-licenses/GPL'.
