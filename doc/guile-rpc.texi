@@ -162,10 +162,11 @@ Guile-R6RS-Libs}@footnote{The source code repository is located at
 @uref{http://repo.or.cz/w/guile-r6rs-libs.git}.  Hopefully, this package
 will eventually be integrated into core Guile.}.
 
-As of this writing, Guile 1.8 does not contain an implementation of
-@uref{http://srfi.schemers.org/srfi-35/srfi-35.html, SRFI-35}.  Thus,
-you may need to install @uref{http://home.gna.org/guile-lib/,
-Guile-Lib}, which contains the relevant module.
+Before version 1.8.3, Guile 1.8 did not contain an implementation of
+@uref{http://srfi.schemers.org/srfi-35/srfi-35.html, SRFI-35}.  Thus, if
+you are using one of these versions of Guile, you need to install
+@uref{http://home.gna.org/guile-lib/, Guile-Lib}, which contains the
+relevant module.
 
 
 @c *********************************************************************
