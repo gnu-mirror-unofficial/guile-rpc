@@ -26,7 +26,8 @@ substitute = sed -e 's,[@]guilemoduledir[@],$(guilemoduledir),g'	\
 		 -e 's,[@]GUILE[@],$(GUILE),g'				\
 		 -e 's,[@]PACKAGE_STRING[@],$(PACKAGE_STRING),g'	\
 		 -e 's,[@]PACKAGE_NAME[@],$(PACKAGE_NAME),g'		\
-		 -e 's,[@]PACKAGE_VERSION[@],$(PACKAGE_VERSION),g'
+		 -e 's,[@]PACKAGE_VERSION[@],$(PACKAGE_VERSION),g'	\
+		 -e 's,[@]PACKAGE_BUGREPORT[@],$(PACKAGE_BUGREPORT),g'
 
 SUFFIXES = .in
 
