@@ -24,7 +24,7 @@ endif
 ifneq "$(wildcard /usr/share/misc/config.guess)" ""
 	cp -f /usr/share/misc/config.guess build-aux/config.guess
 endif
-	PATH=/bin:/usr/bin \
+	PATH=/usr/bin:$$PATH \
 	./configure --host=$(DEB_HOST_GNU_TYPE) --build=$(DEB_BUILD_GNU_TYPE) --prefix=/usr --mandir=\$${prefix}/share/man --infodir=\$${prefix}/share/info --with-guilemoduledir=/usr/share/guile/site
 
 
@@ -42,7 +42,7 @@ clean:
 	dh_testroot
 	rm -f build-stamp 
 
-	$(MAKE) distclean
+	-$(MAKE) distclean
 	rm -f config.sub config.guess
 
 	dh_clean 
