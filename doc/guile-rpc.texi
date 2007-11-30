@@ -722,13 +722,19 @@ Return a new object describing the RPC program version identified by
 @cindex one-way calls
 
 @deffn {Scheme Procedure} make-rpc-procedure number argument-xdr-type result-xdr-type handler [one-way?]
-Return a new object describing a procedure whose number is
-@var{number}, whose argument type is @var{argument-xdr-type} and whose
-result type is @var{result-xdr-type} (@pxref{XDR Type
-Representations}).  @var{handler} should be a one-argument procedure
-that will be invoked upon reception of an RPC call for that procedure;
-it will be passed the decoded argument and should return a result type
-that may be encoded as @var{result-xdr-type}.
+Return a new object describing a procedure whose number is @var{number},
+whose argument type is @var{argument-xdr-type} and whose result type is
+@var{result-xdr-type} (@pxref{XDR Type Representations}).  @var{handler}
+should be a procedure that will be invoked upon reception of an RPC call
+for that procedure.
+
+If synchronous RPC processing is used, i.e., through
+@code{serve-one-stream-request}, then @var{handler} is passed the
+decoded argument and should return a result type that may be encoded as
+@var{result-xdr-type}.  If asynchronous processing is used, i.e.,
+through @code{serve-one-stream-request/asynchronous}, then @var{handler}
+is passed the decoded argument along with a continuation that must be
+invoked to actually return the result.
 
 If @var{one-way?} is passed and is true, then the returned procedure is
 marked as ``one-way'' (@pxref{Building an RPC Client,
@@ -849,6 +855,18 @@ Serve one RPC for @var{program}, reading the RPC from @var{port} (using
 the record-marking protocol) and writing the reply to @var{port}.  If
 @var{port} is closed or the end-of-file was reached, an
 @code{&rpc-connection-lost-error} is raised.
+@end deffn
+
+@deffn {Scheme Procedure} serve-one-stream-request/asynchronous program port
+Same as @code{serve-one-stream-request} except that the RPC is to be
+handled in an asynchronous fashion.
+
+Concretely, the procedure handler passed to @code{make-rpc-procedure} is
+called with two arguments instead of one: the first one is the actual
+procedure argument, and the second one is a one-argument procedure that
+must be invoked to return the procedure's result---in other words,
+procedure call processing is decoupled from procedure call return using
+@emph{continuation-passing style}.
 @end deffn
 
 
