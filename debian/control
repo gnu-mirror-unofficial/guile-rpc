@@ -2,12 +2,12 @@ Source: guile-rpc
 Section: devel
 Priority: extra
 Maintainer: Ludovic Courtès <ludo@gnu.org>
-Build-Depends: debhelper (>= 5), autotools-dev
+Build-Depends: debhelper (>= 4)
 Standards-Version: 3.7.2
 
 Package: guile-rpc
 Architecture: all
-Depends: ${shlibs:Depends}, ${misc:Depends}, guile-1.8, guile-r6rs-libs (>= 0.1)
+Depends: guile-1.8, guile-library, guile-r6rs-libs (>= 0.1)
 Description: GNU Guile-RPC, an ONC RPC for Guile Scheme
  GNU Guile-RPC is an implementation of the ONC RPC protocol in Scheme,
  for use by Guile Scheme programs.
