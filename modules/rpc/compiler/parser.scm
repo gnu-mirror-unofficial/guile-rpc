@@ -19,7 +19,7 @@
 (define-module (rpc compiler parser)
   :autoload    (rpc compiler lexer) (lexer-init)
   :use-module  (text parse-lalr)
-  :export (xdr-parser))
+  :export (xdr-language->sexp))
 
 
 (define xdr-parser
@@ -33,22 +33,26 @@
     enum struct union const opaque void
     unsigned int hyper float double quadruple bool string
     typedef
-    identifier constant
-    eof)
+    identifier constant)
 
    ;; Starting point
-   (specification (definition) : $1
-                  () : '())
+   (specification (definition specification) : (cons $1 $2)
+                  (*eoi*) : '())
 
    ;; Constant and type definitions
 
    (constant-def (const identifier equal constant semi-colon) :
-                 (list 'constant-def $2 $4))
+                 (list 'define-constant $2 $4))
 
 
-   (type-def (typedef declaration semi-colon) : $1
-             (enum identifier enum-body semi-colon) : $1
-             (struct identifier struct-body semi-colon) : $1
+   (type-def (typedef declaration semi-colon) :
+               (cons 'define-type $2)
+             (enum identifier enum-body semi-colon) :
+               (list 'define-type $2 $3)
+             (struct identifier struct-body semi-colon) :
+               (begin
+                 (format (current-error-port) "struct-def~%")
+                 (list 'define-type $2 $3))
              (union identifier union-body semi-colon) : $1)
 
    (definition (type-def) : $1
@@ -56,13 +60,14 @@
 
 
    ;; Production rules.
-   (declaration (type-specifier identifier) : $1
+   (declaration (type-specifier identifier) :
+                  (list $2 $1)
                 (type-specifier identifier left-square value right-square) :
-                $1
+                  (list $2 (list 'fixed-length-array-type $1 $4))
                 (type-specifier identifier left-angle value right-angle) :
-                $1
+                  (list 'variable-length-array-type $2 $4)
                 (opaque identifier left-square value right-square) :
-                $1
+                  (list 'declaration $2 $4)
                 (opaque identifier left-angle value right-angle) :
                 $1
                 (opaque identifier left-angle right-angle) :
@@ -79,14 +84,14 @@
    (value (constant)   : $1
           (identifier) : $1)
 
-   (type-specifier (int) : $1
-                   (unsigned int) : $1
-                   (hyper) : $1
-                   (unsigned hyper) : $1
-                   (float) : $1
-                   (double) : $1
-                   (quadruple) : $1
-                   (bool) : $1
+   (type-specifier (int) : "int"
+                   (unsigned int) : "unsigned int"
+                   (hyper) : "hyper"
+                   (unsigned hyper) : "unsigned hyper"
+                   (float) : "float"
+                   (double) : "double"
+                   (quadruple) : "quadruple"
+                   (bool) : "bool"
                    (enum-type-spec) : $1
                    (struct-type-spec) : $1
                    (union-type-spec) : $1
@@ -94,24 +99,40 @@
 
    ;; Enums
 
-   (enum-type-spec (enum enum-body) :                     (cons 'enum $1))
+   (enum-type-spec (enum enum-body) :
+                     $2)
 
-   (name-value-list (identifier equal value) :            (cons $1 $3)
+   (name-value-list (identifier equal value) :
+                      (begin
+                        (format (current-error-port) "nvl: ~a ~a~%"
+                                $1 $3)
+                        (list (list $1 $3)))
                     (identifier equal value
-                                comma name-value-list) :  (cons $1 $3)
-                    ():                                   '())
+                                comma name-value-list) :
+                      (begin
+                        (format (current-error-port) "nvl+: ~a ~a | ~a~%"
+                                $1 $3 $5)
+                        (cons (list $1 $3) $5)))
    (enum-body (left-brace name-value-list right-brace) :
-              (list $3))
+                (cons 'enum $2))
 
 
    ;; Structs
 
-   (struct-type-spec (struct struct-body) : $1)
+   (struct-type-spec (struct struct-body) :
+                       $2)
 
-   (struct-body (left-brace declaration-list right-brace) : $1)
+   (struct-body (left-brace declaration-list right-brace) :
+                  (cons 'struct $2))
 
-   (declaration-list (declaration semi-colon) : $1
-                     (declaration semi-colon declaration-list) : $1)
+   (declaration-list (declaration semi-colon) :
+                       (begin
+                         (format (current-error-port) "field: ~a~%" $1)
+                         (list $1))
+                     (declaration semi-colon declaration-list) :
+                       (begin
+                         (format (current-error-port) "field+: ~a | ~a~%" $1 $3)
+                         (cons $1 $3)))
 
 
    ;; Unions
@@ -119,11 +140,13 @@
    (union-type-spec (union union-body) : $1)
 
    (union-body (switch left-parenthesis declaration right-parenthesis
-                left-brace case-spec-list optional-switch-default
+                left-brace case-spec-list switch-default
+                right-brace) : $1
+               (switch left-parenthesis declaration right-parenthesis
+                left-brace case-spec-list
                 right-brace) : $1)
 
-   (optional-switch-default (default colon declaration semi-colon) : $1
-                            () : '())
+   (switch-default (default colon declaration semi-colon) : $1)
 
    (case-spec (case-list declaration semi-colon) : $1)
 
@@ -134,30 +157,28 @@
                    (case-spec case-spec-list) : $1)
 
 
-
-   ;; The end
-
-   (done (eof) : '*eoi*)
    ))
 
-(print-states)
+
+;;;
+;;; User interface.
+;;;
 
-(lexer-init 'port (open-input-string (string-append
-                                      ;;"enum blurps { x = 2, z = 3 };"
-                                      "typedef int foo_t;"
-                                      "const x = 2;"
-                                      )
-                                     ;;"123"
-                                     ))
-(define result
-  (xdr-parser (lambda ()
-                (let ((r (lexer)))
-                  (format (current-error-port) "TOKEN: ~A~%" r)
-                  r))
-              (lambda (a b)
-                (error "parse error" (list a b)))))
+(define (xdr-language->sexp port)
+  "Read a specification written in the XDR Language from @var{port} and
+return the corresponding sexp-based representation."
+  (define (%parse-error msg . args)
+    (error msg args))
 
-(format (current-error-port) "result: ~a~%" result)
+  (define (%debugging-lexer)
+    (let ((r (lexer)))
+      (format (current-error-port) "TOKEN: ~A~%" r)
+      r))
+
+  ;; FIXME: This method is not reentrant.  See the "Usage2" node of the SILex
+  ;; manual for better.
+  (lexer-init 'port port)
+  (xdr-parser %debugging-lexer %parse-error))
 
 
 ;;; Local Variables:

@@ -1,0 +1,67 @@
+;;; Excercise the XDR language parser.                -*- Scheme -*-
+;;;
+;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
+;;; Copyright (C) 2008  Free Software Foundation, Inc.
+;;;
+;;; This file is part of GNU Guile-RPC.
+;;;
+;;; GNU Guile-RPC is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU Lesser General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guile-RPC is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+;;; General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU Lesser General Public License
+;;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (tests parser)
+  :use-module (rpc compiler parser)
+  :use-module (srfi srfi-64))
+
+(define (xdr-text . body)
+  (open-input-string (string-join body (string #\newline))))
+
+
+;;;
+;;; Parser.
+;;;
+
+(test-begin "xdr-parser")
+
+(test-equal "simple definitions"
+            '((define-type "foo_t" "int")
+              (define-type "blurps" (enum ("x" 2) ("z" 3)))
+              (define-type "chbouib_t"
+                (fixed-length-array-type "int" 4))
+              (define-constant "magic" 42))
+
+            (xdr-language->sexp
+             (xdr-text "typedef int foo_t;"
+                       "enum blurps { x = 2, z = 3 };"
+                       "typedef int chbouib_t[4];"
+                       "const magic = 42;")))
+
+(test-equal "struct definitions"
+            '((define-type "foo"
+                (struct ("i" "int")
+                        ("u" "unsigned int")
+                        ("f" "float")))
+              (define-type "bar"
+                (struct ("i" "int")
+                        ("e" (enum ("a" 2) ("b" 3)))
+                        ("s" (struct ("x" "int") ("y" "double"))))))
+
+            (xdr-language->sexp
+             (xdr-text "struct foo { int i; unsigned int u; float f; };"
+                       "struct bar { int i; enum { a = 2, b = 3 } e; "
+                       "             struct { int x; double y; } s; };")))
+
+(test-end "xdr-parser")
+
+
+(exit (= (test-runner-fail-count (test-runner-current)) 0))
+
