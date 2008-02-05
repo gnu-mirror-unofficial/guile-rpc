@@ -16,7 +16,9 @@
 ;;; You should have received a copy of the GNU Lesser General Public License
 ;;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-comment        /\*.*\*/
+;; Comment regexp stolen from http://ostermiller.org/findcomment.html .
+comment        /\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/
+
 space          [ \n\9]
 identifier     [a-zA-Z][a-zA-Z0-9_]*
 dec-constant   -?([0-9]|[1-9][0-9]+)
@@ -40,7 +42,7 @@ oct-constant   0[0-7]+
                         (list (string->symbol yytext)))
                        (else
                         (cons 'identifier yytext)))
-{comment}        (cons 'comment yytext)
+{comment}
 
 \{               (list 'left-brace)
 \}               (list 'right-brace)

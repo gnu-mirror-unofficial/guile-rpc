@@ -40,7 +40,10 @@
               (define-constant "magic" 42))
 
             (xdr-language->sexp
-             (xdr-text "typedef int foo_t;"
+             (xdr-text "/* This is a comment.  */"
+                       "/* This is a" (string #\newline)
+                       "   multi-line comment.  */"
+                       "typedef int foo_t;"
                        "enum blurps { x = 2, z = 3 };"
                        "typedef int chbouib_t[4];"
                        "const magic = 42;")))
