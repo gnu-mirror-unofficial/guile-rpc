@@ -20,6 +20,7 @@
 
 (define-module (tests parser)
   :use-module (rpc compiler parser)
+  :use-module (srfi srfi-13)
   :use-module (srfi srfi-64))
 
 (define (xdr-text . body)
@@ -62,6 +63,44 @@
              (xdr-text "struct foo { int i; unsigned int u; float f; };"
                        "struct bar { int i; enum { a = 2, b = 3 } e; "
                        "             struct { int x; double y; } s; };")))
+
+(test-equal "union definitions"
+            '((define-type "no_default"
+                (union (case ("choice" "unsigned int")
+                         ((0 1) "void")
+                         ((2)   ("q" "quadruple")))))
+
+              (define-type "chbouib"
+                (union (case ("choose" "int")
+                         ((0)   "void")
+                         ((1 2) ("u" "unsigned int"))
+                         ((3)   ("e" (enum ("a" 10) ("b" 16))))
+                         ((4)   ("s" (struct ("x" "int") ("y" "double"))))
+                         (else  ("h" "unsigned hyper"))))))
+
+            (xdr-language->sexp
+             (xdr-text "union no_default"
+                       "  switch (unsigned int choice) {"
+                       "    case 0: case 1:"
+                       "      void;"
+                       "    case 2:"
+                       "      quadruple q;"
+                       "  };"
+
+                       "union chbouib"
+                       "  switch (int choose) {"
+                       "    case 0:"
+                       "      void;"
+                       "    case 1:"
+                       "    case 2:"
+                       "      unsigned int u;"
+                       "    case 3:"
+                       "      enum { a = 10, b = 0x10 } e;"
+                       "    case 4:"
+                       "      struct { int x; double y; } s;"
+                       "    default:"
+                       "      unsigned hyper h;"
+                       "  };")))
 
 (test-end "xdr-parser")
 

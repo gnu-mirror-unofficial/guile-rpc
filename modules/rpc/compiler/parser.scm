@@ -19,6 +19,8 @@
 (define-module (rpc compiler parser)
   :autoload    (rpc compiler lexer) (lexer-init)
   :use-module  (text parse-lalr)
+  :use-module  (srfi srfi-1)
+
   :export (xdr-language->sexp))
 
 
@@ -50,10 +52,9 @@
              (enum identifier enum-body semi-colon) :
                (list 'define-type $2 $3)
              (struct identifier struct-body semi-colon) :
-               (begin
-                 (format (current-error-port) "struct-def~%")
-                 (list 'define-type $2 $3))
-             (union identifier union-body semi-colon) : $1)
+               (list 'define-type $2 $3)
+             (union identifier union-body semi-colon) :
+               (list 'define-type $2 $3))
 
    (definition (type-def) : $1
                (constant-def) : $1)
@@ -79,7 +80,7 @@
                 (type-specifier star identifier) :
                 $1
                 (void) :
-                $1)
+                "void")
 
    (value (constant)   : $1
           (identifier) : $1)
@@ -141,20 +142,24 @@
 
    (union-body (switch left-parenthesis declaration right-parenthesis
                 left-brace case-spec-list switch-default
-                right-brace) : $1
+                right-brace) :
+                 (list 'union (cons* 'case $3 (append $6 (list $7))))
                (switch left-parenthesis declaration right-parenthesis
                 left-brace case-spec-list
-                right-brace) : $1)
+                right-brace) :
+                 (list 'union (cons* 'case $3 $6)))
 
-   (switch-default (default colon declaration semi-colon) : $1)
+   (switch-default (default colon declaration semi-colon) :
+                     (list 'else $3))
 
-   (case-spec (case-list declaration semi-colon) : $1)
+   (case-spec (case-list declaration semi-colon) :
+                (list $1 $2))
 
-   (case-list (case value colon) : $1
-              (case value colon case-list) : $1)
+   (case-list (case value colon) : (list $2)
+              (case value colon case-list) : (cons $2 $4))
 
-   (case-spec-list (case-spec) : $1
-                   (case-spec case-spec-list) : $1)
+   (case-spec-list (case-spec) : (list $1)
+                   (case-spec case-spec-list) : (cons $1 $2))
 
 
    ))
