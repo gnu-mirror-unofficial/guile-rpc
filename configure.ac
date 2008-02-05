@@ -2,7 +2,7 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.61)
-AC_INIT([guile-rpc], [0.2], [bug-guile-rpc@gnu.org])
+AC_INIT([guile-rpc], [0.3], [bug-guile-rpc@gnu.org])
 AC_CONFIG_SRCDIR([modules/rpc/xdr.scm])
 AC_CONFIG_AUX_DIR(build-aux)
 AC_CONFIG_MACRO_DIR(m4)

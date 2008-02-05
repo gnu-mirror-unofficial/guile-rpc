@@ -15,7 +15,7 @@ Requirements
     http://www.laas.fr/~lcourtes/software/guile/guile-r6rs-libs-0.1.tar.gz
     http://repo.or.cz/w/guile-r6rs-libs.git
 
-  * Guile-Lib (unless you are using Guile >= 1.8.3), any recent version
+  * Guile-Lib (needed to use the XDR Language compiler), any recent version
     http://home.gna.org/guile-lib/
 
 
@@ -42,7 +42,7 @@ Enjoy!
 Ludovic Courtès <ludo@gnu.org>.
 
 
-Copyright 2007  Free Software Foundation, Inc.
+Copyright 2007, 2008  Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification, are
 permitted in any medium without royalty provided the copyright notice
