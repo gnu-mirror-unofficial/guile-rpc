@@ -33,6 +33,18 @@
 
 (test-begin "xdr-parser")
 
+(test-equal "constants"
+            '((define-constant "oct"  8)
+              (define-constant "dec"  0)
+              (define-constant "dec" 10)
+              (define-constant "hex" 16))
+
+            (xdr-language->sexp
+             (xdr-text "const oct =  010;"
+                       "const dec =    0;"
+                       "const dec =   10;"
+                       "const hex = 0x10;")))
+
 (test-equal "simple definitions"
             '((define-type "foo_t" "int")
               (define-type "blurps" (enum ("x" 2) ("z" 3)))
@@ -74,7 +86,7 @@
                 (union (case ("choose" "int")
                          ((0)   "void")
                          ((1 2) ("u" "unsigned int"))
-                         ((3)   ("e" (enum ("a" 10) ("b" 16))))
+                         ((3)   ("e" (enum ("a" 10) ("b" 16) ("c" 8))))
                          ((4)   ("s" (struct ("x" "int") ("y" "double"))))
                          (else  ("h" "unsigned hyper"))))))
 
@@ -95,7 +107,7 @@
                        "    case 2:"
                        "      unsigned int u;"
                        "    case 3:"
-                       "      enum { a = 10, b = 0x10 } e;"
+                       "      enum { a = 10, b = 0x10, c = 010 } e;"
                        "    case 4:"
                        "      struct { int x; double y; } s;"
                        "    default:"

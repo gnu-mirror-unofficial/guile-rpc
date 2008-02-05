@@ -21,10 +21,25 @@
   :use-module  (text parse-lalr)
   :use-module  (srfi srfi-1)
 
-  :export (xdr-language->sexp))
+  :export (xdr-language->sexp %debug-xdr-parser?))
 
+;;; Author: Ludovic Courtès <ludo@gnu.org>
+;;;
+;;; Commentary:
+;;;
+;;; This module provides a parser for the XDR Language (RFC 4506, Section 6),
+;;; which allows the definition of XDR data types.
+;;;
+;;; Code:
+
+
+;;;
+;;; Parser.
+;;;
 
 (define xdr-parser
+  ;; The XDR Language parser.
+
   (lalr-parser
    ;; Terminal symbols.
    (comment
@@ -104,16 +119,10 @@
                      $2)
 
    (name-value-list (identifier equal value) :
-                      (begin
-                        (format (current-error-port) "nvl: ~a ~a~%"
-                                $1 $3)
-                        (list (list $1 $3)))
+                      (list (list $1 $3))
                     (identifier equal value
                                 comma name-value-list) :
-                      (begin
-                        (format (current-error-port) "nvl+: ~a ~a | ~a~%"
-                                $1 $3 $5)
-                        (cons (list $1 $3) $5)))
+                      (cons (list $1 $3) $5))
    (enum-body (left-brace name-value-list right-brace) :
                 (cons 'enum $2))
 
@@ -127,13 +136,9 @@
                   (cons 'struct $2))
 
    (declaration-list (declaration semi-colon) :
-                       (begin
-                         (format (current-error-port) "field: ~a~%" $1)
-                         (list $1))
+                       (list $1)
                      (declaration semi-colon declaration-list) :
-                       (begin
-                         (format (current-error-port) "field+: ~a | ~a~%" $1 $3)
-                         (cons $1 $3)))
+                       (cons $1 $3))
 
 
    ;; Unions
@@ -159,15 +164,16 @@
               (case value colon case-list) : (cons $2 $4))
 
    (case-spec-list (case-spec) : (list $1)
-                   (case-spec case-spec-list) : (cons $1 $2))
-
-
-   ))
+                   (case-spec case-spec-list) : (cons $1 $2))))
 
 
 ;;;
 ;;; User interface.
 ;;;
+
+(define %debug-xdr-parser?
+  ;; Set to `#t' to debug the parser.
+  #f)
 
 (define (xdr-language->sexp port)
   "Read a specification written in the XDR Language from @var{port} and
@@ -175,17 +181,21 @@ return the corresponding sexp-based representation."
   (define (%parse-error msg . args)
     (error msg args))
 
-  (define (%debugging-lexer)
-    (let ((r (lexer)))
-      (format (current-error-port) "TOKEN: ~A~%" r)
-      r))
-
   ;; FIXME: This method is not reentrant.  See the "Usage2" node of the SILex
   ;; manual for better.
   (lexer-init 'port port)
-  (xdr-parser %debugging-lexer %parse-error))
+
+  (let ((lexer (if %debug-xdr-parser?
+                   (lambda ()
+                     (let ((r (lexer)))
+                       (format (current-error-port) "TOKEN: ~A~%" r)
+                       r))
+                   lexer)))
+    (xdr-parser lexer %parse-error)))
 
 
 ;;; Local Variables:
 ;;; coding: latin-1
 ;;; End:
+
+;;; parser.scm ends here
