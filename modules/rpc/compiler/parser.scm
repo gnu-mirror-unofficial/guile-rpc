@@ -79,9 +79,11 @@
    (declaration (type-specifier identifier) :
                   (list $2 $1)
                 (type-specifier identifier left-square value right-square) :
-                  (list $2 (list 'fixed-length-array-type $1 $4))
+                  (list $2 (list 'fixed-length-array $1 $4))
                 (type-specifier identifier left-angle value right-angle) :
-                  (list 'variable-length-array-type $2 $4)
+                  (list $2 (list 'variable-length-array $1 $4))
+                (type-specifier identifier left-angle right-angle) :
+                  (list $2 (list 'variable-length-array $1 #f))
                 (opaque identifier left-square value right-square) :
                   (list 'declaration $2 $4)
                 (opaque identifier left-angle value right-angle) :
@@ -143,7 +145,8 @@
 
    ;; Unions
 
-   (union-type-spec (union union-body) : $1)
+   (union-type-spec (union union-body) :
+                      $2)
 
    (union-body (switch left-parenthesis declaration right-parenthesis
                 left-brace case-spec-list switch-default

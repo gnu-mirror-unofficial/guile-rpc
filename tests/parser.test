@@ -49,7 +49,7 @@
             '((define-type "foo_t" "int")
               (define-type "blurps" (enum ("x" 2) ("z" 3)))
               (define-type "chbouib_t"
-                (fixed-length-array-type "int" 4))
+                (fixed-length-array "int" 4))
               (define-constant "magic" 42))
 
             (xdr-language->sexp
@@ -113,6 +113,37 @@
                        "    default:"
                        "      unsigned hyper h;"
                        "  };")))
+
+(test-equal "fixed-length arrays"
+            '((define-type "int_array"
+                (fixed-length-array "int" 3))
+              (define-type "struct_array"
+                (fixed-length-array (struct ("x" "int") ("y" "double"))
+                                    16)))
+
+            (xdr-language->sexp
+             (xdr-text "typedef int int_array[3];"
+                       "typedef struct { int x; double y; }"
+                       "        struct_array[16];")))
+
+(test-equal "variable-length arrays"
+            '((define-type "enum_array"
+                (variable-length-array (enum ("a" 1) ("b" 2))
+                                       8))
+              (define-type "union_array_nolimit"
+                (variable-length-array (union (case ("x" "int")
+                                                ((0)   ("foo"     "bool"))
+                                                ((1 2) ("bar"     "double"))
+                                                (else  ("chbouib" "hyper"))))
+                                       #f)))
+
+            (xdr-language->sexp
+             (xdr-text "typedef enum { a = 1, b = 2 } enum_array<010>;"
+                       "typedef union switch (int x) {"
+                       "          case 0: bool foo;"
+                       "          case 1: case 2: double bar;"
+                       "          default: hyper chbouib;"
+                       "        } union_array_nolimit<>;")))
 
 (test-end "xdr-parser")
 
