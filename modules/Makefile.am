@@ -1,5 +1,5 @@
 # GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-# Copyright (C) 2007  Free Software Foundation, Inc.
+# Copyright (C) 2007, 2008  Free Software Foundation, Inc.
 #
 # This file is part of GNU Guile-RPC.
 #
@@ -19,9 +19,35 @@
 nobase_dist_guilemodule_DATA =				\
   rpc/xdr.scm rpc/xdr/types.scm				\
   rpc/rpc.scm rpc/rpc/types.scm rpc/rpc/transports.scm	\
-  rpc/rpc/server.scm rpc/rpc/portmap.scm
+  rpc/rpc/server.scm rpc/rpc/portmap.scm		\
+  rpc/compiler/parser.scm rpc/compiler/lexer.scm
 
-EXTRA_DIST = srfi/srfi-64.scm srfi/srfi-64.upstream.scm
+EXTRA_DIST = srfi/srfi-64.scm srfi/srfi-64.upstream.scm	\
+	     rpc/compiler/lexer.l
+
+# Building the lexers with SILex.  You must have SILex installed in
+# `$(top_srcdir)/src/guile/silex'.  The Git repository already contains
+# it.  Otherwise, you can fetch it from
+# http://www.iro.umontreal.ca/~dube/silex-src.tar.gz .
+#
+# Note: Those files should normally be part of the distribution, making
+# this rule useless to the user.
+.l.scm:
+	module="`basename $@ | sed -es/\\.scm$$//g`" ;			\
+	$(GUILE) -L $(top_srcdir)/modules/silex				\
+	         -c '(load-from-path "lex.scm") (lex "$^" "$@")' &&	\
+	mv "$@" "$@.tmp" &&						\
+	echo ';;; -*- buffer-read-only: t; -*-' > "$@" &&		\
+	echo ';;; Automatically generated---do not modify.' >> "$@" &&	\
+	echo "(define-module (rpc compiler $$module)" >> "$@" &&	\
+	echo '  :export (lexer-init lexer' >> "$@" &&			\
+	echo '           lexer-get-func-column' >> "$@" &&		\
+	echo '           lexer-get-func-offset' >> "$@" &&		\
+	echo '           lexer-get-line lexer-getc' >> "$@" &&		\
+	echo '           lexer-ungetc))' >> "$@" &&			\
+	cat "$@.tmp" >> "$@" &&						\
+	rm "$@.tmp"
+
 
 if HAVE_GUILE_LINT
 all-local: $(nobase_dist_guilemodule_DATA)
