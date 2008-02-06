@@ -95,9 +95,12 @@
                 (string identifier left-angle right-angle) :
                 $1
                 (type-specifier star identifier) :
-                $1
+                  (list $3
+                        `(union (case ("opted" "bool")
+                                  ((TRUE)  ("value" ,$1))
+                                  ((FALSE) "void"))))
                 (void) :
-                "void")
+                  "void")
 
    (value (constant)   : $1
           (identifier) : $1)

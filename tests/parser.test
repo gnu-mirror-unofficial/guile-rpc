@@ -114,6 +114,22 @@
                        "      unsigned hyper h;"
                        "  };")))
 
+(test-equal "optional data unions"
+            '((define-type "optional_int"
+                (union (case ("opted" "bool")
+                         ((TRUE)  ("value" "foo_t"))
+                         ((FALSE) "void"))))
+
+              (define-type "s"
+                (struct ("x" "int")
+                        ("y" (union (case ("opted" "bool")
+                                      ((TRUE)  ("value" "int"))
+                                      ((FALSE) "void")))))))
+
+            (xdr-language->sexp
+             (xdr-text "typedef foo_t *optional_int;"
+                       "struct s { int x; int *y; };")))
+
 (test-equal "fixed-length arrays"
             '((define-type "int_array"
                 (fixed-length-array "int" 3))
