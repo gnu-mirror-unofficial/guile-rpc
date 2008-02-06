@@ -20,13 +20,14 @@ nobase_dist_guilemodule_DATA =				\
   rpc/xdr.scm rpc/xdr/types.scm				\
   rpc/rpc.scm rpc/rpc/types.scm rpc/rpc/transports.scm	\
   rpc/rpc/server.scm rpc/rpc/portmap.scm		\
-  rpc/compiler/parser.scm rpc/compiler/lexer.scm
+  rpc/compiler/parser.scm rpc/compiler/lexer.scm	\
+  rpc/compiler.scm
 
 EXTRA_DIST = srfi/srfi-64.scm srfi/srfi-64.upstream.scm	\
 	     rpc/compiler/lexer.l
 
 # Building the lexers with SILex.  You must have SILex installed in
-# `$(top_srcdir)/src/guile/silex'.  The Git repository already contains
+# `$(top_srcdir)/modules/silex'.  The Git repository already contains
 # it.  Otherwise, you can fetch it from
 # http://www.iro.umontreal.ca/~dube/silex-src.tar.gz .
 #

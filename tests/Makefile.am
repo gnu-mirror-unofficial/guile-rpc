@@ -19,12 +19,12 @@
 TESTS_ENVIRONMENT = $(GUILE) -L $(top_srcdir)/modules
 
 TESTS = xdr.test xdr-encoding.test rpc.test server-loop.test	\
-	parser.test
+	parser.test compiler.test
 EXTRA_DIST = $(TESTS)
 
 CLEANFILES = xdr-type-size.log xdr-encoding.log	\
 	     rpc-message.log server-loop.log	\
-	     xdr-parser.log
+	     xdr-parser.log xdr-compiler.log
 
 # XXX: Guile-Lint version 9 doesn't properly handle the
 # `define-syntax' macros used by SRFI-64.

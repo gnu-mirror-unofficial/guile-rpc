@@ -1,0 +1,101 @@
+;;; Excercise the XDR language compiler.              -*- Scheme -*-
+;;;
+;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
+;;; Copyright (C) 2008  Free Software Foundation, Inc.
+;;;
+;;; This file is part of GNU Guile-RPC.
+;;;
+;;; GNU Guile-RPC is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU Lesser General Public License as published by
+;;; the Free Software Foundation; either version 3 of the License, or (at
+;;; your option) any later version.
+;;;
+;;; GNU Guile-RPC is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser
+;;; General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU Lesser General Public License
+;;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+(define-module (tests compiler)
+  :use-module (rpc compiler)
+
+  :use-module (rpc xdr types)
+  :use-module (rpc xdr)
+
+  :use-module (r6rs bytevector)
+  :use-module (r6rs io ports)
+
+  :use-module (srfi srfi-13)
+  :use-module (srfi srfi-64))
+
+
+;;;
+;;; Tools.
+;;;
+
+(define (xdr-text . body)
+  (open-input-string (string-join body (string #\newline))))
+
+(define (xdr-encodable? type value)
+  ;; Return true if was able to succesfully encode/decode VALUE in TYPE.
+  (let* ((size (xdr-type-size type value))
+         (bv   (make-bytevector size)))
+    (xdr-encode! bv 0 type value)
+    (equal? (xdr-decode type (open-bytevector-input-port bv))
+            value)))
+
+
+;;;
+;;; Compiler.
+;;;
+
+(test-begin "xdr-compiler")
+
+(test-equal "simple types & constants"
+            '((define the-constant 2)
+              (define the-struct
+                (make-xdr-struct-type (list xdr-integer xdr-float)))
+              (define the-enum
+                (make-xdr-enumeration 'the-enum
+                                      `((one . 1)
+                                        (two . ,the-constant)))))
+
+            (xdr-language->scheme
+             (xdr-text "const the_constant = 2;"
+                       "struct the_struct { int x; float y; };"
+                       "typedef enum { one = 1, two = the_constant } "
+                       "        the_enum;")))
+
+(test-equal "simple types & constants [run-time]"
+
+            ;; Note: We can't compare XDR type object with `equal?' because
+            ;; they contain closures.  Thus we perform only some basic
+            ;; checks.
+            `(("the_struct" . #t)
+              ("the_enum"   . #t))
+
+            (let ((output
+                   (sort
+                    (xdr-language->xdr-types
+                     (xdr-text "const the_constant = 2;"
+                               "struct the_struct { int x; float y; };"
+                               "typedef enum { one = 1, two = the_constant } "
+                               "        the_enum;"))
+                    (lambda (n+t1 n+t2)
+                      (string>? (car n+t1) (car n+t2))))))
+              (map (let ((values '(("the_struct" . (42 3.0))
+                                   ("the_enum"   . one))))
+                     (lambda (name+type)
+                       (let* ((name  (car name+type))
+                              (type  (cdr name+type))
+                              (value (assoc name values)))
+                         (and (pair? value)
+                              (cons name
+                                    (xdr-encodable? type (cdr value)))))))
+                   output)))
+
+(test-end "xdr-compiler")
+
+(exit (= (test-runner-fail-count (test-runner-current)) 0))

@@ -1,5 +1,5 @@
 ;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-;;; Copyright (C) 2007  Free Software Foundation, Inc.
+;;; Copyright (C) 2007, 2008  Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Guile-RPC.
 ;;;
@@ -160,7 +160,7 @@
     (let* ((bv (get-bytevector-n port 4)))
       (enum-symbol type (bytevector-u32-ref bv 0 %xdr-endianness))))
 
-  (make-xdr-basic-type (symbol-append 'enum- name) 4
+  (make-xdr-basic-type name 4
                        (lambda (value)
                          (and (symbol? value)
                               (symbol->integer value)))

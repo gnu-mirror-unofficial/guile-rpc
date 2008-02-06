@@ -47,19 +47,19 @@
 
 (test-equal "simple definitions"
             '((define-type "foo_t" "int")
-              (define-type "blurps" (enum ("x" 2) ("z" 3)))
+              (define-constant "magic" 42)
+              (define-type "blurps" (enum ("x" 2) ("z" "magic")))
               (define-type "chbouib_t"
-                (fixed-length-array "int" 4))
-              (define-constant "magic" 42))
+                (fixed-length-array "int" 4)))
 
             (xdr-language->sexp
              (xdr-text "/* This is a comment.  */"
                        "/* This is a" (string #\newline)
                        "   multi-line comment.  */"
                        "typedef int foo_t;"
-                       "enum blurps { x = 2, z = 3 };"
-                       "typedef int chbouib_t[4];"
-                       "const magic = 42;")))
+                       "const magic = 42;"
+                       "enum blurps { x = 2, z = magic };"
+                       "typedef int chbouib_t[4];")))
 
 (test-equal "struct definitions"
             '((define-type "foo"
