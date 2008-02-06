@@ -161,6 +161,40 @@
                        "          default: hyper chbouib;"
                        "        } union_array_nolimit<>;")))
 
+(test-equal "strings"
+            '((define-type "foo"
+                (string 256))
+              (define-type "bar"
+                (string #f))
+              (define-type "chbouib"
+                (struct ("x" "int")
+                        ("y" (string 10))
+                        ("z" (string #f)))))
+
+            (xdr-language->sexp
+             (xdr-text "typedef string foo<0x100>;"
+                       "typedef string bar<>;"
+                       "struct chbouib { int x; string y<10>; "
+                       "                 string z<>; };")))
+
+(test-equal "opaque arrays"
+            '((define-type "foo"
+                (fixed-length-array "opaque" 8))
+              (define-type "bar"
+                (variable-length-array "opaque" 10))
+              (define-type "chbouib"
+                (variable-length-array "opaque" #f))
+              (define-type "blurps"
+                (struct ("x" "int")
+                        ("y" (variable-length-array "opaque" 16)))))
+
+            (xdr-language->sexp
+             (xdr-text "typedef opaque foo[010];"
+                       "typedef opaque bar<10>;"
+                       "typedef opaque chbouib<>;"
+                       "struct blurps { int x; opaque y<0x10>; };")))
+
+
 (test-end "xdr-parser")
 
 

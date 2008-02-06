@@ -85,15 +85,15 @@
                 (type-specifier identifier left-angle right-angle) :
                   (list $2 (list 'variable-length-array $1 #f))
                 (opaque identifier left-square value right-square) :
-                  (list 'declaration $2 $4)
+                  (list $2 (list 'fixed-length-array "opaque" $4))
                 (opaque identifier left-angle value right-angle) :
-                $1
+                  (list $2 (list 'variable-length-array "opaque" $4))
                 (opaque identifier left-angle right-angle) :
-                $1
+                  (list $2 (list 'variable-length-array "opaque" #f))
                 (string identifier left-angle value right-angle) :
-                $1
+                  (list $2 (list 'string $4))
                 (string identifier left-angle right-angle) :
-                $1
+                  (list $2 (list 'string #f))
                 (type-specifier star identifier) :
                   (list $3
                         `(union (case ("opted" "bool")
