@@ -24,6 +24,9 @@
   :use-module  (srfi srfi-1)
   :use-module  (srfi srfi-9)
 
+  ;; Andrew K. Wright's pattern matching system.
+  :use-module  (ice-9 match)
+
   :export (xdr-language->scheme
            xdr-language->xdr-types))
 
@@ -37,6 +40,16 @@
 ;;; XDR type objects.
 ;;;
 ;;; Code:
+
+
+;;;
+;;; Workarounds.
+;;;
+
+;; Work around missing export in `(ice-9 match)' in Guile 1.8.3 and earlier.
+(if (not (defined? 'match:andmap))
+    (define match:andmap (lambda (f l) (if (null? l) (and) (and (f (car l)) (match:andmap f (cdr l)))))))
+
 
 
 ;;;
@@ -106,40 +119,83 @@
     (define (make-type-definition name expr c)
       (make-type-def
        name
-       (cond ((string? expr)
-              (let ((def (lookup-type expr c)))
-                (if (not def)
-                    (error "unbound type" expr)
-                    (make-type-ref def))))
-             ((and (list? expr) (pair? expr))
-              (case (car expr)
-                ((enum)
-                 (let ((values (cdr expr)))
-                   (make-enum name
-                              (map (lambda (name+value)
-                                     (let ((name  (car name+value))
-                                           (value (cadr name+value)))
-                                       (cons name
-                                             (constant-value value c))))
-                                   values))))
-                ((struct)
-                 (let ((types (map (lambda (name+type)
-                                     (let* ((type-name (cadr name+type))
-                                            (type      (lookup-type type-name
-                                                                    c)))
-                                       (if type
-                                           (make-type-ref type)
-                                           (error "type not found"
-                                                  type-name))))
-                                   (cdr expr))))
-                   (make-struct types)))
-                ((string)
-                 (let ((max-length (cadr expr)))
-                   (make-string max-length)))
-                (else
-                 (error "not implemented yet" (car expr)))))
-            (else
-             (error "invalid type definition form" expr)))))
+       (match expr
+         ((? string?)
+          (let ((def (lookup-type expr c)))
+            (if (not def)
+                (error "unbound type" expr)
+                (make-type-ref def))))
+
+         (('enum values ..1)
+          (let ((values (cdr expr)))
+            (make-enum name
+                       (map (lambda (name+value)
+                              (let ((name  (car name+value))
+                                    (value (cadr name+value)))
+                                (cons name
+                                      (constant-value value c))))
+                            values))))
+
+         (('struct types ..1)
+          (let ((types (map (lambda (name+type)
+                              (let* ((type-name (cadr name+type))
+                                     (type      (lookup-type type-name
+                                                             c)))
+                                (if type
+                                    (make-type-ref type)
+                                    (error "type not found"
+                                           type-name))))
+                            (cdr expr))))
+            (make-struct types)))
+
+         (('union ('case ((and (? string?) discriminant)
+                          (and (? string?) type-name))
+                    case-list ...))
+          (let* ((type-ref   (lambda (arm)
+                               ;; Arm types can be either `"void"' or
+                               ;; `("field-name" "type")'.
+                               (match arm
+                                 ("void"
+                                  (let ((void (lookup-type "void" c)))
+                                    (if void
+                                        (make-type-ref void)
+                                        (error "back-end does not know `void'"
+                                               c))))
+                                 (((? string?) (and (? string?) name))
+                                  (let ((type (lookup-type name c)))
+                                    (if type
+                                        (make-type-ref type)
+                                        (error "invalid arm type" name))))
+                                 (else
+                                  (error "wrong arm type" arm)))))
+                 (default    (let ((last (car (last-pair case-list))))
+                               (and (eq? (car last) 'else)
+                                    (cadr last))))
+                 (value/type (append-map (lambda (case-spec)
+                                           (match case-spec
+                                             (('else _) '())
+                                             (((values ..1) type)
+                                              (let ((t (type-ref type)))
+                                                (map (lambda (v)
+                                                       (cons v t))
+                                                     values)))
+                                             (else
+                                              (error "wrong case spec"
+                                                     case-spec))))
+                                         case-list)))
+
+            (make-union (let ((discr-type (lookup-type type-name c)))
+                          (if discr-type
+                              (make-type-ref discr-type)
+                              (error "unknown discriminant type" type-name)))
+                        value/type
+                        (and default (type-ref default)))))
+
+         (('string (and (or (? number?) (? not)) max-length))
+          (make-string max-length))
+
+         (else
+          (error "unsupported type form" expr)))))
 
     (let ((input (cond ((port? input)
                         (xdr-language->sexp input))
@@ -226,8 +282,17 @@ form, e.g., one with dashed instead of underscores, etc."
 (define (struct-code types)
   `(make-xdr-struct-type (list ,@types)))
 
-(define (union-code . args)
-  (error "not implemented yet" args))
+(define (union-code discr-type value/type default)
+  `(make-xdr-union-type ,discr-type
+                        ,(list 'quasiquote
+                               (map (lambda (v+t)
+                                      (let ((v (car v+t)))
+                                        (cons (if (number? v)
+                                                  v
+                                                  (enum-value-name->symbol v))
+                                              (list 'unquote (cdr v+t)))))
+                                    value/type))
+                        ,default))
 
 (define (string-code max-length)
   `(make-xdr-string ,max-length))
@@ -242,7 +307,8 @@ form, e.g., one with dashed instead of underscores, etc."
   (let* ((initial-context
           ;; The initial compilation context.
           (make-context
-           '(("bool"             . (define xdr-boolean ...))
+           '(("void"             . (define xdr-void ...))
+             ("bool"             . (define xdr-boolean ...))
              ("int"              . (define xdr-integer ...))
              ("unsigned int"     . (define xdr-unsigned-integer ...))
              ("hyper"            . (define xdr-hyper-integer ...))
@@ -293,11 +359,21 @@ form, e.g., one with dashed instead of underscores, etc."
                (cdr n+v)))
        values))
 
+(define (->schemey-union-values-alist values)
+  (map (lambda (v+t)
+         (let ((value (car v+t)))
+           (cons (if (number? value)
+                     value
+                     (enum-value-name->symbol value))
+                 (cdr v+t))))
+       values))
+
 (define xdr-language->xdr-types
   (let* ((initial-context
           ;; The initial compilation context.
           (make-context
-           `(("bool"             . ,xdr-boolean)
+           `(("void"             . ,xdr-void)
+             ("bool"             . ,xdr-boolean)
              ("int"              . ,xdr-integer)
              ("unsigned int"     . ,xdr-unsigned-integer)
              ("hyper"            . ,xdr-hyper-integer)
@@ -319,7 +395,11 @@ form, e.g., one with dashed instead of underscores, etc."
                                         (values (->schemey-enum-alist values)))
                                     (make-xdr-enumeration name values))))
          (struct                make-xdr-struct-type)
-         (union                 #f)
+         (union                 (lambda (discr values default)
+                                  (let ((values (->schemey-union-values-alist
+                                                 values)))
+                                    (make-xdr-union-type discr values
+                                                         default))))
          (string                make-xdr-string)
          (fixed-length-array    #f)
          (variable-length-array #f)

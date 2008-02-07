@@ -27,6 +27,7 @@
   :use-module (r6rs bytevector)
   :use-module (r6rs io ports)
 
+  :use-module (srfi srfi-1)
   :use-module (srfi srfi-13)
   :use-module (srfi srfi-64))
 
@@ -46,12 +47,40 @@
     (equal? (xdr-decode type (open-bytevector-input-port bv))
             value)))
 
+(define (every? pred . args)
+  (not (not (apply every pred args))))
+
+(define (valid-xdr-types? types value-alist)
+  (define (failed name value)
+    (format (current-error-port) "~a: failed to encode `~A'~%"
+            name value))
+
+  (and (every? (lambda (value-alist)
+                 (let ((type-name (car value-alist)))
+                   (assoc type-name types)))
+               value-alist)
+       (every? (lambda (name+type)
+                 (let* ((name   (car name+type))
+                        (type   (cdr name+type))
+                        (values (assoc name value-alist)))
+                   (and (pair? values)
+                        (every? (lambda (value)
+                                  (let ((ok? (xdr-encodable? type value)))
+                                    (or ok? (failed name value))))
+                                (cdr values)))))
+               types)))
+
 
 ;;;
 ;;; Compiler.
 ;;;
 
 (test-begin "xdr-compiler")
+
+
+;;;
+;;; Code generation compiler back-end.
+;;;
 
 (test-equal "simple types & constants"
             '((define the-constant 2)
@@ -68,33 +97,94 @@
                        "typedef enum { one = 1, two = the_constant } "
                        "        the_enum;")))
 
-(test-equal "simple types & constants [run-time]"
+(test-equal "unions"
+            '((define foo
+                xdr-integer)
+              (define the-enum
+                (make-xdr-enumeration 'the-enum
+                                      `((zero . 0)
+                                        (one  . 1)
+                                        (two  . 2))))
+              (define the-union
+                (make-xdr-union-type xdr-integer
+                                     `((0 . ,foo)
+                                       (1 . ,foo)
+                                       (2 . ,xdr-float))
+                                     #f))
+              (define the-union-with-default
+                (make-xdr-union-type the-enum
+                                     `((zero . ,foo)
+                                       (one  . ,foo)
+                                       (two  . ,xdr-void))
+                                     the-enum)))
 
-            ;; Note: We can't compare XDR type object with `equal?' because
-            ;; they contain closures.  Thus we perform only some basic
-            ;; checks.
-            `(("the_struct" . #t)
-              ("the_enum"   . #t))
+            (xdr-language->scheme
+             (xdr-text "typedef int foo;"
+                       "enum the_enum { zero = 0, one = 1, two = 2 };"
+                       "union the_union switch (int discr) {"
+                       "  case 0: case 1: foo   the_foo;"
+                       "  case 2:         float the_float;"
+                       "};"
+                       "union the_union_with_default switch (the_enum e) {"
+                       "  case zero: case one: foo      the_foo;"
+                       "  case two:            void;"
+                       "  default:             the_enum chbouib;"
+                       "};")))
 
-            (let ((output
-                   (sort
-                    (xdr-language->xdr-types
-                     (xdr-text "const the_constant = 2;"
-                               "struct the_struct { int x; float y; };"
-                               "typedef enum { one = 1, two = the_constant } "
-                               "        the_enum;"))
-                    (lambda (n+t1 n+t2)
-                      (string>? (car n+t1) (car n+t2))))))
-              (map (let ((values '(("the_struct" . (42 3.0))
-                                   ("the_enum"   . one))))
-                     (lambda (name+type)
-                       (let* ((name  (car name+type))
-                              (type  (cdr name+type))
-                              (value (assoc name values)))
-                         (and (pair? value)
-                              (cons name
-                                    (xdr-encodable? type (cdr value)))))))
-                   output)))
+(test-equal "optional data unions"
+            '((define the-union
+                (make-xdr-union-type xdr-boolean
+                                     `((TRUE  . ,xdr-integer)
+                                       (FALSE . ,xdr-void))
+                                     #f)))
+
+            (xdr-language->scheme
+             (xdr-text "typedef int *the_union;")))
+
+
+;;;
+;;; Run-time compiler back-end.
+;;;
+
+;; Note: We can't compare XDR type objects with `equal?' because they contain
+;; closures.  Thus we perform only some basic checks.
+
+(test-eq    "simple types & constants [run-time]"
+            #t
+
+            (let ((types
+                   (xdr-language->xdr-types
+                    (xdr-text "const the_constant = 2;"
+                              "struct the_struct { int x; float y; };"
+                              "typedef enum { one = 1, two = the_constant } "
+                              "        the_enum;"))))
+              (valid-xdr-types? types
+                                '(("the_struct" (42 3.0) (-1 0.0))
+                                  ("the_enum"   one two)))))
+
+(test-eq    "unions [run-time]"
+            #t
+
+            (let ((types
+                   (xdr-language->xdr-types
+                    (xdr-text "typedef int foo;"
+                              "enum the_enum { zero = 0, one = 1, two = 2 };"
+                              "union the_union switch (int discr) {"
+                              "  case 0: case 1: foo   the_foo;"
+                              "  case 2:         float the_float;"
+                              "};"
+                              "union the_union_with_default switch (the_enum e) {"
+                              "  case one:            foo      the_foo;"
+                              "  case two:            void;"
+                              "  default:             the_enum chbouib;"
+                              "};"))))
+              (valid-xdr-types? types
+                                `(("foo"        -1 0 1 2 3 4)
+                                  ("the_enum"   zero one two)
+                                  ("the_union"  (0 . 1) (1 . -2) (2 . 0.0))
+                                  ("the_union_with_default"
+                                   (one . 1) (two . ,%void)
+                                   (zero . one) (zero . two))))))
 
 (test-end "xdr-compiler")
 
