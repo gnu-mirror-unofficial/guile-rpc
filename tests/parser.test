@@ -114,17 +114,34 @@
                        "      unsigned hyper h;"
                        "  };")))
 
+(test-equal "unions with enum as discriminant"
+            '((define-constant "magic" 42)
+              (define-type "the_enum"
+                (enum ("a" 1) ("b" "magic")))
+              (define-type "foo"
+                (union (case ("d" "the_enum")
+                         (("a") "void")
+                         (("b") ("blurps" "int"))))))
+
+            (xdr-language->sexp
+             (xdr-text "const magic = 42;"
+                       "enum the_enum { a = 1, b = magic };"
+                       "union foo switch (the_enum d) {"
+                       "  case a: void;"
+                       "  case b: int blurps;"
+                       "};")))
+
 (test-equal "optional data unions"
             '((define-type "optional_int"
                 (union (case ("opted" "bool")
-                         ((TRUE)  ("value" "foo_t"))
-                         ((FALSE) "void"))))
+                         (("TRUE")  ("value" "foo_t"))
+                         (("FALSE") "void"))))
 
               (define-type "s"
                 (struct ("x" "int")
                         ("y" (union (case ("opted" "bool")
-                                      ((TRUE)  ("value" "int"))
-                                      ((FALSE) "void")))))))
+                                      (("TRUE")  ("value" "int"))
+                                      (("FALSE") "void")))))))
 
             (xdr-language->sexp
              (xdr-text "typedef foo_t *optional_int;"

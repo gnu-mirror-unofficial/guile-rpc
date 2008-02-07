@@ -97,8 +97,8 @@
                 (type-specifier star identifier) :
                   (list $3
                         `(union (case ("opted" "bool")
-                                  ((TRUE)  ("value" ,$1))
-                                  ((FALSE) "void"))))
+                                  (("TRUE")  ("value" ,$1))
+                                  (("FALSE") "void"))))
                 (void) :
                   "void")
 
