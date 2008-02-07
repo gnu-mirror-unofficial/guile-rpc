@@ -1,7 +1,7 @@
 ;;; Encoding/decoding of XDR data.                    -*- Scheme -*-
 ;;;
 ;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-;;; Copyright (C) 2007  Free Software Foundation, Inc.
+;;; Copyright (C) 2007, 2008  Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Guile-RPC.
 ;;;
@@ -168,11 +168,30 @@
               (xdr-encode! bv 0 u (cons 2 (make-list 77 255)))
               (xdr-decode u (open-bytevector-input-port bv))))
 
+(test-equal "union (enum as discriminant)" (cons 'one 1)
+            (let* ((e (make-xdr-enumeration 'ordinals
+                                             '((one . 1) (two . 2))))
+                   (u (make-xdr-union-type e
+                                           `((one . ,xdr-integer)
+                                             (two . ,xdr-float))
+                                           #f)))
+              (xdr-encode! bv 0 u (cons 'one 1))
+              (xdr-decode u (open-bytevector-input-port bv))))
+
 (test-equal "union (default)" (cons 55 7777)
             (let ((u (make-xdr-union-type xdr-integer
                                            `((1 . ,xdr-integer))
                                            xdr-hyper-integer)))
               (xdr-encode! bv 0 u (cons 55 7777))
+              (xdr-decode u (open-bytevector-input-port bv))))
+
+(test-equal "union (enum as discriminant + default)" (cons 'two 'two)
+            (let* ((e (make-xdr-enumeration 'ordinals
+                                             '((one . 1) (two . 2))))
+                   (u (make-xdr-union-type e
+                                           `((one . ,xdr-integer))
+                                           e)))
+              (xdr-encode! bv 0 u (cons 'two 'two))
               (xdr-decode u (open-bytevector-input-port bv))))
 
 (test-equal "invalid union (encoding)" %error-raised
