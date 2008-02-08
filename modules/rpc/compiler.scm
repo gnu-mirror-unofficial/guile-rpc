@@ -41,15 +41,6 @@
 ;;;
 ;;; Code:
 
-
-;;;
-;;; Workarounds.
-;;;
-
-;; Work around missing export in `(ice-9 match)' in Guile 1.8.3 and earlier.
-(if (not (defined? 'match:andmap))
-    (define match:andmap (lambda (f l) (if (null? l) (and) (and (f (car l)) (match:andmap f (cdr l)))))))
-
 
 
 ;;;
