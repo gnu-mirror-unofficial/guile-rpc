@@ -39,6 +39,7 @@ GUILE_MODULE_REQUIRED([srfi srfi-35])
 
 # To use the compiler `(text parse-lalr)' is needed.
 GUILE_MODULE_AVAILABLE([have_text_parse_lalr], [(text parse-lalr)])
+AM_CONDITIONAL([HAVE_PARSE_LALR], test "x$have_text_parse_lalr" = "xyes")
 if test "x$have_text_parse_lalr" != "xyes"; then
    AC_MSG_WARN([The `(text parse-lalr)' from Guile-Library is not available.])
    AC_MSG_WARN([You will not be able to use the XDR/RPC compiler unless you install it.])
