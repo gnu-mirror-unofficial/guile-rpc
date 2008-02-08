@@ -1,0 +1,37 @@
+-*- mode: org; coding: utf-8; -*-
+
+This file contains random to-do ideas.
+
+
+* Better support fixed-size arrays
+
+Using structs for fixed-size arrays leads to inefficient
+encoding/decoding.  We must have native support that makes use of the
+vector encoders/decoders of basic types.
+
+* Support `quadruple'
+
+* Statically allocate RPC buffers (non-reentrant variant)
+
+May significantly improve performance, but may also require an
+`xdr-max-type-size' procedure.
+
+* Support some authentication flavors
+
+* Compiler
+
+** Generate more efficient encoders/decoders
+
+Get source from `xdr/types.scm', perform loop unrolling, etc.
+
+** Add stand-alone tools
+
+`xdr-{decode,encode,describe}', `rpc-proxy', etc.
+
+
+
+Copyright 2007, 2008  Free Software Foundation, Inc.
+
+Copying and distribution of this file, with or without modification, are
+permitted in any medium without royalty provided the copyright notice
+and this notice are preserved.
