@@ -194,6 +194,20 @@
          (('string (and (or (? number?) (? not)) max-length))
           (make-string max-length))
 
+         (('fixed-length-array (and (? string?) type-name)
+                               (and (? number?) length))
+          (let ((type (lookup-type type-name c)))
+            (if type
+                (make-fixed-length-array (make-type-ref type) length)
+                (error "unknown type" type-name))))
+
+         (('variable-length-array (and (? string?) type-name)
+                                  (and (or (? number?) (? not)) max-length))
+          (let ((type (lookup-type type-name c)))
+            (if type
+                (make-variable-length-array (make-type-ref type) max-length)
+                (error "unknown type" type-name))))
+
          (else
           (error "unsupported type form" expr)))))
 
@@ -297,17 +311,23 @@ form, e.g., one with dashed instead of underscores, etc."
 (define (string-code max-length)
   `(make-xdr-string ,max-length))
 
-(define (fixed-length-array-code . args)
-  (error "not implemented yet" args))
+(define (fixed-length-array-code type length)
+  ;; FIXME: This is extremely inefficient.
+  (if (eq? type 'xdr-opaque)
+      `(make-xdr-fixed-length-opaque-array ,length)
+      `(make-xdr-struct-type (make-list ,length ,type))))
 
-(define (variable-length-array-code . args)
-  (error "not implemented yet" args))
+(define (variable-length-array-code type max-length)
+  (if (eq? type 'xdr-opaque)
+      `(make-xdr-variable-length-opaque-array ,max-length)
+      `(make-xdr-vector-type ,type ,max-length)))
 
 (define xdr-language->scheme
   (let* ((initial-context
           ;; The initial compilation context.
           (make-context
            '(("void"             . (define xdr-void ...))
+             ("opaque"           . (define xdr-opaque ...)) ;; pseudo-type
              ("bool"             . (define xdr-boolean ...))
              ("int"              . (define xdr-integer ...))
              ("unsigned int"     . (define xdr-unsigned-integer ...))
@@ -373,6 +393,7 @@ form, e.g., one with dashed instead of underscores, etc."
           ;; The initial compilation context.
           (make-context
            `(("void"             . ,xdr-void)
+             ("opaque"           . opaque) ;; pseudo-type
              ("bool"             . ,xdr-boolean)
              ("int"              . ,xdr-integer)
              ("unsigned int"     . ,xdr-unsigned-integer)
@@ -401,8 +422,17 @@ form, e.g., one with dashed instead of underscores, etc."
                                     (make-xdr-union-type discr values
                                                          default))))
          (string                make-xdr-string)
-         (fixed-length-array    #f)
-         (variable-length-array #f)
+         (fixed-length-array    (lambda (type length)
+                                  (if (eq? type 'opaque)
+                                      (make-xdr-fixed-length-opaque-array
+                                       length)
+                                      (make-xdr-struct-type
+                                       (make-list length type)))))
+         (variable-length-array (lambda (type limit)
+                                  (if (eq? type 'opaque)
+                                      (make-xdr-variable-length-opaque-array
+                                       limit)
+                                      (make-xdr-vector-type type limit))))
 
          (translator
           (make-xdr-language-translator initial-context

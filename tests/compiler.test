@@ -141,6 +141,26 @@
             (xdr-language->scheme
              (xdr-text "typedef int *the_union;")))
 
+(test-equal "fixed-length arrays"
+            '((define the-array
+                (make-xdr-struct-type (make-list 10 xdr-integer)))
+              (define the-opaque-array
+                (make-xdr-fixed-length-opaque-array 8)))
+
+            (xdr-language->scheme
+             (xdr-text "typedef int the_array[10];"
+                       "typedef opaque the_opaque_array[010];")))
+
+(test-equal "variable-length arrays"
+            '((define the-array
+                (make-xdr-vector-type xdr-float 10))
+              (define the-opaque-array
+                (make-xdr-variable-length-opaque-array #f)))
+
+            (xdr-language->scheme
+             (xdr-text "typedef float the_array<10>;"
+                       "typedef opaque the_opaque_array<>;")))
+
 
 ;;;
 ;;; Run-time compiler back-end.
@@ -185,6 +205,34 @@
                                   ("the_union_with_default"
                                    (one . 1) (two . ,%void)
                                    (zero . one) (zero . two))))))
+
+(test-eq    "fixed-length arrays [run-time]"
+            #t
+
+            (let ((types
+                   (xdr-language->xdr-types
+                    (xdr-text "typedef int the_array[10];"
+                              "typedef opaque the_opaque_array[010];"))))
+              (valid-xdr-types? types
+                                `(("the_array"         ,(iota 10))
+                                  ("the_opaque_array"  ,(iota 8))))))
+
+(test-eq    "variable-length arrays [run-time]"
+            #t
+
+            (let ((types
+                   (xdr-language->xdr-types
+                    (xdr-text "typedef float the_array<10>;"
+                              "typedef opaque the_opaque_array<>;")))
+                  (fiota
+                   (lambda (max)
+                     (list->vector (map exact->inexact (iota max))))))
+              (valid-xdr-types? types
+                                `(("the_array"  #(1.0 2.0)
+                                                ,(fiota 10))
+                                  ("the_opaque_array"
+                                                ,(list->vector (iota 7))
+                                                ,(list->vector (iota 236)))))))
 
 (test-end "xdr-compiler")
 
