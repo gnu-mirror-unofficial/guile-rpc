@@ -38,7 +38,8 @@ oct-constant   0[0-7]+
                                   "unsigned" "int" "hyper"
                                   "float" "double" "quadruple"
                                   "bool" "string"
-                                  "typedef"))
+                                  "typedef"
+                                  "program" "version"))
                         (list (string->symbol yytext)))
                        (else
                         (cons 'identifier yytext)))

@@ -211,6 +211,47 @@
                        "typedef opaque chbouib<>;"
                        "struct blurps { int x; opaque y<0x10>; };")))
 
+(test-equal "program definition"
+            '((define-program "prog1" 10
+                (version "v1" 0
+                  (procedure "foo" 0
+                     "int"
+                     ("foo_t"))
+                  (procedure "bar" 1
+                     "double"
+                     ((enum ("a" 2) ("b" 3))
+                      "unsigned int"
+                      "bool")))))
+
+            (xdr-language->sexp
+             (xdr-text "program prog1 {"
+                       "  version v1 {"
+                       "    int    foo (foo_t) = 0;"
+                       "    double bar (enum { a = 2, b = 3 },"
+                       "                unsigned int, bool) = 1;"
+                       "  } = 0;"
+                       "} = 10;")))
+
+(test-equal "program definition with void"
+            '((define-program "prog2" 20
+                (version "v0" 0
+                  (procedure "foo" 0
+                     "void"
+                     ()))
+                (version "v1" 1
+                  (procedure "chbouib" 0
+                     "int"
+                     ()))))
+
+            (xdr-language->sexp
+             (xdr-text "program prog2 {"
+                       "  version v0 {"
+                       "    void foo (void) = 0;"
+                       "  } = 0;"
+                       "  version v1 {"
+                       "    int  chbouib (void) = 0;"
+                       "  } = 1;"
+                       "} = 20;")))
 
 (test-end "xdr-parser")
 

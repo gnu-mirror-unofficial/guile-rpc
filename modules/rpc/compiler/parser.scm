@@ -50,7 +50,8 @@
     enum struct union const opaque void
     unsigned int hyper float double quadruple bool string
     typedef
-    identifier constant)
+    identifier constant
+    program version)
 
    ;; Starting point
    (specification (definition specification) : (cons $1 $2)
@@ -72,7 +73,8 @@
                (list 'define-type $2 $3))
 
    (definition (type-def) : $1
-               (constant-def) : $1)
+               (constant-def) : $1
+               (program-def) : $1)
 
 
    ;; Production rules.
@@ -126,8 +128,9 @@
    (name-value-list (identifier equal value) :
                       (list (list $1 $3))
                     (identifier equal value
-                                comma name-value-list) :
+                     comma name-value-list) :
                       (cons (list $1 $3) $5))
+
    (enum-body (left-brace name-value-list right-brace) :
                 (cons 'enum $2))
 
@@ -170,7 +173,45 @@
               (case value colon case-list) : (cons $2 $4))
 
    (case-spec-list (case-spec) : (list $1)
-                   (case-spec case-spec-list) : (cons $1 $2))))
+                   (case-spec case-spec-list) : (cons $1 $2))
+
+
+   ;; RPC Language (RFC 1831, Section 11.2).
+
+   (program-def (program identifier left-brace
+                 version-def-list right-brace
+                 equal constant semi-colon) :
+     (cons* 'define-program $2 $7 $4))
+
+   (version-def-list (version-def) : (list $1)
+                     (version-def version-def-list) : (cons $1 $2))
+
+   (version-def (version identifier left-brace
+                 procedure-def-list right-brace
+                 equal constant semi-colon) :
+     (cons* 'version $2 $7 $4))
+
+   (procedure-def-list (procedure-def) : (list $1)
+                       (procedure-def procedure-def-list) : (cons $1 $2))
+
+   (procedure-def (type-specifier-or-void identifier
+                   left-parenthesis type-specifier-list-or-void
+                   right-parenthesis
+                   equal constant semi-colon) :
+     (list 'procedure $2 $7 $1
+           $4))
+
+   ;; The next two clauses work around a bug in RFC 1831, Section 11.2, which
+   ;; does not allow `void' in lieu of an argument list or return type, even
+   ;; though the example in Section 11.1 uses it.
+   (type-specifier-list-or-void (type-specifier-list) : $1
+                                (void) : '())
+   (type-specifier-or-void (type-specifier) : $1
+                           (void) : "void")
+
+   (type-specifier-list (type-specifier) : (list $1)
+                        (type-specifier comma type-specifier-list) :
+                          (cons $1 $3))))
 
 
 ;;;
