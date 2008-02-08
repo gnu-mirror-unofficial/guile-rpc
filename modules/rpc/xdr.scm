@@ -1,5 +1,5 @@
 ;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-;;; Copyright (C) 2007  Free Software Foundation, Inc.
+;;; Copyright (C) 2007, 2008  Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Guile-RPC.
 ;;;
@@ -400,12 +400,12 @@ independently of the value of type @var{type} being encoded, then return it
              (decode type port)))
 
           ((xdr-vector-type? type)
-           (let* ((max    (xdr-vector-max-element-count type))
-                  (type   (xdr-vector-base-type type))
-                  (decode (and (xdr-basic-type? type)
-                               (xdr-basic-type-vector-decoder type)))
-                  (raw    (get-bytevector-n port 4))
-                  (len    (bytevector-u32-ref raw 0 %xdr-endianness)))
+           (let* ((max     (xdr-vector-max-element-count type))
+                  (type    (xdr-vector-base-type type))
+                  (vdecode (and (xdr-basic-type? type)
+                                (xdr-basic-type-vector-decoder type)))
+                  (raw     (get-bytevector-n port 4))
+                  (len     (bytevector-u32-ref raw 0 %xdr-endianness)))
 
              (if (and max (> len max))
                  (raise (condition
@@ -414,13 +414,13 @@ independently of the value of type @var{type} being encoded, then return it
                           (element-count len))))
                  (let ((padding (vector-padding type len))
                        (result
-                        (if decode
-                            (decode type len port)
+                        (if vdecode
+                            (vdecode type len port)
                             (let ((vec (make-vector len)))
                               (let liip ((index 0))
                                 (if (< index len)
                                     (let ((value (decode type)))
-                                      (array-set! vec index value)
+                                      (array-set! vec value index)
                                       (liip (+ 1 index)))
                                     vec))))))
 

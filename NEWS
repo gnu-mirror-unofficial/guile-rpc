@@ -1,5 +1,8 @@
 * New in GNU Guile-RPC 0.3
 
+** Bug fixes
+*** Fix encoding of vectors of floats, doubles
+
 
 * New in GNU Guile-RPC 0.2
 

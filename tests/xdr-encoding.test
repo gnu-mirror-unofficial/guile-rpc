@@ -58,6 +58,11 @@
               (xdr-encode! bv 0 v (vector 1 2 3 4))
               (xdr-decode v (open-bytevector-input-port bv))))
 
+(test-equal "vector of doubles" (vector 1.0 2.0 3.0 4.0)
+            (let ((v (make-xdr-vector-type xdr-double #f)))
+              (xdr-encode! bv 0 v (vector 1.0 2.0 3.0 4.0))
+              (xdr-decode v (open-bytevector-input-port bv))))
+
 (test-equal "u8vector" (vector 1 2 3 4)
             (let ((v (make-xdr-vector-type xdr-integer #f)))
               (xdr-encode! bv 0 v (u8vector 1 2 3 4))
