@@ -39,5 +39,6 @@ SUFFIXES = .in
 
 if HAVE_GUILE_LINT
 all-local: $(bin_SCRIPTS)
+	GUILE=$(GUILE)					\
 	$(GUILE_LINT) -L $(top_srcdir)/modules $^
 endif

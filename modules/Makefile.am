@@ -52,5 +52,6 @@ EXTRA_DIST = srfi/srfi-64.scm srfi/srfi-64.upstream.scm	\
 
 if HAVE_GUILE_LINT
 all-local: $(nobase_dist_guilemodule_DATA)
+	GUILE=$(GUILE)				\
 	$(GUILE_LINT) -L $(srcdir) $^
 endif

@@ -38,5 +38,6 @@ CLEANFILES = xdr-type-size.log xdr-encoding.log	\
 #
 # if HAVE_GUILE_LINT
 # all-local: $(TESTS)
+#	GUILE=$(GUILE)				\
 # 	$(GUILE_LINT) -L $(top_srcdir)/modules $^
 # endif
