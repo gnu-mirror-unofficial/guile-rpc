@@ -57,18 +57,26 @@
 ;;;
 
 (define-record-type <context>
-  (make-context types constants)
+  (make-context types constants programs)
   context?
   (types     context-types)
-  (constants context-constants))
+  (constants context-constants)
+  (programs  context-programs))
 
 (define (cons-constant name value context)
   (make-context (context-types context)
-                (alist-cons name value (context-constants context))))
+                (alist-cons name value (context-constants context))
+                (context-programs context)))
 
 (define (cons-type name value context)
   (make-context (alist-cons name value (context-types context))
-                (context-constants context)))
+                (context-constants context)
+                (context-programs context)))
+
+(define (cons-program name value context)
+  (make-context (context-types context)
+                (context-constants context)
+                (alist-cons name value (context-programs context))))
 
 (define (lookup-constant name context)
   (let ((result (assoc name (context-constants context))))
@@ -98,7 +106,11 @@
                                       make-union
                                       make-string
                                       make-fixed-length-array
-                                      make-variable-length-array)
+                                      make-variable-length-array
+
+				      make-program
+				      make-version
+				      make-procedure)
   (lambda (input)
     (define (constant-value expr c)
       (cond ((string? expr)
@@ -116,100 +128,136 @@
           (make-constant-def name expr)
           (error "invalid value in constant definition" expr)))
 
+    (define (type-ref expr c name)
+      ;; Evaluate EXPR, a type specifier, through the compiler back-end, and
+      ;; return a "type reference", whatever that means to the back-end.
+      ;; When called from a program definition, NAME can be used to specify
+      ;; the typedef name of the type begin defined.
+      (match expr
+        ((? string?)
+         (let ((def (lookup-type expr c)))
+           (if (not def)
+               (error "unbound type" expr)
+               (make-type-ref def))))
+
+        (('enum values ..1)
+         (let ((values (cdr expr)))
+           (make-enum (or name (gensym "enum"))
+                      (map (lambda (name+value)
+                             (let ((name  (car name+value))
+                                   (value (cadr name+value)))
+                               (cons name
+                                     (constant-value value c))))
+                           values))))
+
+        (('struct types ..1)
+         (let ((types (map (lambda (name+type)
+                             (let* ((type-name (cadr name+type))
+                                    (type      (lookup-type type-name
+                                                            c)))
+                               (if type
+                                   (make-type-ref type)
+                                   (error "type not found"
+                                          type-name))))
+                           (cdr expr))))
+           (make-struct types)))
+
+        (('union ('case ((and (? string?) discriminant)
+                         (and (? string?) type-name))
+                   case-list ...))
+         (let* ((type-ref*  (lambda (arm)
+                              ;; Arm types can be either `"void"' or
+                              ;; `("field-name" "type")'.
+                              (match arm
+                                ("void"
+                                 (let ((void (lookup-type "void" c)))
+                                   (if void
+                                       (make-type-ref void)
+                                       (error "back-end does not know `void'"
+                                              c))))
+                                (((? string?) (and (? string?) name))
+                                 (let ((type (lookup-type name c)))
+                                   (if type
+                                       (make-type-ref type)
+                                       (error "invalid arm type" name))))
+                                (else
+                                 (error "wrong arm type" arm)))))
+                (default    (let ((last (car (last-pair case-list))))
+                              (and (eq? (car last) 'else)
+                                   (cadr last))))
+                (value/type (append-map (lambda (case-spec)
+                                          (match case-spec
+                                            (('else _) '())
+                                            (((values ..1) type)
+                                             (let ((t (type-ref* type)))
+                                               (map (lambda (v)
+                                                      (cons v t))
+                                                    values)))
+                                            (else
+                                             (error "wrong case spec"
+                                                    case-spec))))
+                                        case-list)))
+
+           (make-union (let ((discr-type (lookup-type type-name c)))
+                         (if discr-type
+                             (make-type-ref discr-type)
+                             (error "unknown discriminant type" type-name)))
+                       value/type
+                       (and default (type-ref* default)))))
+
+        (('string (and (or (? number?) (? not)) max-length))
+         (make-string max-length))
+
+        (('fixed-length-array (and (? string?) type-name)
+                              (and (? number?) length))
+         (let ((type (lookup-type type-name c)))
+           (if type
+               (make-fixed-length-array (make-type-ref type) length)
+               (error "unknown type" type-name))))
+
+        (('variable-length-array (and (? string?) type-name)
+                                 (and (or (? number?) (? not)) max-length))
+         (let ((type (lookup-type type-name c)))
+           (if type
+               (make-variable-length-array (make-type-ref type) max-length)
+               (error "unknown type" type-name))))
+
+        (else
+         (error "unsupported type form" expr))))
+
     (define (make-type-definition name expr c)
-      (make-type-def
-       name
-       (match expr
-         ((? string?)
-          (let ((def (lookup-type expr c)))
-            (if (not def)
-                (error "unbound type" expr)
-                (make-type-ref def))))
+      ;; Process EXPR, a type definition for NAME.
+      (make-type-def name (type-ref expr c name)))
 
-         (('enum values ..1)
-          (let ((values (cdr expr)))
-            (make-enum name
-                       (map (lambda (name+value)
-                              (let ((name  (car name+value))
-                                    (value (cadr name+value)))
-                                (cons name
-                                      (constant-value value c))))
-                            values))))
+    (define (make-program-definition expr c)
+      ;; Process EXPR, an RPC program definition.
+      (define (version-procs proc-defs)
+        (map (lambda (def)
+               (match def
+                 (('procedure (and (? string?) name)
+                              (and (? integer?) number)
+                              ret-type
+                              (arg-types ..1))
+                  (let ((ret-type  (type-ref ret-type c #f))
+                        (arg-types (map (lambda (t)
+                                          (type-ref t c #f))
+                                        arg-types)))
+                    (make-procedure name number ret-type arg-types)))))
+             proc-defs))
 
-         (('struct types ..1)
-          (let ((types (map (lambda (name+type)
-                              (let* ((type-name (cadr name+type))
-                                     (type      (lookup-type type-name
-                                                             c)))
-                                (if type
-                                    (make-type-ref type)
-                                    (error "type not found"
-                                           type-name))))
-                            (cdr expr))))
-            (make-struct types)))
-
-         (('union ('case ((and (? string?) discriminant)
-                          (and (? string?) type-name))
-                    case-list ...))
-          (let* ((type-ref   (lambda (arm)
-                               ;; Arm types can be either `"void"' or
-                               ;; `("field-name" "type")'.
-                               (match arm
-                                 ("void"
-                                  (let ((void (lookup-type "void" c)))
-                                    (if void
-                                        (make-type-ref void)
-                                        (error "back-end does not know `void'"
-                                               c))))
-                                 (((? string?) (and (? string?) name))
-                                  (let ((type (lookup-type name c)))
-                                    (if type
-                                        (make-type-ref type)
-                                        (error "invalid arm type" name))))
-                                 (else
-                                  (error "wrong arm type" arm)))))
-                 (default    (let ((last (car (last-pair case-list))))
-                               (and (eq? (car last) 'else)
-                                    (cadr last))))
-                 (value/type (append-map (lambda (case-spec)
-                                           (match case-spec
-                                             (('else _) '())
-                                             (((values ..1) type)
-                                              (let ((t (type-ref type)))
-                                                (map (lambda (v)
-                                                       (cons v t))
-                                                     values)))
-                                             (else
-                                              (error "wrong case spec"
-                                                     case-spec))))
-                                         case-list)))
-
-            (make-union (let ((discr-type (lookup-type type-name c)))
-                          (if discr-type
-                              (make-type-ref discr-type)
-                              (error "unknown discriminant type" type-name)))
-                        value/type
-                        (and default (type-ref default)))))
-
-         (('string (and (or (? number?) (? not)) max-length))
-          (make-string max-length))
-
-         (('fixed-length-array (and (? string?) type-name)
-                               (and (? number?) length))
-          (let ((type (lookup-type type-name c)))
-            (if type
-                (make-fixed-length-array (make-type-ref type) length)
-                (error "unknown type" type-name))))
-
-         (('variable-length-array (and (? string?) type-name)
-                                  (and (or (? number?) (? not)) max-length))
-          (let ((type (lookup-type type-name c)))
-            (if type
-                (make-variable-length-array (make-type-ref type) max-length)
-                (error "unknown type" type-name))))
-
-         (else
-          (error "unsupported type form" expr)))))
+      (match expr
+        (('define-program (and (? string?) program-name)
+                          (and (? integer?) program-number)
+                          (and ('version _ ...) versions) ..1)
+         (let ((versions (map (lambda (v)
+                                (match v
+                                  (('version (and (? string?) name)
+                                             (and (? integer?) number)
+                                             (and ('procedure _ ..) procs)
+                                             ..1)
+                                   (make-version (version-procs procs)))))
+                              version)))
+           (make-program program-name program-number versions)))))
 
     (let ((input (cond ((port? input)
                         (xdr-language->sexp input))
@@ -235,6 +283,11 @@
                    (cons-type name
                               (make-type-definition name spec c)
                               c)))
+                ((define-program)
+                 (let ((name (cadr expr)))
+                   (cons-program name
+                                 (make-program-definition expr c)
+                                 c)))
                 (else
                  (error "unrecognized expression" expr))))
             initial-context
@@ -337,6 +390,7 @@ form, e.g., one with dashed instead of underscores, etc."
              ("double"           . (define xdr-double ...))
              ;; FIXME: We lack support for `quadruple'.
              )
+           '()
            '()))
          (known-type? (lambda (name)
                         (lookup-type name initial-context)))
@@ -353,7 +407,11 @@ form, e.g., one with dashed instead of underscores, etc."
                                         union-code
                                         string-code
                                         fixed-length-array-code
-                                        variable-length-array-code)))
+                                        variable-length-array-code
+
+                                        ;; FIXME: RPC program handling not
+                                        ;; implemented.
+                                        #f #f #f)))
 
     (lambda (input)
       (let ((output (translator input)))
@@ -403,6 +461,7 @@ form, e.g., one with dashed instead of underscores, etc."
              ("double"           . ,xdr-double)
              ;; FIXME: We lack support for `quadruple'.
              )
+           '()
            '()))
          (known-type? (lambda (name)
                         (lookup-type name initial-context)))
@@ -447,7 +506,11 @@ form, e.g., one with dashed instead of underscores, etc."
                                         union
                                         string
                                         fixed-length-array
-                                        variable-length-array)))
+                                        variable-length-array
+
+                                        ;; FIXME: RPC program handling not
+                                        ;; implemented.
+                                        #f #f #f)))
   (lambda (input)
     (let ((output (translator input)))
       (and (context? output)
