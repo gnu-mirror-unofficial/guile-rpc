@@ -27,7 +27,7 @@
   ;; Andrew K. Wright's pattern matching system.
   :use-module  (ice-9 match)
 
-  :export (rpc-language->scheme
+  :export (rpc-language->scheme-client rpc-language->scheme-server
            rpc-language->xdr-types))
 
 ;;; Author: Ludovic Courtès <ludo@gnu.org>
@@ -142,7 +142,7 @@
 
         (('enum values ..1)
          (let ((values (cdr expr)))
-           (make-enum (or name (gensym "enum"))
+           (make-enum (or name (symbol->string (gensym "enum")))
                       (map (lambda (name+value)
                              (let ((name  (car name+value))
                                    (value (cadr name+value)))
@@ -237,7 +237,7 @@
                  (('procedure (and (? string?) name)
                               (and (? integer?) number)
                               ret-type
-                              (arg-types ..1))
+                              (arg-types ...))
                   (let ((ret-type  (type-ref ret-type c #f))
                         (arg-types (map (lambda (t)
                                           (type-ref t c #f))
@@ -253,10 +253,10 @@
                                 (match v
                                   (('version (and (? string?) name)
                                              (and (? integer?) number)
-                                             (and ('procedure _ ..) procs)
+                                             (and ('procedure _ ..1) procs)
                                              ..1)
-                                   (make-version (version-procs procs)))))
-                              version)))
+                                   (make-version name number (version-procs procs)))))
+                              versions)))
            (make-program program-name program-number versions)))))
 
     (let ((input (cond ((port? input)
@@ -375,7 +375,72 @@ form, e.g., one with dashed instead of underscores, etc."
       `(make-xdr-variable-length-opaque-array ,max-length)
       `(make-xdr-vector-type ,type ,max-length)))
 
-(define rpc-language->scheme
+(define (rpc-program-code/client program-name program-number versions)
+  ;; Return client-side Scheme code for the given program, i.e., definitions
+  ;; of procedures returned by `make-synchronous-rpc-call'.
+
+  (define (make-procedure-name proc-name)
+    (schemify-name (string-append program-name "-" proc-name)))
+
+  (append-map (lambda (version)
+                (let ((version-number (cadr version))
+                      (procs          (caddr version)))
+                  (map (lambda (proc)
+                         (let ((name      (car proc))
+                               (number    (cadr proc))
+                               (ret-type  (caddr proc))
+                               (arg-types (cadddr proc)))
+                           `(define ,(make-procedure-name name)
+                              (make-synchronous-rpc-call
+                               ,program-number ,version-number ,number
+                               ,ret-type
+                               ,(cond ((null? arg-types)
+                                       'xdr-void)
+                                      ((null? (cdr arg-types))
+                                       (car arg-types))
+                                      (else
+                                       `(make-xdr-struct-type
+                                         (list ,@arg-types))))))))
+                       (reverse procs))))
+              (reverse versions)))
+
+(define (rpc-program-code/server program-name program-number versions)
+  ;; Return server-side Scheme code for the given program.  FIXME: We need to
+  ;; find a convention allowing the user to specify "handlers".
+  (let ((program-name
+         (schemify-name (string-append program-name "-program"))))
+
+    (define (make-proc-code proc)
+      (let ((number    (cadr proc))
+            (ret-type  (caddr proc))
+            (arg-types (cadddr proc)))
+        `(make-rpc-procedure ,number
+                             ,ret-type
+                             ,(cond ((null? arg-types)
+                                     'xdr-void)
+                                    ((null? (cdr arg-types))
+                                     (car arg-types))
+                                    (else
+                                     `(make-xdr-struct-type
+                                       (list ,@arg-types))))
+                             FIXME:need-a-way-to-specify-handler)))
+
+    `(define ,program-name
+       (make-rpc-program ,program-number
+          (list ,@(map (lambda (version)
+                         (let ((version-number (cadr version))
+                               (procs          (caddr version)))
+                           `(make-rpc-program-version ,version-number
+                              (list ,@(map make-proc-code procs)))))
+                       versions))))))
+
+(define (rpc-version-code . args)
+  args)
+
+(define (rpc-procedure-code . args)
+  args)
+
+(define (make-rpc-language->scheme rpc-program-code)
   (let* ((initial-context
           ;; The initial compilation context.
           (make-context
@@ -409,21 +474,30 @@ form, e.g., one with dashed instead of underscores, etc."
                                         fixed-length-array-code
                                         variable-length-array-code
 
-                                        ;; FIXME: RPC program handling not
-                                        ;; implemented.
-                                        #f #f #f)))
+                                        rpc-program-code
+                                        rpc-version-code
+                                        rpc-procedure-code)))
 
     (lambda (input)
       (let ((output (translator input)))
         (and (context? output)
 
-             ;; Output constant definitions first, then type definitions.
+             ;; Output constant definitions first, then type definitions, the
+             ;; program/procedure definitions.
              (append (reverse (map cdr (context-constants output)))
                      (reverse (filter-map (lambda (name+def)
                                             (let ((name (car name+def)))
                                               (and (not (known-type? name))
                                                    (cdr name+def))))
-                                          (context-types output)))))))))
+                                          (context-types output)))
+                     (reverse (concatenate
+                               (map cdr (context-programs output))))))))))
+
+(define rpc-language->scheme-client
+  (make-rpc-language->scheme rpc-program-code/client))
+
+(define rpc-language->scheme-server
+  (make-rpc-language->scheme rpc-program-code/server))
 
 
 

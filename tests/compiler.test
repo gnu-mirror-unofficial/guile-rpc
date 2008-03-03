@@ -91,7 +91,7 @@
                                       `((one . 1)
                                         (two . ,the-constant)))))
 
-            (rpc-language->scheme
+            (rpc-language->scheme-client
              (xdr-text "const the_constant = 2;"
                        "struct the_struct { int x; float y; };"
                        "typedef enum { one = 1, two = the_constant } "
@@ -118,7 +118,7 @@
                                        (two  . ,xdr-void))
                                      the-enum)))
 
-            (rpc-language->scheme
+            (rpc-language->scheme-client
              (xdr-text "typedef int foo;"
                        "enum the_enum { zero = 0, one = 1, two = 2 };"
                        "union the_union switch (int discr) {"
@@ -138,7 +138,7 @@
                                        (FALSE . ,xdr-void))
                                      #f)))
 
-            (rpc-language->scheme
+            (rpc-language->scheme-client
              (xdr-text "typedef int *the_union;")))
 
 (test-equal "fixed-length arrays"
@@ -147,7 +147,7 @@
               (define the-opaque-array
                 (make-xdr-fixed-length-opaque-array 8)))
 
-            (rpc-language->scheme
+            (rpc-language->scheme-client
              (xdr-text "typedef int the_array[10];"
                        "typedef opaque the_opaque_array[010];")))
 
@@ -157,9 +157,34 @@
               (define the-opaque-array
                 (make-xdr-variable-length-opaque-array #f)))
 
-            (rpc-language->scheme
+            (rpc-language->scheme-client
              (xdr-text "typedef float the_array<10>;"
                        "typedef opaque the_opaque_array<>;")))
+
+(test-equal "client RPC programs"
+            '((define foo-t xdr-integer)
+              (define prog-hello
+                (make-synchronous-rpc-call 77 0 0
+                                           xdr-integer xdr-void))
+              (define prog-greetings-world
+                (make-synchronous-rpc-call 77 0 1
+                                           xdr-boolean
+                                           (make-xdr-struct-type
+                                            (list
+                                             foo-t
+                                             (make-xdr-struct-type
+                                              (list xdr-integer
+                                                    xdr-integer)))))))
+
+            (rpc-language->scheme-client
+             (xdr-text "typedef int foo_t;"
+                       "program prog {"
+                       "  version zero {"
+                       "    int hello (void) = 0;"
+                       "    bool greetings_world (foo_t,"
+                       "                          struct { int x; int y;}) = 1;"
+                       "  } = 0;"
+                       "} = 77;")))
 
 
 ;;;
