@@ -17,7 +17,7 @@
 ;;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-module (rpc compiler)
-  :autoload    (rpc compiler parser) (xdr-language->sexp)
+  :autoload    (rpc compiler parser) (rpc-language->sexp)
   :use-module  (rpc xdr types)
   :use-module  (rpc xdr)
 
@@ -27,17 +27,17 @@
   ;; Andrew K. Wright's pattern matching system.
   :use-module  (ice-9 match)
 
-  :export (xdr-language->scheme
-           xdr-language->xdr-types))
+  :export (rpc-language->scheme
+           rpc-language->xdr-types))
 
 ;;; Author: Ludovic Courtès <ludo@gnu.org>
 ;;;
 ;;; Commentary:
 ;;;
-;;; This module contains a compiler of specification written in the XDR
-;;; Language.  It has two back-ends: one that compiles XDR specification into
-;;; Scheme code (a list of S-exps) and another one that compiles to run-time
-;;; XDR type objects.
+;;; This module contains a compiler of specification written in the XDR/RPC
+;;; Language.  It has two back-ends: one that compiles XDR/RPC specification
+;;; into Scheme code (a list of S-exps) and another one that compiles to
+;;; run-time XDR type objects.
 ;;;
 ;;; Code:
 
@@ -94,7 +94,7 @@
 ;;;
 
 
-(define (make-xdr-language-translator initial-context
+(define (make-rpc-language-translator initial-context
 
                                       make-constant-def
                                       make-type-def
@@ -260,9 +260,9 @@
            (make-program program-name program-number versions)))))
 
     (let ((input (cond ((port? input)
-                        (xdr-language->sexp input))
+                        (rpc-language->sexp input))
                        ((string? input)
-                        (xdr-language->sexp (open-input-string input)))
+                        (rpc-language->sexp (open-input-string input)))
                        ((list? input)
                         input)
                        (else
@@ -375,7 +375,7 @@ form, e.g., one with dashed instead of underscores, etc."
       `(make-xdr-variable-length-opaque-array ,max-length)
       `(make-xdr-vector-type ,type ,max-length)))
 
-(define xdr-language->scheme
+(define rpc-language->scheme
   (let* ((initial-context
           ;; The initial compilation context.
           (make-context
@@ -395,7 +395,7 @@ form, e.g., one with dashed instead of underscores, etc."
          (known-type? (lambda (name)
                         (lookup-type name initial-context)))
          (translator
-          (make-xdr-language-translator initial-context
+          (make-rpc-language-translator initial-context
 
                                         constant-definition-code
                                         type-definition-code
@@ -446,7 +446,7 @@ form, e.g., one with dashed instead of underscores, etc."
                  (cdr v+t))))
        values))
 
-(define xdr-language->xdr-types
+(define rpc-language->xdr-types
   (let* ((initial-context
           ;; The initial compilation context.
           (make-context
@@ -494,7 +494,7 @@ form, e.g., one with dashed instead of underscores, etc."
                                       (make-xdr-vector-type type limit))))
 
          (translator
-          (make-xdr-language-translator initial-context
+          (make-rpc-language-translator initial-context
 
                                         constant-definition
                                         type-definition

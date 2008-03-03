@@ -91,7 +91,7 @@
                                       `((one . 1)
                                         (two . ,the-constant)))))
 
-            (xdr-language->scheme
+            (rpc-language->scheme
              (xdr-text "const the_constant = 2;"
                        "struct the_struct { int x; float y; };"
                        "typedef enum { one = 1, two = the_constant } "
@@ -118,7 +118,7 @@
                                        (two  . ,xdr-void))
                                      the-enum)))
 
-            (xdr-language->scheme
+            (rpc-language->scheme
              (xdr-text "typedef int foo;"
                        "enum the_enum { zero = 0, one = 1, two = 2 };"
                        "union the_union switch (int discr) {"
@@ -138,7 +138,7 @@
                                        (FALSE . ,xdr-void))
                                      #f)))
 
-            (xdr-language->scheme
+            (rpc-language->scheme
              (xdr-text "typedef int *the_union;")))
 
 (test-equal "fixed-length arrays"
@@ -147,7 +147,7 @@
               (define the-opaque-array
                 (make-xdr-fixed-length-opaque-array 8)))
 
-            (xdr-language->scheme
+            (rpc-language->scheme
              (xdr-text "typedef int the_array[10];"
                        "typedef opaque the_opaque_array[010];")))
 
@@ -157,7 +157,7 @@
               (define the-opaque-array
                 (make-xdr-variable-length-opaque-array #f)))
 
-            (xdr-language->scheme
+            (rpc-language->scheme
              (xdr-text "typedef float the_array<10>;"
                        "typedef opaque the_opaque_array<>;")))
 
@@ -173,7 +173,7 @@
             #t
 
             (let ((types
-                   (xdr-language->xdr-types
+                   (rpc-language->xdr-types
                     (xdr-text "const the_constant = 2;"
                               "struct the_struct { int x; float y; };"
                               "typedef enum { one = 1, two = the_constant } "
@@ -186,7 +186,7 @@
             #t
 
             (let ((types
-                   (xdr-language->xdr-types
+                   (rpc-language->xdr-types
                     (xdr-text "typedef int foo;"
                               "enum the_enum { zero = 0, one = 1, two = 2 };"
                               "union the_union switch (int discr) {"
@@ -210,7 +210,7 @@
             #t
 
             (let ((types
-                   (xdr-language->xdr-types
+                   (rpc-language->xdr-types
                     (xdr-text "typedef int the_array[10];"
                               "typedef opaque the_opaque_array[010];"))))
               (valid-xdr-types? types
@@ -221,7 +221,7 @@
             #t
 
             (let ((types
-                   (xdr-language->xdr-types
+                   (rpc-language->xdr-types
                     (xdr-text "typedef float the_array<10>;"
                               "typedef opaque the_opaque_array<>;")))
                   (fiota

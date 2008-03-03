@@ -21,14 +21,15 @@
   :use-module  (text parse-lalr)
   :use-module  (srfi srfi-1)
 
-  :export (xdr-language->sexp %debug-xdr-parser?))
+  :export (rpc-language->sexp %debug-rpc-parser?))
 
 ;;; Author: Ludovic Courtès <ludo@gnu.org>
 ;;;
 ;;; Commentary:
 ;;;
-;;; This module provides a parser for the XDR Language (RFC 4506, Section 6),
-;;; which allows the definition of XDR data types.
+;;; This module provides a parser for the XDR/RPC Language (RFC 4506, Section
+;;; 6, and RFC 1831, Section 11), which allows the definition of XDR data
+;;; types and RPC programs.
 ;;;
 ;;; Code:
 
@@ -37,7 +38,7 @@
 ;;; Parser.
 ;;;
 
-(define xdr-parser
+(define rpc-parser
   ;; The XDR Language parser.
 
   (lalr-parser
@@ -218,11 +219,11 @@
 ;;; User interface.
 ;;;
 
-(define %debug-xdr-parser?
+(define %debug-rpc-parser?
   ;; Set to `#t' to debug the parser.
   #f)
 
-(define (xdr-language->sexp port)
+(define (rpc-language->sexp port)
   "Read a specification written in the XDR Language from @var{port} and
 return the corresponding sexp-based representation."
   (define (%parse-error msg . args)
@@ -232,13 +233,13 @@ return the corresponding sexp-based representation."
   ;; manual for better.
   (lexer-init 'port port)
 
-  (let ((lexer (if %debug-xdr-parser?
+  (let ((lexer (if %debug-rpc-parser?
                    (lambda ()
                      (let ((r (lexer)))
                        (format (current-error-port) "TOKEN: ~A~%" r)
                        r))
                    lexer)))
-    (xdr-parser lexer %parse-error)))
+    (rpc-parser lexer %parse-error)))
 
 
 ;;; Local Variables:

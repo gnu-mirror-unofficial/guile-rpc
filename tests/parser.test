@@ -39,7 +39,7 @@
               (define-constant "dec" 10)
               (define-constant "hex" 16))
 
-            (xdr-language->sexp
+            (rpc-language->sexp
              (xdr-text "const oct =  010;"
                        "const dec =    0;"
                        "const dec =   10;"
@@ -52,7 +52,7 @@
               (define-type "chbouib_t"
                 (fixed-length-array "int" 4)))
 
-            (xdr-language->sexp
+            (rpc-language->sexp
              (xdr-text "/* This is a comment.  */"
                        "/* This is a" (string #\newline)
                        "   multi-line comment.  */"
@@ -71,7 +71,7 @@
                         ("e" (enum ("a" 2) ("b" 3)))
                         ("s" (struct ("x" "int") ("y" "double"))))))
 
-            (xdr-language->sexp
+            (rpc-language->sexp
              (xdr-text "struct foo { int i; unsigned int u; float f; };"
                        "struct bar { int i; enum { a = 2, b = 3 } e; "
                        "             struct { int x; double y; } s; };")))
@@ -90,7 +90,7 @@
                          ((4)   ("s" (struct ("x" "int") ("y" "double"))))
                          (else  ("h" "unsigned hyper"))))))
 
-            (xdr-language->sexp
+            (rpc-language->sexp
              (xdr-text "union no_default"
                        "  switch (unsigned int choice) {"
                        "    case 0: case 1:"
@@ -123,7 +123,7 @@
                          (("a") "void")
                          (("b") ("blurps" "int"))))))
 
-            (xdr-language->sexp
+            (rpc-language->sexp
              (xdr-text "const magic = 42;"
                        "enum the_enum { a = 1, b = magic };"
                        "union foo switch (the_enum d) {"
@@ -143,7 +143,7 @@
                                       (("TRUE")  ("value" "int"))
                                       (("FALSE") "void")))))))
 
-            (xdr-language->sexp
+            (rpc-language->sexp
              (xdr-text "typedef foo_t *optional_int;"
                        "struct s { int x; int *y; };")))
 
@@ -154,7 +154,7 @@
                 (fixed-length-array (struct ("x" "int") ("y" "double"))
                                     16)))
 
-            (xdr-language->sexp
+            (rpc-language->sexp
              (xdr-text "typedef int int_array[3];"
                        "typedef struct { int x; double y; }"
                        "        struct_array[16];")))
@@ -170,7 +170,7 @@
                                                 (else  ("chbouib" "hyper"))))
                                        #f)))
 
-            (xdr-language->sexp
+            (rpc-language->sexp
              (xdr-text "typedef enum { a = 1, b = 2 } enum_array<010>;"
                        "typedef union switch (int x) {"
                        "          case 0: bool foo;"
@@ -188,7 +188,7 @@
                         ("y" (string 10))
                         ("z" (string #f)))))
 
-            (xdr-language->sexp
+            (rpc-language->sexp
              (xdr-text "typedef string foo<0x100>;"
                        "typedef string bar<>;"
                        "struct chbouib { int x; string y<10>; "
@@ -205,7 +205,7 @@
                 (struct ("x" "int")
                         ("y" (variable-length-array "opaque" 16)))))
 
-            (xdr-language->sexp
+            (rpc-language->sexp
              (xdr-text "typedef opaque foo[010];"
                        "typedef opaque bar<10>;"
                        "typedef opaque chbouib<>;"
@@ -223,7 +223,7 @@
                       "unsigned int"
                       "bool")))))
 
-            (xdr-language->sexp
+            (rpc-language->sexp
              (xdr-text "program prog1 {"
                        "  version v1 {"
                        "    int    foo (foo_t) = 0;"
@@ -243,7 +243,7 @@
                      "int"
                      ()))))
 
-            (xdr-language->sexp
+            (rpc-language->sexp
              (xdr-text "program prog2 {"
                        "  version v0 {"
                        "    void foo (void) = 0;"
