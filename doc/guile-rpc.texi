@@ -157,7 +157,7 @@ GNU Guile-RPC from @uref{ftp://alpha.gnu.org/gnu/guile-rpc/}.
 In order to use GNU Guile-RPC, all that is needed is
 @uref{http://www.gnu.org/software/guile/guile.html, GNU Guile 1.8} along
 with the R6RS library package for Guile 1.8, known as
-@uref{http://www.laas.fr/~lcourtes/software/guile/guile-r6rs-libs-0.1.tar.gz,
+@uref{http://www.fdn.fr/~lcourtes/software/guile/guile-r6rs-libs-0.1.tar.gz,
 Guile-R6RS-Libs}@footnote{The source code repository is located at
 @uref{http://repo.or.cz/w/guile-r6rs-libs.git}.  Hopefully, this package
 will eventually be integrated into core Guile.}.
