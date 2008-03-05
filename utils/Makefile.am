@@ -1,5 +1,5 @@
 # GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-# Copyright (C) 2007  Free Software Foundation, Inc.
+# Copyright (C) 2007, 2008  Free Software Foundation, Inc.
 #
 # This file is part of GNU Guile-RPC.
 #
@@ -16,9 +16,9 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-EXTRA_DIST = grpc-rpcinfo.in
+EXTRA_DIST = grpc-rpcinfo.in grpc-compile.in
 
-bin_SCRIPTS = grpc-rpcinfo
+bin_SCRIPTS = grpc-rpcinfo grpc-compile
 CLEANFILES  = $(bin_SCRIPTS)
 
 

@@ -37,6 +37,9 @@ GUILE_MODULE_REQUIRED([srfi srfi-34])
 # Need SRFI-35 (available in `guile-library').
 GUILE_MODULE_REQUIRED([srfi srfi-35])
 
+# Need SRFI-37 (in Guile 1.8.3 and later).
+GUILE_MODULE_REQUIRED([srfi srfi-37])
+
 # To use the compiler `(text parse-lalr)' is needed.
 GUILE_MODULE_AVAILABLE([have_text_parse_lalr], [(text parse-lalr)])
 AM_CONDITIONAL([HAVE_PARSE_LALR], test "x$have_text_parse_lalr" = "xyes")

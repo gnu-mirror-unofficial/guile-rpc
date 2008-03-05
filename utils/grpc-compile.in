@@ -1,0 +1,125 @@
+#!/bin/sh
+# aside from this initial boilerplate, this is actually -*- scheme -*- code
+main='(module-ref (resolve-module '\''(guile-rpc compile)) '\'compile')'
+exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -l "$0"    \
+         -c "(apply $main (command-line))" "$@"
+!#
+;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
+;;; Copyright (C) 2008  Free Software Foundation, Inc.
+;;;
+;;; This program is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by the
+;;; Free Software Foundation; either version 3 of the License, or (at your
+;;; option) any later version.
+;;;
+;;; This program is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+;;; Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License along
+;;; with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+;;;
+;;; Compile XDR/RPC specifications to Scheme code.
+;;;
+
+;; Tell Guile to not issue warnings about duplicate bindings.
+(default-duplicate-binding-handler '(last))
+
+(define-module (guile-rpc compile)
+  :autoload   (rpc compiler)         (rpc-language->scheme-server
+                                      rpc-language->scheme-client)
+  :autoload   (rpc compiler parser)  (rpc-language->sexp)
+  :autoload   (ice-9 pretty-print)   (pretty-print)
+  :use-module (srfi srfi-1)
+  :use-module (srfi srfi-37)
+  :export (compile))
+
+
+;;;
+;;; Options.
+;;;
+
+(define %options
+  (list (option '("help") #f #f (lambda args (show-help)))
+        (option '("version") #f #f (lambda args (show-version)))
+        (option '(#\x "xdr") #f #f
+                (lambda (opt name arg result)
+                  (format #t "n=~a ~a ~a~%" name arg result)
+                  (cons 'xdr result)))
+        (option '(#\c "client") #f #f
+                (lambda (opt name arg result)
+                  (cons 'client result)))
+        (option '(#\s "server") #f #f
+                (lambda (opt name arg result)
+                  (cons 'server result)))))
+
+(define (show-help)
+  (format #t "Usage: grpc-compile [OPTIONS]~%")
+  (format #t "Read XDR/RPC specifications from the standard input and emit~%")
+  (format #t "corresponding Scheme definitions on the standard output.~%~%")
+  (format #t "  --help         Show this help message~%")
+  (format #t "  --version      Show program version~%~%")
+  (format #t "  -x, --xdr      Compile XDR type and constant definitions.~%")
+  (format #t "  -c, --client   Compile client RPC stubs.~%")
+  (format #t "  -s, --server   Compile server RPC stubs.~%")
+  (format #t "~%")
+  (format #t "Report bugs to <@PACKAGE_BUGREPORT@>.~%")
+  (exit 0))
+
+(define (show-version)
+  (format #t "grpc-compile (GNU Guile-RPC) @PACKAGE_VERSION@
+Copyright (C) 2008 Free Software Foundation
+
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.~%")
+  (exit 0))
+
+
+
+
+;;;
+;;; The compiler.
+;;;
+
+(define (compile . args)
+  (let ((opts  (args-fold (cdr args) %options
+                          (lambda (opt name args result)
+                            (format (current-error-port)
+                                    "~a: unrecognized option~%"
+                                    (if (string? name)
+                                        (string-append "--" name)
+                                        (string-append "-" (string name)))))
+                          (lambda (operand result)
+                            (format (current-error-port)
+                                    "parameter `~a' ignored~%"
+                                    operand)
+                            result)
+                          '()))
+        (input (rpc-language->sexp (current-input-port))))
+
+    (define consts+types
+      (filter (lambda (exp)
+                (or (eq? (car exp) 'define-constant)
+                    (eq? (car exp) 'define-type)))
+              input))
+    (define programs
+      input)
+
+    (for-each (lambda (opt input)
+                ;; FIXME: `--server' and `--client' should emit only stubs,
+                ;; not XDR type definitions.
+                (let ((->scheme (if (eq? opt 'server)
+                                    rpc-language->scheme-server
+                                    rpc-language->scheme-client)))
+                  (if (memq opt opts)
+                      (for-each (lambda (def)
+                                  (pretty-print def))
+                                (->scheme input)))))
+              '(xdr client server)
+              (list consts+types programs programs))
+
+    #t))
