@@ -47,7 +47,6 @@ exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -l "$0"    \
         (option '("version") #f #f (lambda args (show-version)))
         (option '(#\x "xdr") #f #f
                 (lambda (opt name arg result)
-                  (format #t "n=~a ~a ~a~%" name arg result)
                   (cons 'xdr result)))
         (option '(#\c "client") #f #f
                 (lambda (opt name arg result)
@@ -66,6 +65,9 @@ exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -l "$0"    \
   (format #t "  -c, --client   Compile client RPC stubs.~%")
   (format #t "  -s, --server   Compile server RPC stubs.~%")
   (format #t "~%")
+  (format #t "It is customary to use C preprocessor directives in XDR/RPC specifications.~%")
+  (format #t "When that is the case, pipe the specification through \"cpp -P\" before~%")
+  (format #t "feeding it to `grpc-compile'.~%~%")
   (format #t "Report bugs to <@PACKAGE_BUGREPORT@>.~%")
   (exit 0))
 
