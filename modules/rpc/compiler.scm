@@ -205,19 +205,23 @@
                        value/type
                        (and default (type-ref* default)))))
 
-        (('string (and (or (? number?) (? not)) max-length))
-         (make-string max-length))
+        (('string (and (or (? number?) (? string?) (? not)) max-length))
+         (let ((max-length (and max-length (constant-value max-length c))))
+           (make-string max-length)))
 
         (('fixed-length-array (and (? string?) type-name)
-                              (and (? number?) length))
-         (let ((type (lookup-type type-name c)))
+                              (and (or (? number?) (? string?)) length))
+         (let ((type   (lookup-type type-name c))
+               (length (and length (constant-value length c))))
            (if type
                (make-fixed-length-array (make-type-ref type) length)
                (error "unknown type" type-name))))
 
         (('variable-length-array (and (? string?) type-name)
-                                 (and (or (? number?) (? not)) max-length))
-         (let ((type (lookup-type type-name c)))
+                                 (and (or (? number?) (? string?) (? not))
+                                      max-length))
+         (let ((type       (lookup-type type-name c))
+               (max-length (and max-length (constant-value max-length c))))
            (if type
                (make-variable-length-array (make-type-ref type) max-length)
                (error "unknown type" type-name))))

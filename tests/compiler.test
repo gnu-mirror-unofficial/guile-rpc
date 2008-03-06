@@ -161,6 +161,18 @@
              (xdr-text "typedef float the_array<10>;"
                        "typedef opaque the_opaque_array<>;")))
 
+(test-equal "constant as array size"
+            '((define LEN 10)
+              (define foo (make-xdr-string LEN))
+              (define bar (make-xdr-vector-type xdr-integer LEN))
+              (define chbouib (make-xdr-struct-type (make-list LEN xdr-double))))
+
+            (rpc-language->scheme-client
+             (xdr-text "const LEN = 10;"
+                       "typedef string foo<LEN>;"
+                       "typedef int bar<LEN>;"
+                       "typedef double chbouib[LEN];")))
+
 (test-equal "client RPC programs"
             '((define foo-t xdr-integer)
               (define prog-hello
