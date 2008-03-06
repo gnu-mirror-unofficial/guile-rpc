@@ -19,7 +19,7 @@
 ;; Comment regexp stolen from http://ostermiller.org/findcomment.html .
 comment        /\*([^*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/
 
-space          [ \n\9]
+space          [ \n\12\9]
 identifier     [a-zA-Z][a-zA-Z0-9_]*
 dec-constant   -?([0-9]|[1-9][0-9]+)
 hex-constant   0x[0-9a-fA-F]+
