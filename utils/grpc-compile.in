@@ -32,9 +32,11 @@ exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -l "$0"    \
   :autoload   (rpc compiler)         (rpc-language->scheme-server
                                       rpc-language->scheme-client)
   :autoload   (rpc compiler parser)  (rpc-language->sexp)
+  :autoload   (rpc compiler lexer)   (*strip-%-comments?*)
   :autoload   (ice-9 pretty-print)   (pretty-print)
   :use-module (srfi srfi-1)
   :use-module (srfi srfi-37)
+  :use-module (srfi srfi-39)
   :export (compile))
 
 
@@ -68,8 +70,8 @@ exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -l "$0"    \
   (format #t "  -c, --client   Compile client RPC stubs.~%")
   (format #t "  -s, --server   Compile server RPC stubs.~%~%")
   (format #t "  -S, --strict   Use strict XDR compliance (RFC 4506).  The main~%")
-  (format #t "                 difference is that the `char' type is not supported~%")
-  (format #t "                 in strict mode.~%")
+  (display   "                 differences are: `char' type not recognized, `%'")
+  (format #t "                 comments not permitted.~%")
   (format #t "~%")
   (format #t "It is customary to use C preprocessor directives in XDR/RPC specifications.~%")
   (format #t "When that is the case, pipe the specification through \"cpp -P\" before~%")
@@ -94,29 +96,31 @@ There is NO WARRANTY, to the extent permitted by law.~%")
 ;;;
 
 (define (compile . args)
-  (let* ((opts  (args-fold (cdr args) %options
-                           (lambda (opt name args result)
-                             (format (current-error-port)
-                                     "~a: unrecognized option~%"
-                                     (if (string? name)
-                                         (string-append "--" name)
-                                         (string-append "-" (string name)))))
-                           (lambda (operand result)
-                             (format (current-error-port)
-                                     "parameter `~a' ignored~%"
-                                     operand)
-                             result)
-                           '()))
-         (input `(,@(if (memq 'strict opts)
-                        '()
-                        ;; RFC 4506 (and its predecessor RFC 1832) do *not*
-                        ;; define the `char' type.  However, it is supported
-                        ;; by most implementations and actually used in Sun's
-                        ;; RPC specification files.  They are equivalent to
-                        ;; `int', so we just typedef it.
-                        '((define-type "char" "int")))
+  (let* ((opts   (args-fold (cdr args) %options
+                            (lambda (opt name args result)
+                              (format (current-error-port)
+                                      "~a: unrecognized option~%"
+                                      (if (string? name)
+                                          (string-append "--" name)
+                                          (string-append "-" (string name)))))
+                            (lambda (operand result)
+                              (format (current-error-port)
+                                      "parameter `~a' ignored~%"
+                                      operand)
+                              result)
+                            '()))
+         (strict? (memq 'strict opts))
+         (input   `(,@(if strict?
+                          '()
+                          ;; RFC 4506 (and its predecessor RFC 1832) do *not*
+                          ;; define the `char' type.  However, it is supported
+                          ;; by most implementations and actually used in Sun's
+                          ;; RPC specification files.  They are equivalent to
+                          ;; `int', so we just typedef it.
+                          '((define-type "char" "int")))
 
-                  ,@(rpc-language->sexp (current-input-port)))))
+                    ,@(parameterize ((*strip-%-comments?* (not strict?)))
+                        (rpc-language->sexp (current-input-port))))))
 
     (define consts+types
       (filter (lambda (exp)

@@ -45,6 +45,13 @@ oct-constant   0[0-7]+
                         (cons 'identifier yytext)))
 {comment}
 
+;; Sun's `rpcgen' recognizes comments on a single line starting with `%'.
+;; It is non-standard (per RFC 4506), but it's widely used in Sun's `.x'
+;; header files.
+^{space}*%.*$    (if (*strip-%-comments?*)
+                     (yycontinue)
+                     (list 'error))
+
 \{               (list 'left-brace)
 \}               (list 'right-brace)
 \[               (list 'left-square)

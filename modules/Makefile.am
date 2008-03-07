@@ -41,11 +41,15 @@ EXTRA_DIST = srfi/srfi-64.scm srfi/srfi-64.upstream.scm	\
 	echo ';;; -*- buffer-read-only: t; -*-' > "$@" &&		\
 	echo ';;; Automatically generated---do not modify.' >> "$@" &&	\
 	echo "(define-module (rpc compiler $$module)" >> "$@" &&	\
-	echo '  :export (lexer-init lexer' >> "$@" &&			\
+	echo '  :use-module (srfi srfi-39)' >> "$@" &&			\
+	echo '  :export (*strip-%-comments?*' >> "$@" &&		\
+	echo '           lexer-init lexer' >> "$@" &&			\
 	echo '           lexer-get-func-column' >> "$@" &&		\
 	echo '           lexer-get-func-offset' >> "$@" &&		\
 	echo '           lexer-get-line lexer-getc' >> "$@" &&		\
 	echo '           lexer-ungetc))' >> "$@" &&			\
+	echo '(define *strip-%-comments?*' >> "$@" &&			\
+	echo '  (make-parameter #t))' >> "$@" &&			\
 	cat "$@.tmp" >> "$@" &&						\
 	rm "$@.tmp"
 
