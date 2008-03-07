@@ -53,7 +53,10 @@ exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -l "$0"    \
                   (cons 'client result)))
         (option '(#\s "server") #f #f
                 (lambda (opt name arg result)
-                  (cons 'server result)))))
+                  (cons 'server result)))
+        (option '(#\S "strict") #f #f
+                (lambda (opt name arg result)
+                  (cons 'strict result)))))
 
 (define (show-help)
   (format #t "Usage: grpc-compile [OPTIONS]~%")
@@ -63,7 +66,10 @@ exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -l "$0"    \
   (format #t "  --version      Show program version~%~%")
   (format #t "  -x, --xdr      Compile XDR type and constant definitions.~%")
   (format #t "  -c, --client   Compile client RPC stubs.~%")
-  (format #t "  -s, --server   Compile server RPC stubs.~%")
+  (format #t "  -s, --server   Compile server RPC stubs.~%~%")
+  (format #t "  -S, --strict   Use strict XDR compliance (RFC 4506).  The main~%")
+  (format #t "                 difference is that the `char' type is not supported~%")
+  (format #t "                 in strict mode.~%")
   (format #t "~%")
   (format #t "It is customary to use C preprocessor directives in XDR/RPC specifications.~%")
   (format #t "When that is the case, pipe the specification through \"cpp -P\" before~%")
@@ -88,20 +94,29 @@ There is NO WARRANTY, to the extent permitted by law.~%")
 ;;;
 
 (define (compile . args)
-  (let ((opts  (args-fold (cdr args) %options
-                          (lambda (opt name args result)
-                            (format (current-error-port)
-                                    "~a: unrecognized option~%"
-                                    (if (string? name)
-                                        (string-append "--" name)
-                                        (string-append "-" (string name)))))
-                          (lambda (operand result)
-                            (format (current-error-port)
-                                    "parameter `~a' ignored~%"
-                                    operand)
-                            result)
-                          '()))
-        (input (rpc-language->sexp (current-input-port))))
+  (let* ((opts  (args-fold (cdr args) %options
+                           (lambda (opt name args result)
+                             (format (current-error-port)
+                                     "~a: unrecognized option~%"
+                                     (if (string? name)
+                                         (string-append "--" name)
+                                         (string-append "-" (string name)))))
+                           (lambda (operand result)
+                             (format (current-error-port)
+                                     "parameter `~a' ignored~%"
+                                     operand)
+                             result)
+                           '()))
+         (input `(,@(if (memq 'strict opts)
+                        '()
+                        ;; RFC 4506 (and its predecessor RFC 1832) do *not*
+                        ;; define the `char' type.  However, it is supported
+                        ;; by most implementations and actually used in Sun's
+                        ;; RPC specification files.  They are equivalent to
+                        ;; `int', so we just typedef it.
+                        '((define-type "char" "int")))
+
+                  ,@(rpc-language->sexp (current-input-port)))))
 
     (define consts+types
       (filter (lambda (exp)
