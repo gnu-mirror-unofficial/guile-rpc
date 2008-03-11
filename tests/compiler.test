@@ -173,6 +173,35 @@
                        "typedef int bar<LEN>;"
                        "typedef double chbouib[LEN];")))
 
+(test-equal "struct with array and string members"
+            '((define MAX 10)
+              (define s
+                (make-xdr-struct-type
+                 (list (make-xdr-string MAX)
+                       (make-xdr-fixed-length-opaque-array 9)
+                       (make-xdr-vector-type xdr-integer 8)))))
+
+            (rpc-language->scheme-client
+             (xdr-text "const MAX = 10;"
+                       "struct s { string foo<MAX>; opaque bar[9];"
+                       "           int chbouib<8>; };")))
+
+(test-equal "union with struct and array members"
+            '((define u
+                (make-xdr-union-type xdr-boolean
+                                     `((TRUE  . ,(make-xdr-struct-type
+                                                  (list xdr-integer
+                                                        xdr-double)))
+                                       (FALSE . ,(make-xdr-vector-type
+                                                  xdr-integer 10)))
+                                     #f)))
+
+            (rpc-language->scheme-client
+             (xdr-text "union u switch (bool b) {"
+                       "  case TRUE: struct { int x; double y; } foo;"
+                       "  case FALSE: int bar<10>;"
+                       "};")))
+
 (test-equal "client RPC programs"
             '((define foo-t xdr-integer)
               (define prog-hello

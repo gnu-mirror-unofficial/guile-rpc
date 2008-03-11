@@ -152,13 +152,7 @@
 
         (('struct types ..1)
          (let ((types (map (lambda (name+type)
-                             (let* ((type-name (cadr name+type))
-                                    (type      (lookup-type type-name
-                                                            c)))
-                               (if type
-                                   (make-type-ref type)
-                                   (error "type not found"
-                                          type-name))))
+                             (type-ref (cadr name+type) c #f))
                            (cdr expr))))
            (make-struct types)))
 
@@ -167,19 +161,11 @@
                    case-list ...))
          (let* ((type-ref*  (lambda (arm)
                               ;; Arm types can be either `"void"' or
-                              ;; `("field-name" "type")'.
+                              ;; `("field-name" <typespec>)'.
                               (match arm
-                                ("void"
-                                 (let ((void (lookup-type "void" c)))
-                                   (if void
-                                       (make-type-ref void)
-                                       (error "back-end does not know `void'"
-                                              c))))
-                                (((? string?) (and (? string?) name))
-                                 (let ((type (lookup-type name c)))
-                                   (if type
-                                       (make-type-ref type)
-                                       (error "invalid arm type" name))))
+                                ("void" (type-ref "void" c #f))
+                                (((? string?) typespec)
+                                 (type-ref typespec c #f))
                                 (else
                                  (error "wrong arm type" arm)))))
                 (default    (let ((last (car (last-pair case-list))))
