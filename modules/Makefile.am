@@ -36,7 +36,8 @@ EXTRA_DIST = srfi/srfi-64.scm srfi/srfi-64.upstream.scm	\
 .l.scm:
 	module="`basename $@ | sed -es/\\.scm$$//g`" ;			\
 	$(GUILE) -L $(top_srcdir)/modules/silex				\
-	         -c '(load-from-path "lex.scm") (lex "$^" "$@")' &&	\
+	         -c "(load-from-path \"lex.scm\")			\
+		     (lex \"$^\" \"$@\" 'counters 'all)" &&		\
 	mv "$@" "$@.tmp" &&						\
 	echo ';;; -*- buffer-read-only: t; -*-' > "$@" &&		\
 	echo ';;; Automatically generated---do not modify.' >> "$@" &&	\
@@ -50,6 +51,8 @@ EXTRA_DIST = srfi/srfi-64.scm srfi/srfi-64.upstream.scm	\
 	echo '           lexer-ungetc))' >> "$@" &&			\
 	echo '(define *strip-%-comments?*' >> "$@" &&			\
 	echo '  (make-parameter #t))' >> "$@" &&			\
+	echo '(define (location line column . sexp)' >> "$@" &&		\
+	echo '  (append sexp (list (vector line column))))' >> "$@" &&	\
 	cat "$@.tmp" >> "$@" &&						\
 	rm "$@.tmp"
 

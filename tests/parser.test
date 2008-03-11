@@ -26,6 +26,14 @@
 (define (xdr-text . body)
   (open-input-string (string-join body (string #\newline))))
 
+(define (location sexp)
+  (let loop ((sexp sexp))
+    (if (pair? sexp)
+        (cons (vector (source-property sexp 'line)
+                      (source-property sexp 'column))
+              (map loop sexp))
+        sexp)))
+
 
 ;;;
 ;;; Parser.
@@ -252,6 +260,58 @@
                        "    int  chbouib (void) = 0;"
                        "  } = 1;"
                        "} = 20;")))
+
+(test-equal "location information on type definitions"
+            '(#(#f #f)
+              (#(1 8) define-type "s"
+               (#(1 1) struct (#(1 16) "x" "int")
+                                (#(1 23) "y" "int")))
+              (#(2 8) define-type "e"
+               (#(2 1) enum   (#(2 12) "a" 0)
+                                (#(2 19) "b" 1)))
+              (#(3 8) define-type "u"
+               (#(3 1) union
+                (#(#f #f) case (#(3 20) "x" "e")
+                 (#(#f #f) (#(#f #f) "a") (#(4 16) "p" "bool"))
+                 (#(#f #f) (#(#f #f) "b") (#(5 16) "q"  "int")))))
+
+              (#(7 16) define-type "a"
+               (#(7 9) variable-length-array "opaque" 12))
+              (#(8 39) define-type "t1"
+               (#(8 9) struct (#(8 25) "z" "double")
+                              (#(8 34) "a" "float")))
+              (#(9 13) define-type "t2" "int"))
+
+            (location
+             (rpc-language->sexp
+              (xdr-text "struct s { int x; int y; };"
+                        "enum   e { a = 0, b = 1 };"
+                        "union  u switch (e x) {"
+                        "  case a: bool p;"
+                        "  case b: int  q;"
+                        "};"
+
+                        "typedef opaque a<12>;"
+                        "typedef struct { double z; float a; } t1;"
+                        "typedef int t2;"))))
+
+(test-equal "location information on program definitions"
+            '(#(#f #f)
+              (#(1 7) define-constant "MAX" 100)
+              (#(2 9) define-program "prog1" 10
+               (#(3 11) version "v1" 0
+                (#(4 12) procedure "foo" 0
+                 "int"
+                 (#(#f #f) "foo_t")))))
+
+            (location
+             (rpc-language->sexp
+              (xdr-text "const MAX = 100;"
+                        "program prog1 {"
+                        "  version v1 {"
+                        "    int    foo (foo_t) = 0;"
+                        "  } = 0;"
+                        "} = 10;"))))
 
 (test-end "xdr-parser")
 

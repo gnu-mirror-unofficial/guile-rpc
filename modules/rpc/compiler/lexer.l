@@ -27,9 +27,13 @@ oct-constant   0[0-7]+
 
 %%
 
-{dec-constant}   (cons 'constant (string->number yytext))
-{hex-constant}   (cons 'constant (string->number (string-drop yytext 2) 16))
-{oct-constant}   (cons 'constant (string->number yytext 8))
+{dec-constant}   (location yyline yycolumn
+                           'constant (string->number yytext))
+{hex-constant}   (location yyline yycolumn
+                           'constant
+                           (string->number (string-drop yytext 2) 16))
+{oct-constant}   (location yyline yycolumn
+                           'constant (string->number yytext 8))
 
 {identifier}     (cond ((member yytext
                                 '("enum" "struct" "union"
@@ -40,9 +44,11 @@ oct-constant   0[0-7]+
                                   "bool" "string"
                                   "typedef"
                                   "program" "version"))
-                        (list (string->symbol yytext)))
+                        (location yyline yycolumn
+                                  (string->symbol yytext)))
                        (else
-                        (cons 'identifier yytext)))
+                        (location yyline yycolumn
+                                  'identifier yytext)))
 {comment}
 
 ;; Sun's `rpcgen' recognizes comments on a single line starting with `%'.
@@ -50,26 +56,27 @@ oct-constant   0[0-7]+
 ;; header files.
 ^{space}*%.*$    (if (*strip-%-comments?*)
                      (yycontinue)
-                     (list 'error))
+                     (location yyline yycolumn
+                               'error))
 
-\{               (list 'left-brace)
-\}               (list 'right-brace)
-\[               (list 'left-square)
-\]               (list 'right-square)
-<                (list 'left-angle)
->                (list 'right-angle)
-\(               (list 'left-parenthesis)
-\)               (list 'right-parenthesis)
+\{               (location yyline yycolumn 'left-brace)
+\}               (location yyline yycolumn 'right-brace)
+\[               (location yyline yycolumn 'left-square)
+\]               (location yyline yycolumn 'right-square)
+<                (location yyline yycolumn 'left-angle)
+>                (location yyline yycolumn 'right-angle)
+\(               (location yyline yycolumn 'left-parenthesis)
+\)               (location yyline yycolumn 'right-parenthesis)
 
-\;               (list 'semi-colon)
-:                (list 'colon)
-=                (list 'equal)
-,                (list 'comma)
-\*               (list 'star)
+\;               (location yyline yycolumn 'semi-colon)
+:                (location yyline yycolumn 'colon)
+=                (location yyline yycolumn 'equal)
+,                (location yyline yycolumn 'comma)
+\*               (location yyline yycolumn 'star)
 {space}
 
 <<EOF>>          '*eoi*
-<<ERROR>>        (list 'error)
+<<ERROR>>        (location yyline yycolumn 'error)
 
 
 ;;; Local Variables:
