@@ -17,18 +17,26 @@
 ;;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-module (rpc compiler)
-  :autoload    (rpc compiler parser) (rpc-language->sexp)
+  :use-module  (rpc compiler parser)
   :use-module  (rpc xdr types)
   :use-module  (rpc xdr)
 
   :use-module  (srfi srfi-1)
   :use-module  (srfi srfi-9)
+  :use-module  (srfi srfi-34)
+  :use-module  (srfi srfi-35)
 
   ;; Andrew K. Wright's pattern matching system.
   :use-module  (ice-9 match)
 
+  :re-export   (&compiler-error compiler-error? compiler-error:location)
   :export (rpc-language->scheme-client rpc-language->scheme-server
-           rpc-language->xdr-types))
+           rpc-language->xdr-types
+
+           &compiler-unknown-type-error &compiler-unknown-constant-error
+           compiler-unknown-type-error? compiler-unknown-constant-error?
+           compiler-unknown-type-error:type-name
+           compiler-unknown-constant-error:constant-name))
 
 ;;; Author: Ludovic Courtès <ludo@gnu.org>
 ;;;
@@ -40,6 +48,19 @@
 ;;; run-time XDR type objects.
 ;;;
 ;;; Code:
+
+
+;;;
+;;; Error conditions.
+;;;
+
+(define-condition-type &compiler-unknown-type-error &compiler-error
+  compiler-unknown-type-error?
+  (type-name    compiler-unknown-type-error:type-name))
+
+(define-condition-type &compiler-unknown-constant-error &compiler-error
+  compiler-unknown-constant-error?
+  (constant-name compiler-unknown-constant-error:constant-name))
 
 
 ;;;
@@ -112,11 +133,13 @@
 				      make-version
 				      make-procedure)
   (lambda (input)
-    (define (constant-value expr c)
+    (define (constant-value expr c location)
       (cond ((string? expr)
              (let ((value (lookup-constant expr c)))
                (if (not value)
-                   (error "unbound constant" expr)
+                   (raise (condition (&compiler-unknown-constant-error
+                                      (location      location)
+                                      (constant-name expr))))
                    (make-constant-ref value))))
             ((number? expr)
              expr)
@@ -128,16 +151,21 @@
           (make-constant-def name expr)
           (error "invalid value in constant definition" expr)))
 
-    (define (type-ref expr c name)
+    (define (type-ref expr c name location)
       ;; Evaluate EXPR, a type specifier, through the compiler back-end, and
       ;; return a "type reference", whatever that means to the back-end.
       ;; When called from a program definition, NAME can be used to specify
       ;; the typedef name of the type begin defined.
+      (define (unbound-type type location)
+        (raise (condition (&compiler-unknown-type-error
+                           (location  location)
+                           (type-name type)))))
+
       (match expr
         ((? string?)
          (let ((def (lookup-type expr c)))
            (if (not def)
-               (error "unbound type" expr)
+               (unbound-type expr location)
                (make-type-ref def))))
 
         (('enum values ..1)
@@ -147,12 +175,16 @@
                              (let ((name  (car name+value))
                                    (value (cadr name+value)))
                                (cons name
-                                     (constant-value value c))))
+                                     (constant-value value c
+                                                     (sexp-location
+                                                      name+value)))))
                            values))))
 
         (('struct types ..1)
-         (let ((types (map (lambda (name+type)
-                             (type-ref (cadr name+type) c #f))
+         (let ((types (map (let ((location (sexp-location expr)))
+                             (lambda (name+type)
+                               (type-ref (cadr name+type) c #f
+                                         location)))
                            (cdr expr))))
            (make-struct types)))
 
@@ -163,9 +195,11 @@
                               ;; Arm types can be either `"void"' or
                               ;; `("field-name" <typespec>)'.
                               (match arm
-                                ("void" (type-ref "void" c #f))
+                                ("void" (type-ref "void" c #f
+                                                  (sexp-location expr)))
                                 (((? string?) typespec)
-                                 (type-ref typespec c #f))
+                                 (type-ref typespec c #f
+                                           (sexp-location expr)))
                                 (else
                                  (error "wrong arm type" arm)))))
                 (default    (let ((last (car (last-pair case-list))))
@@ -187,50 +221,59 @@
            (make-union (let ((discr-type (lookup-type type-name c)))
                          (if discr-type
                              (make-type-ref discr-type)
-                             (error "unknown discriminant type" type-name)))
+                             (unbound-type type-name
+                                           (sexp-location (cadr (cdr expr))))))
                        value/type
                        (and default (type-ref* default)))))
 
         (('string (and (or (? number?) (? string?) (? not)) max-length))
-         (let ((max-length (and max-length (constant-value max-length c))))
+         (let ((max-length (and max-length
+                                (constant-value max-length c
+                                                (sexp-location expr)))))
            (make-string max-length)))
 
         (('fixed-length-array (and (? string?) type-name)
                               (and (or (? number?) (? string?)) length))
          (let ((type   (lookup-type type-name c))
-               (length (and length (constant-value length c))))
+               (length (and length (constant-value length c
+                                                   (sexp-location expr)))))
            (if type
                (make-fixed-length-array (make-type-ref type) length)
-               (error "unknown type" type-name))))
+               (unbound-type type-name (sexp-location expr)))))
 
         (('variable-length-array (and (? string?) type-name)
                                  (and (or (? number?) (? string?) (? not))
                                       max-length))
          (let ((type       (lookup-type type-name c))
-               (max-length (and max-length (constant-value max-length c))))
+               (max-length (and max-length
+                                (constant-value max-length c
+                                                (sexp-location expr)))))
            (if type
                (make-variable-length-array (make-type-ref type) max-length)
-               (error "unknown type" type-name))))
+               (unbound-type type-name (sexp-location expr)))))
 
         (else
          (error "unsupported type form" expr))))
 
-    (define (make-type-definition name expr c)
+    (define (make-type-definition name expr c location)
       ;; Process EXPR, a type definition for NAME.
-      (make-type-def name (type-ref expr c name)))
+      (make-type-def name (type-ref expr c name location)))
 
     (define (make-program-definition expr c)
       ;; Process EXPR, an RPC program definition.
       (define (version-procs proc-defs)
         (map (lambda (def)
+               (define loc
+                 (sexp-location def))
+
                (match def
                  (('procedure (and (? string?) name)
                               (and (? integer?) number)
                               ret-type
                               (arg-types ...))
-                  (let ((ret-type  (type-ref ret-type c #f))
+                  (let ((ret-type  (type-ref ret-type c #f loc))
                         (arg-types (map (lambda (t)
-                                          (type-ref t c #f))
+                                          (type-ref t c #f loc))
                                         arg-types)))
                     (make-procedure name number ret-type arg-types)))))
              proc-defs))
@@ -271,7 +314,8 @@
                  (let ((name (cadr expr))
                        (spec (caddr expr)))
                    (cons-type name
-                              (make-type-definition name spec c)
+                              (make-type-definition name spec c
+                                                    (sexp-location expr))
                               c)))
                 ((define-program)
                  (let ((name (cadr expr)))

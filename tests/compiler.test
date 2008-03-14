@@ -20,6 +20,7 @@
 
 (define-module (tests compiler)
   :use-module (rpc compiler)
+  :use-module ((rpc compiler parser) (location-line location-column))
 
   :use-module (rpc xdr types)
   :use-module (rpc xdr)
@@ -29,6 +30,7 @@
 
   :use-module (srfi srfi-1)
   :use-module (srfi srfi-13)
+  :use-module (srfi srfi-34)
   :use-module (srfi srfi-64))
 
 
@@ -185,6 +187,31 @@
              (xdr-text "const MAX = 10;"
                        "struct s { string foo<MAX>; opaque bar[9];"
                        "           int chbouib<8>; };")))
+
+(test-equal "unknown type"
+            '(1 13 "foo")
+
+            (guard (c ((compiler-unknown-type-error? c)
+                       (let ((name (compiler-unknown-type-error:type-name c))
+                             (loc  (compiler-error:location c)))
+                         (list (location-line loc) (location-column loc)
+                               name))))
+               (rpc-language->scheme-client
+                (xdr-text "typedef foo bar;"))
+               #f))
+
+(test-equal "unknown constant"
+            '(1 9 "MAX")
+
+            (guard (c ((compiler-unknown-constant-error? c)
+                       (let ((name
+                              (compiler-unknown-constant-error:constant-name
+                               c))
+                             (loc (compiler-error:location c)))
+                         (list (location-line loc) (location-column loc)
+                               name))))
+              (rpc-language->scheme-client
+               (xdr-text "typedef opaque chbouib<MAX>;"))))
 
 (test-equal "union with struct and array members"
             '((define u

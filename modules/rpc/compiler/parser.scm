@@ -20,9 +20,19 @@
   :autoload    (rpc compiler lexer) (lexer-init)
   :use-module  (text parse-lalr)
   :use-module  (srfi srfi-1)
+  :use-module  (srfi srfi-9)
+  :use-module  (srfi srfi-34)
+  :use-module  (srfi srfi-35)
   :use-module  (srfi srfi-39)
 
   :export (rpc-language->sexp *parser-options*
+
+           location-line location-column location-file
+           sexp-location
+
+           &compiler-error compiler-error? compiler-error:location
+           lexer-error? parser-error? parser-error:token
+
            %debug-rpc-parser?))
 
 ;;; Author: Ludovic Courtès <ludo@gnu.org>
@@ -38,22 +48,68 @@
 
 
 ;;;
-;;; Parser.
+;;; Error conditions.
 ;;;
+
+(define-condition-type &compiler-error &error
+  ;; We start the error hierarchy here because `(rpc compiler)' depends on
+  ;; this module.
+  compiler-error?
+  (location  compiler-error:location))
+
+(define-condition-type &lexer-error &compiler-error
+  lexer-error?)
+
+(define-condition-type &parser-error &compiler-error
+  parser-error?
+  (token   parser-error:token))
+
+
+
+;;;
+;;; Location tracking.
+;;;
+
+(define (sexp-location sexp)
+  ;; Return the external representation (an alist) of the location of SEXP.
+  (and (pair? sexp)
+       (source-properties sexp)))
+
+(define (make-location-accessor field)
+  (lambda (location)
+    (and (pair? location)
+         (let ((p (assq field location)))
+           (and (pair? p) (cdr p))))))
+
+(define location-line   (make-location-accessor 'line))
+(define location-column (make-location-accessor 'column))
+(define location-file   (make-location-accessor 'filename))
+
+(define (location sexp)
+  ;; Return the location information of SEXP, using our the lexer/parser
+  ;; internal format.
+  (let ((line   (source-property sexp 'line))
+        (column (source-property sexp 'column)))
+    (vector line column)))
+
+(define (export-location location)
+  ;; Export LOCATION from its internal representation as produced by the
+  ;; `location' procedure to a `location?' object for external consumption.
+  (let ((line   (vector-ref location 0))
+        (column (vector-ref location 1)))
+    `((line . ,line) (column . ,column))))
 
 (define (preserve-location location sexp)
   ;; Copy location information from SOURCE-SEXP, an expression returned by
   ;; the lexer, to SEXP, and return SEXP.
-  (let ((line   (vector-ref location 0))
-        (column (vector-ref location 1)))
-    (set-source-properties! sexp `((line . ,line) (column . ,column)))
-    sexp))
+  (set-source-properties! sexp (export-location location))
+  sexp)
 
-(define (location sexp)
-  ;; Return the location information of SEXP.
-  (let ((line   (source-property sexp 'line))
-        (column (source-property sexp 'column)))
-    (vector line column)))
+
+
+;;;
+;;; Parser.
+;;;
 
 (define *parser-options*
   ;; A list of symbols denoting options for the parser.  The empty list means
@@ -187,7 +243,8 @@
                      ;; Sun's `rpcgen' recognizes "unsigned" as "unsigned int".
                      (if (memq 'allow-unsigned (*parser-options*))
                          "unsigned int"
-                         (error "parse error..." $1)))
+                         (raise (condition (&parser-error
+                                            (location (export-location (cdr $1))))))))
 
    ;; Enums
 
@@ -301,7 +358,24 @@
   "Read a specification written in the XDR Language from @var{port} and
 return the corresponding sexp-based representation."
   (define (%parse-error msg . args)
-    (error msg args))
+    ;; Can be called with zero or one arg.  When called with one arg, we hope
+    ;; that it's going to be the whole token (i.e., a list whose last element
+    ;; is its location information), not just the token type (a symbol such
+    ;; as `identifier').  We rely on a recent patch against `parse-lalr':
+    ;;
+    ;;  https://mail.gna.org/public/guile-lib-dev/2008-03/msg00005.html
+    ;;
+    ;; The `(pair? expr)' are here to support the unpatched version.
+    (let* ((expr     (and (not (null? args))
+                          (car args)))
+           (token    (if (pair? expr)
+                         (car expr)
+                         expr))
+           (location (and (pair? expr)
+                          (export-location (car (last-pair expr))))))
+      (raise (condition (&parser-error
+                         (token    token)
+                         (location location))))))
 
   ;; FIXME: This method is not reentrant.  See the "Usage2" node of the SILex
   ;; manual for better.

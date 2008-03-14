@@ -21,6 +21,7 @@
 (define-module (tests parser)
   :use-module (rpc compiler parser)
   :use-module (srfi srfi-13)
+  :use-module (srfi srfi-34)
   :use-module (srfi srfi-39)
   :use-module (srfi srfi-64))
 
@@ -333,6 +334,21 @@
                         "    int    foo (foo_t) = 0;"
                         "  } = 0;"
                         "} = 10;"))))
+
+(test-equal "parse error"
+            '(1 14 semi-colon)
+            ;; If this test doesn't pass, make sure your Guile-Lib
+            ;; installation has this patch:
+            ;; https://mail.gna.org/public/guile-lib-dev/2008-03/msg00005.html .
+
+            (guard (c ((parser-error? c)
+                       (let ((loc   (compiler-error:location c))
+                             (token (parser-error:token c)))
+                         (list (location-line loc) (location-column loc)
+                               token))))
+              (rpc-language->sexp
+               (xdr-text "const chbouib;"))
+              #f))
 
 (test-end "xdr-parser")
 
