@@ -21,6 +21,7 @@
 (define-module (tests parser)
   :use-module (rpc compiler parser)
   :use-module (srfi srfi-13)
+  :use-module (srfi srfi-39)
   :use-module (srfi srfi-64))
 
 (define (xdr-text . body)
@@ -260,6 +261,26 @@
                        "    int  chbouib (void) = 0;"
                        "  } = 1;"
                        "} = 20;")))
+
+(test-equal "Sun extensions"
+            '((define-type "foo" "unsigned int")
+              (define-type "array"
+                (fixed-length-array "unsigned int" 10))
+              (define-program "p" 0
+                (version "v" 0
+                  (procedure "proc" 0
+                    "unsigned int"
+                    ("unsigned int" "int")))))
+
+            (parameterize ((*parser-options* '(allow-unsigned)))
+              (rpc-language->sexp
+               (xdr-text "typedef unsigned foo;"
+                         "typedef unsigned array[10];"
+                         "program p {"
+                         "  version v {"
+                         "    unsigned proc (unsigned, int) = 0;"
+                         "  } = 0;"
+                         "} = 0;"))))
 
 (test-equal "location information on type definitions"
             '(#(#f #f)

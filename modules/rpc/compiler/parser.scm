@@ -20,8 +20,10 @@
   :autoload    (rpc compiler lexer) (lexer-init)
   :use-module  (text parse-lalr)
   :use-module  (srfi srfi-1)
+  :use-module  (srfi srfi-39)
 
-  :export (rpc-language->sexp %debug-rpc-parser?))
+  :export (rpc-language->sexp *parser-options*
+           %debug-rpc-parser?))
 
 ;;; Author: Ludovic Courtès <ludo@gnu.org>
 ;;;
@@ -29,7 +31,8 @@
 ;;;
 ;;; This module provides a parser for the XDR/RPC Language (RFC 4506, Section
 ;;; 6, and RFC 1831, Section 11), which allows the definition of XDR data
-;;; types and RPC programs.
+;;; types and RPC programs.  A number of Sun extensions are also made
+;;; available through the `*parser-options*' SRFI-39 parameter.
 ;;;
 ;;; Code:
 
@@ -51,6 +54,11 @@
   (let ((line   (source-property sexp 'line))
         (column (source-property sexp 'column)))
     (vector line column)))
+
+(define *parser-options*
+  ;; A list of symbols denoting options for the parser.  The empty list means
+  ;; strict RFC 4506 conformance.
+  (make-parameter '()))
 
 
 (define rpc-parser
@@ -172,7 +180,14 @@
                    (enum-type-spec) : $1
                    (struct-type-spec) : $1
                    (union-type-spec) : $1
-                   (identifier) : (car $1))
+                   (identifier) : (car $1)
+
+                   ;; non-standard extensions
+                   (unsigned) :
+                     ;; Sun's `rpcgen' recognizes "unsigned" as "unsigned int".
+                     (if (memq 'allow-unsigned (*parser-options*))
+                         "unsigned int"
+                         (error "parse error..." $1)))
 
    ;; Enums
 

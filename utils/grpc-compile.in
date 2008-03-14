@@ -31,7 +31,7 @@ exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -l "$0"    \
 (define-module (guile-rpc compile)
   :autoload   (rpc compiler)         (rpc-language->scheme-server
                                       rpc-language->scheme-client)
-  :autoload   (rpc compiler parser)  (rpc-language->sexp)
+  :autoload   (rpc compiler parser)  (rpc-language->sexp *parser-options*)
   :autoload   (rpc compiler lexer)   (*strip-%-comments?*)
   :autoload   (ice-9 pretty-print)   (pretty-print)
   :use-module (srfi srfi-1)
@@ -71,7 +71,7 @@ exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -l "$0"    \
   (format #t "  -s, --server   Compile server RPC stubs.~%~%")
   (format #t "  -S, --strict   Use strict XDR compliance (RFC 4506).  The main~%")
   (display   "                 differences are: `char' type not recognized, `%'")
-  (format #t "                 comments not permitted.~%")
+  (format #t "                 comments not permitted, `unsigned' type not recognized.~%")
   (format #t "~%")
   (format #t "It is customary to use C preprocessor directives in XDR/RPC specifications.~%")
   (format #t "When that is the case, pipe the specification through \"cpp -P\" before~%")
@@ -96,6 +96,10 @@ There is NO WARRANTY, to the extent permitted by law.~%")
 ;;;
 
 (define (compile . args)
+  (define %non-strict-parser-options
+    ;; Parser options when in non-strict mode.
+    '(allow-unsigned))
+
   (let* ((opts   (args-fold (cdr args) %options
                             (lambda (opt name args result)
                               (format (current-error-port)
@@ -119,7 +123,11 @@ There is NO WARRANTY, to the extent permitted by law.~%")
                           ;; `int', so we just typedef it.
                           '((define-type "char" "int")))
 
-                    ,@(parameterize ((*strip-%-comments?* (not strict?)))
+                    ,@(parameterize ((*strip-%-comments?* (not strict?))
+                                     (*parser-options*
+                                      (if strict?
+                                          '()
+                                          %non-strict-parser-options)))
                         (rpc-language->sexp (current-input-port))))))
 
     (define consts+types
