@@ -281,6 +281,10 @@ independently of the value of type @var{type} being encoded, then return it
              (+ 4 (loop (xdr-union-arm-type type discr)
                         (cdr value)))))
 
+          ((procedure? type)
+           ;; delayed type
+           (loop (type) value))
+
           (else
            (raise (condition
                    (&xdr-unknown-type-error (type type))))))))
@@ -373,6 +377,10 @@ independently of the value of type @var{type} being encoded, then return it
              ;; We can safely assume that the discriminant is 32-bit.
              (encode (xdr-union-arm-type type discr) arm (+ index 4))))
 
+          ((procedure? type)
+           ;; delayed type
+           (encode (type) value index))
+
           (else
            (raise (condition (&xdr-unknown-type-error (type type))))))))
 
@@ -442,6 +450,10 @@ independently of the value of type @var{type} being encoded, then return it
            (let* ((discr (decode (xdr-union-discriminant-type type)))
                   (value (decode (xdr-union-arm-type type discr))))
              (cons discr value)))
+
+          ((procedure? type)
+           ;; delayed type
+           (decode (type)))
 
           (else
            (raise (condition (&xdr-unknown-type-error (type type))))))))

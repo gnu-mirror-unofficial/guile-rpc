@@ -246,6 +246,41 @@
                                         2.0))
               (xdr-decode s (open-bytevector-input-port bv))))
 
+(test-equal "self-referential struct"
+            `(1 (TRUE  . (2 (TRUE  . (3 (FALSE . ,%void))))))
+
+            ;; We build a self-referential struct like this one (in XDR
+            ;; language):
+            ;;
+            ;;   struct s { int x; s *next; };
+            ;;
+            ;; We use a thunk for the self-reference in `next'.
+            (letrec ((s (make-xdr-struct-type
+                         (list xdr-integer
+                               (lambda ()
+                                 (make-xdr-union-type xdr-boolean
+                                                      `((TRUE  . ,s)
+                                                        (FALSE . ,xdr-void))
+                                                      #f))))))
+              (xdr-encode! bv 0 s
+                           `(1 (TRUE  . (2 (TRUE  . (3 (FALSE . #f)))))))
+              (xdr-decode s (open-bytevector-input-port bv))))
+
+(test-equal "self-referential vector"
+            `(1 #((2 #((3 #())))))
+
+            ;; A variant with self-referential types, which is equivalent to
+            ;; the one above:
+            ;;
+            ;;   struct s { int x; s next<1>; };
+            ;;
+            ;; Again, `letrec' is our friend.
+            (letrec ((s (make-xdr-struct-type
+                         (list xdr-integer
+                               (make-xdr-vector-type (lambda () s) 1)))))
+              (xdr-encode! bv 0 s `(1 #((2 #((3 #()))))))
+              (xdr-decode s (open-bytevector-input-port bv))))
+
 (test-end "xdr-encoding")
 
 (exit (= (test-runner-fail-count (test-runner-current)) 0))
