@@ -244,7 +244,8 @@
                      (if (memq 'allow-unsigned (*parser-options*))
                          "unsigned int"
                          (raise (condition (&parser-error
-                                            (location (export-location (cdr $1))))))))
+                                            (location (export-location (car $1)))
+                                            (token    'unsigned))))))
 
    ;; Enums
 

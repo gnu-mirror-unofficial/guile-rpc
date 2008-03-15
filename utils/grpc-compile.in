@@ -35,6 +35,7 @@ exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -l "$0"    \
   :autoload   (rpc compiler lexer)   (*strip-%-comments?*)
   :autoload   (ice-9 pretty-print)   (pretty-print)
   :use-module (srfi srfi-1)
+  :use-module (srfi srfi-34)
   :use-module (srfi srfi-37)
   :use-module (srfi srfi-39)
   :export (compile))
@@ -88,7 +89,43 @@ This is free software: you are free to change and redistribute it.
 There is NO WARRANTY, to the extent permitted by law.~%")
   (exit 0))
 
+(define (report-compiler-error c)
+  (define (error-message)
+    (let ((loc (compiler-error:location c)))
+      (string-append "<standard input>:"
+                     (if loc
+                         (format #f "~a:~a: " (location-line loc)
+                                 (location-column loc))
+                         "<unknown location>: ")
 
+                     (cond ((parser-error? c)
+                            (let ((token (parser-error:token c)))
+                              (string-append "parse error: unexpected token `"
+                                             (if (symbol? token)
+                                                 (symbol->string token)
+                                                 token)
+                                             "'")))
+                           ((lexer-error? c)
+                            "lexer error")
+                           ((compiler-unknown-type-error? c)
+                            (let ((t
+                                   (compiler-unknown-type-error:type-name c)))
+                              (string-append "unknown type `" t "'")))
+                           ((compiler-unknown-constant-error? c)
+                            (let ((c
+                                   (compiler-unknown-constant-error:constant-name
+                                    c)))
+                              (string-append "unknown constant `" c "'")))
+                           (else
+                            (format #f "unexpected error (~a)" c))))))
+
+  (format (current-error-port) "~a~%" (error-message))
+  (exit 1))
+
+(define (with-error-catch thunk)
+  (guard (c ((compiler-error? c)
+             (report-compiler-error c)))
+    (thunk)))
 
 
 ;;;
@@ -123,12 +160,14 @@ There is NO WARRANTY, to the extent permitted by law.~%")
                           ;; `int', so we just typedef it.
                           '((define-type "char" "int")))
 
-                    ,@(parameterize ((*strip-%-comments?* (not strict?))
-                                     (*parser-options*
-                                      (if strict?
-                                          '()
-                                          %non-strict-parser-options)))
-                        (rpc-language->sexp (current-input-port))))))
+                    ,@(with-error-catch
+                       (lambda ()
+                         (parameterize ((*strip-%-comments?* (not strict?))
+                                        (*parser-options*
+                                         (if strict?
+                                             '()
+                                             %non-strict-parser-options)))
+                            (rpc-language->sexp (current-input-port))))))))
 
     (define consts+types
       (filter (lambda (exp)
@@ -138,17 +177,19 @@ There is NO WARRANTY, to the extent permitted by law.~%")
     (define programs
       input)
 
-    (for-each (lambda (opt input)
-                ;; FIXME: `--server' and `--client' should emit only stubs,
-                ;; not XDR type definitions.
-                (let ((->scheme (if (eq? opt 'server)
-                                    rpc-language->scheme-server
-                                    rpc-language->scheme-client)))
-                  (if (memq opt opts)
-                      (for-each (lambda (def)
-                                  (pretty-print def))
-                                (->scheme input)))))
-              '(xdr client server)
-              (list consts+types programs programs))
+    (with-error-catch
+     (lambda ()
+       (for-each (lambda (opt input)
+                   ;; FIXME: `--server' and `--client' should emit only stubs,
+                   ;; not XDR type definitions.
+                   (let ((->scheme (if (eq? opt 'server)
+                                       rpc-language->scheme-server
+                                       rpc-language->scheme-client)))
+                     (if (memq opt opts)
+                         (for-each (lambda (def)
+                                     (pretty-print def))
+                                   (->scheme input)))))
+                 '(xdr client server)
+                 (list consts+types programs programs))))
 
     #t))
