@@ -1,5 +1,5 @@
 ;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-;;; Copyright (C) 2007  Free Software Foundation, Inc.
+;;; Copyright (C) 2007, 2008  Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Guile-RPC.
 ;;;
@@ -18,12 +18,9 @@
 
 (define-module (rpc rpc portmap)
   :use-module (rpc rpc)
-  :use-module (rpc rpc types)
   :use-module (rpc xdr)
   :use-module (rpc xdr types)
-  :autoload   (rpc rpc transports)  (send-rpc-record
-                                     rpc-record-marking-input-port)
-  :autoload   (r6rs bytevector)     (make-bytevector)
+
   :autoload   (ice-9 rdelim)        (read-line)
   :autoload   (ice-9 regex)         (make-regexp)
   :autoload   (srfi srfi-1)         (find)
@@ -73,7 +70,7 @@
                               xdr-unsigned-integer    ;; pm_prot
                               xdr-unsigned-integer))) ;; pm_port
 
-;; `pmap' list should really be defined as follows:
+;; `pmap' list is defined as:
 ;;
 ;;   typedef union switch (bool_t) {
 ;;
@@ -85,52 +82,17 @@
 ;;        case FALSE: struct {};
 ;;   } pmaplist_t;
 ;;
-;; However, we disallow the creation of recursive XDR types (due to the lack
-;; of mutators for XDR type objects).  Therefore, we provide our own decoding
-;; mechanism for this type.
+;; We create this self-referencing type using our so-called "deferred types",
+;; i.e., a thunk that returns the self-reference.
 
-(define pmap-list-element-type
-  (make-xdr-union-type xdr-boolean
-                       `((TRUE  . ,pmap-struct-type)
-                         (FALSE . ,xdr-void))
-                       #f))
-
-(define (xdr-decode-pmap-list port)
-  ;; The custom decoder for `pmaplist_t'.
-  (let loop ((item (xdr-decode pmap-list-element-type port))
-             (result '()))
-    (if (or (eof-object? item)
-            (eq? 'FALSE (car item)))
-        (reverse! result)
-        (loop (xdr-decode pmap-list-element-type port)
-              (cons (cdr item) result)))))
-
-(define (make-portmapper-dump-call send-message wrap-input-port)
-  ;; XXX: A custom version of `make-synchronous-rpc-call' for
-  ;; `portmapper-dump'.
-  (define arg-type xdr-void)
-  (define program %portmapper-program-number)
-  (define version %portmapper-version-number)
-  (define procedure %portmapper-dump-proc-number)
-
-  (lambda (args xid endpoint)
-    (let* ((call-msg     (make-rpc-message xid 'CALL program version
-                                           procedure))
-           (call-msg-len (xdr-type-size rpc-message call-msg))
-           (args-msg-len (xdr-type-size arg-type args))
-           (msg-len      (+ call-msg-len args-msg-len))
-           (msg          (make-bytevector msg-len)))
-
-      (xdr-encode! msg 0 rpc-message call-msg)
-      (xdr-encode! msg call-msg-len arg-type args)
-      (send-message endpoint msg 0 msg-len)
-      (force-output endpoint)
-
-      ;; Wait for an answer
-      (let* ((endpoint  (wrap-input-port endpoint))
-             (reply-msg (xdr-decode rpc-message endpoint)))
-        (and (assert-successful-reply reply-msg xid)
-             (xdr-decode-pmap-list endpoint))))))
+(define pmap-list-type
+  (letrec ((u (make-xdr-union-type xdr-boolean
+                                   `((TRUE  . ,(make-xdr-struct-type
+                                                (list pmap-struct-type
+                                                      (lambda () u))))
+                                     (FALSE . ,xdr-void))
+                                   #f)))
+    u))
 
 (define call-result-type
   (make-xdr-struct-type (list xdr-unsigned-integer                ;; port
@@ -172,8 +134,21 @@
                              pmap-struct-type xdr-unsigned-integer))
 
 (define portmapper-dump
-  (make-portmapper-dump-call send-rpc-record
-                             rpc-record-marking-input-port))
+  (let ((call   (make-synchronous-rpc-call %portmapper-program-number
+                                           %portmapper-version-number
+                                           %portmapper-dump-proc-number
+                                           xdr-void pmap-list-type))
+        (->list (lambda (result)
+                  ;; Turn a decoded `pmap-list-type' representation into a
+                  ;; Schemey list.
+                  (let loop ((input result)
+                             (output '()))
+                    (if (eq? (car input) 'TRUE)
+                        (loop (car (cddr input))
+                              (cons (cadr input) output))
+                        (reverse output))))))
+    (lambda (args xid endpoint)
+      (->list (call args xid endpoint)))))
 
 (define portmapper-call-it
   (make-synchronous-rpc-call %portmapper-program-number
