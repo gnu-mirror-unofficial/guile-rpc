@@ -1,6 +1,6 @@
 \input texinfo  @c -*-texinfo-*-
 
-@c Copyright (C) 2007  Free Software Foundation, Inc.
+@c Copyright (C) 2007, 2008  Free Software Foundation, Inc.
 @c
 @c Permission is granted to copy, distribute and/or modify this
 @c document under the terms of the GNU Free Documentation License,
@@ -23,7 +23,7 @@
 @copying
 This file documents GNU Guile-RPC @value{VERSION}.
 
-Copyright @copyright{} 2007 Free Software Foundation, Inc.
+Copyright @copyright{} 2007, 2008 Free Software Foundation, Inc.
 
 @quotation
 Permission is granted to copy, distribute and/or modify this document
@@ -57,7 +57,7 @@ Edition @value{EDITION} @*
 @c Updated for Guile-RPC @value{VERSION} @*
 @value{UPDATED} @*
 
-Copyright @copyright{} 2007 Free Software Foundation, Inc.
+Copyright @copyright{} 2007, 2008 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of this
 manual provided the copyright notice and this permission notice are
@@ -397,8 +397,10 @@ in advance and they are encoded as the succession of the data they
 contain.  Thus, those types can be summarized as 4 great classes:
 ``basic'' types, variable-length arrays, structs and unions.
 
-The @code{(rpc xdr)} module provides facilities to represent and
-handle these classes of types which we describe below.
+The @code{(rpc xdr)} module provides facilities to create Scheme objects
+representing XDR data types and to manipulate them.  These Scheme
+objects, described below, are all immutable, i.e., they cannot be
+modified after creation.
 
 @deffn {Scheme Procedure} make-xdr-basic-type name size type-pred encoder decoder [vector-encoder [vector-decoder]]
 This returns an @code{<xdr-basic-type>} object describing a type whose
@@ -469,6 +471,66 @@ discriminant's value and whose @code{cdr} is the actual union value.
 Return the type that should be used for @var{union}'s arm given
 @var{discriminant} (a Scheme value).
 @end deffn
+
+@cindex recursive types
+@cindex self-referencing types
+Sometimes, one may want to define @dfn{recursive types}, i.e., types
+that refer to themselves.  This is particularly useful to implement
+lists.  For example, in XDR language, a list of integers can be defined
+as follows:
+
+@example
+struct integer_list_t
+@{
+  int x;
+  integer_list_t *next;
+@};
+@end example
+
+This notation is a shortcut for the following structure:
+
+@example
+struct integer_list_t
+@{
+  int x;
+  union switch (bool opted)
+  @{
+    case TRUE:
+      integer_list_t value;
+    case FALSE:
+      void;
+  @} next;
+@};
+@end example
+
+The @code{integer_list_t} type references itself.  Defining it using our
+API seems impossible at first: one cannot pass a self-reference to
+@code{make-xdr-struct-type} (since the object is not yet created!), and
+the self-reference cannot be added after the fact since objects returned
+by @code{make-xdr-struct-type} are immutable.
+
+The API addresses this problem by allowing @dfn{thunks} (zero-argument
+procedures) to be used as types.  Together with Scheme's @code{letrec}
+recursive binding construct (or a top-level @code{define}), it makes it
+possible to create such recursive types:
+
+@example
+(letrec ((integer-list
+          (make-xdr-struct-type
+           (list xdr-integer
+                 (make-xdr-union-type xdr-boolean
+                                      `((TRUE . ,(lambda ()
+                                                   integer-list))
+                                        (FALSE . ,xdr-void))
+                                      #f)))))
+  integer-list)
+@end example
+
+The trick here is that using the thunk effectively @emph{defers} the
+evaluation of the self-reference@footnote{This idea was inspired by Oleg
+Kiselyov's description of @dfn{thunked parent pointers} in SXML, which
+may be found at @uref{http://okmij.org/ftp/Scheme/parent-pointers.txt}.}.
+
 
 It is often useful to know the size in octets it takes to encode a
 given value according to an XDR type.  However, as we just saw, the

@@ -1,5 +1,7 @@
 * New in GNU Guile-RPC 0.3
 
+** New features
+*** Support for recursive XDR data types
 ** Bug fixes
 *** Fix encoding of vectors of floats, doubles
 
