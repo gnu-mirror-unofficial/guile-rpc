@@ -229,6 +229,30 @@
                        "  case FALSE: int bar<10>;"
                        "};")))
 
+(test-equal "recursive types"
+            '((define list-of-ints
+                (make-xdr-struct-type
+                 (list xdr-integer
+                       (make-xdr-union-type xdr-boolean
+                                            `((TRUE
+                                               . ,(lambda () list-of-ints))
+                                              (FALSE . ,xdr-void))
+                                            #f))))
+              ;; FIXME: There's a pending bug with structs that needs to be
+              ;; resolved first.
+;;               (define another-list
+;;                 (make-xdr-struct-type
+;;                  (list xdr-integer
+;;                        (make-xdr-vector-type (lambda () another-list) 1))))
+              )
+
+            (rpc-language->scheme-client
+             (xdr-text "struct list_of_ints { int x; list_of_ints *next; };"
+;;                        "struct another_list {"
+;;                        "  int x; another_list next<1>;"
+;;                        "};"
+                       )))
+
 (test-equal "client RPC programs"
             '((define foo-t xdr-integer)
               (define prog-hello
@@ -325,7 +349,22 @@
                                                 ,(fiota 10))
                                   ("the_opaque_array"
                                                 ,(list->vector (iota 7))
-                                                ,(list->vector (iota 236)))))))
+                                                ,(list->vector (iota
+                                                                236)))))))
+
+(test-eq    "recursive types [run-time]"
+            #t
+
+            (let ((types
+                   (rpc-language->xdr-types
+                    (xdr-text "struct list_of_ints {"
+                              "  int x; list_of_ints *next;"
+                              "};"))))
+              (valid-xdr-types? types
+                                `(("list_of_ints"
+                                   (1 (TRUE  . (2 (TRUE  . (3 (FALSE . ,%void))))))
+                                   (1 (TRUE  . (2 (FALSE . ,%void))))
+                                   (1 (FALSE . ,%void)))))))
 
 (test-end "xdr-compiler")
 

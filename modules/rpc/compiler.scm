@@ -114,6 +114,14 @@
 ;;; Compilation.
 ;;;
 
+(define %self-reference
+  (cons 'self 'reference))
+
+(define (self-reference? x)
+  ;; Return true if X denotes a reference to type being defined, a so-called
+  ;; "self-reference".
+  (eq? x %self-reference))
+
 
 (define (make-rpc-language-translator initial-context
 
@@ -164,9 +172,14 @@
       (match expr
         ((? string?)
          (let ((def (lookup-type expr c)))
-           (if (not def)
-               (unbound-type expr location)
-               (make-type-ref def))))
+           (cond ((not def)
+                  (unbound-type expr location))
+                 ((self-reference? def)
+                  ;; Leave self-references as is.  It's up to the back-end to
+                  ;; resolve them.
+                  def)
+                 (else
+                  (make-type-ref def)))))
 
         (('enum values ..1)
          (let ((values (cdr expr)))
@@ -219,6 +232,7 @@
                                         case-list)))
 
            (make-union (let ((discr-type (lookup-type type-name c)))
+                         ;; FIXME: Should use `type-ref'
                          (if discr-type
                              (make-type-ref discr-type)
                              (unbound-type type-name
@@ -234,6 +248,7 @@
 
         (('fixed-length-array (and (? string?) type-name)
                               (and (or (? number?) (? string?)) length))
+         ;; FIXME: Should be using `type-ref' instead
          (let ((type   (lookup-type type-name c))
                (length (and length (constant-value length c
                                                    (sexp-location expr)))))
@@ -244,6 +259,7 @@
         (('variable-length-array (and (? string?) type-name)
                                  (and (or (? number?) (? string?) (? not))
                                       max-length))
+         ;; FIXME: Should be using `type-ref' instead
          (let ((type       (lookup-type type-name c))
                (max-length (and max-length
                                 (constant-value max-length c
@@ -314,7 +330,10 @@
                  (let ((name (cadr expr))
                        (spec (caddr expr)))
                    (cons-type name
-                              (make-type-definition name spec c
+                              (make-type-definition name spec
+                                                    (cons-type name
+                                                               %self-reference
+                                                               c)
                                                     (sexp-location expr))
                               c)))
                 ((define-program)
@@ -360,8 +379,20 @@ form, e.g., one with dashed instead of underscores, etc."
      ,value))
 
 (define (type-definition-code name typespec)
-  `(define ,(type-name->symbol name)
-     ,typespec))
+  (define type-name
+    (type-name->symbol name))
+
+  (define (resolve-self-references tree)
+    ;; Turn self-references to NAME into a thunk that returns NAME.
+    (let loop ((tree tree))
+      (cond ((list? tree)
+             (map loop tree))
+            ((self-reference? tree)
+             `(lambda () ,type-name))
+            (else tree))))
+
+  `(define ,type-name
+     ,(resolve-self-references typespec)))
 
 (define (type-ref-code def)
   (define definition-name cadr)
@@ -539,22 +570,37 @@ form, e.g., one with dashed instead of underscores, etc."
 ;;; Run-time type generation back-end.
 ;;;
 
+(define (resolve-type type self)
+  ;; Resolve type, i.e., replacing self-references with SELF or invoking it
+  ;; with SELF.
+  (cond ((self-reference? type)
+         self)
+        ((procedure? type)
+         (type self))
+        (else
+         type)))
+
 (define (->schemey-enum-alist values)
   (map (lambda (n+v)
          (cons (enum-value-name->symbol (car n+v))
                (cdr n+v)))
        values))
 
-(define (->schemey-union-values-alist values)
+(define (->schemey-union-values-alist values self)
   (map (lambda (v+t)
          (let ((value (car v+t)))
            (cons (if (number? value)
                      value
                      (enum-value-name->symbol value))
-                 (cdr v+t))))
+                 (resolve-type (cdr v+t) self))))
        values))
 
 (define rpc-language->xdr-types
+  ;; To handle recursive types, the strategy here is to represent types using
+  ;; one-argument procedures that are to be invoked at type-definition time
+  ;; and passed a "self-referencing thunk".  A self-referencing thunk is a
+  ;; nullary procedure that, when applied, returns a reference to the type
+  ;; being defined.
   (let* ((initial-context
           ;; The initial compilation context.
           (make-context
@@ -575,31 +621,55 @@ form, e.g., one with dashed instead of underscores, etc."
                         (lookup-type name initial-context)))
 
          (constant-definition   (lambda (name value) value))
-         (type-definition       (lambda (name spec) spec))
+         (type-definition       (lambda (name spec)
+                                  ;; Pass SPEC a thunk that returns a
+                                  ;; reference to the type being defined.
+                                  ;; This thunk is then propagated as the
+                                  ;; SELF argument to all type instantiating
+                                  ;; procedures below.
+                                  (letrec ((type (if (procedure? spec)
+                                                     (spec (lambda () type))
+                                                     spec)))
+                                    type)))
          (type-ref              (lambda (spec) spec))
          (constant-ref          (lambda (value) value))
          (enum                  (lambda (name values)
                                   (let ((name   (type-name->symbol name))
                                         (values (->schemey-enum-alist values)))
-                                    (make-xdr-enumeration name values))))
-         (struct                make-xdr-struct-type)
+                                    (lambda (self)
+                                      (make-xdr-enumeration name values)))))
+         (struct                (lambda (types)
+                                  (lambda (self)
+                                    (make-xdr-struct-type
+                                     (map (lambda (type)
+                                            (resolve-type type self))
+                                          types)))))
          (union                 (lambda (discr values default)
-                                  (let ((values (->schemey-union-values-alist
-                                                 values)))
-                                    (make-xdr-union-type discr values
-                                                         default))))
-         (string                make-xdr-string)
+                                  (lambda (self)
+                                    (let ((values (->schemey-union-values-alist
+                                                   values self)))
+                                      (make-xdr-union-type
+                                       (resolve-type discr self)
+                                       values
+                                       (and default (resolve-type default self)))))))
+         (string                (lambda (max-length)
+                                  (lambda (self)
+                                    (make-xdr-string max-length))))
          (fixed-length-array    (lambda (type length)
-                                  (if (eq? type 'opaque)
-                                      (make-xdr-fixed-length-opaque-array
-                                       length)
-                                      (make-xdr-struct-type
-                                       (make-list length type)))))
+                                  (lambda (self)
+                                    (let ((type (resolve-type type self)))
+                                      (if (eq? type 'opaque)
+                                          (make-xdr-fixed-length-opaque-array
+                                           length)
+                                          (make-xdr-struct-type
+                                           (make-list length type)))))))
          (variable-length-array (lambda (type limit)
-                                  (if (eq? type 'opaque)
-                                      (make-xdr-variable-length-opaque-array
-                                       limit)
-                                      (make-xdr-vector-type type limit))))
+                                  (lambda (self)
+                                    (let ((type (resolve-type type self)))
+                                      (if (eq? type 'opaque)
+                                          (make-xdr-variable-length-opaque-array
+                                           limit)
+                                          (make-xdr-vector-type type limit))))))
 
          (translator
           (make-rpc-language-translator initial-context
