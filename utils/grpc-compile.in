@@ -71,7 +71,7 @@ exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -l "$0"    \
   (format #t "  -c, --client   Compile client RPC stubs.~%")
   (format #t "  -s, --server   Compile server RPC stubs.~%~%")
   (format #t "  -S, --strict   Use strict XDR compliance (RFC 4506).  The main~%")
-  (display   "                 differences are: `char' type not recognized, `%'")
+  (format #t "                 differences are: `char' type not recognized, `%'~%")
   (format #t "                 comments not permitted, `unsigned' type not recognized.~%")
   (format #t "~%")
   (format #t "It is customary to use C preprocessor directives in XDR/RPC specifications.~%")
