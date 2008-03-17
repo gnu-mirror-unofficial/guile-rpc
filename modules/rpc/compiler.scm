@@ -202,7 +202,7 @@
            (make-struct types)))
 
         (('union ('case ((and (? string?) discriminant)
-                         (and (? string?) type-name))
+                         discriminant-type)
                    case-list ...))
          (let* ((type-ref*  (lambda (arm)
                               ;; Arm types can be either `"void"' or
@@ -231,12 +231,9 @@
                                                     case-spec))))
                                         case-list)))
 
-           (make-union (let ((discr-type (lookup-type type-name c)))
-                         ;; FIXME: Should use `type-ref'
-                         (if discr-type
-                             (make-type-ref discr-type)
-                             (unbound-type type-name
-                                           (sexp-location (cadr (cdr expr))))))
+           (make-union (type-ref discriminant-type c #f
+                                 (or (sexp-location discriminant-type)
+                                     (sexp-location (cadr (cadr expr)))))
                        value/type
                        (and default (type-ref* default)))))
 
@@ -246,27 +243,26 @@
                                                 (sexp-location expr)))))
            (make-string max-length)))
 
-        (('fixed-length-array (and (? string?) type-name)
+        (('fixed-length-array typespec
                               (and (or (? number?) (? string?)) length))
-         ;; FIXME: Should be using `type-ref' instead
-         (let ((type   (lookup-type type-name c))
+         (let ((type   (type-ref typespec c #f
+                                 (or (sexp-location typespec)
+                                     (sexp-location expr))))
                (length (and length (constant-value length c
                                                    (sexp-location expr)))))
-           (if type
-               (make-fixed-length-array (make-type-ref type) length)
-               (unbound-type type-name (sexp-location expr)))))
+           (make-fixed-length-array type length)))
 
-        (('variable-length-array (and (? string?) type-name)
+        (('variable-length-array typespec
                                  (and (or (? number?) (? string?) (? not))
                                       max-length))
-         ;; FIXME: Should be using `type-ref' instead
-         (let ((type       (lookup-type type-name c))
+         (let ((type       (type-ref typespec c #f
+                                     (or (sexp-location typespec)
+                                         (sexp-location expr))))
                (max-length (and max-length
                                 (constant-value max-length c
                                                 (sexp-location expr)))))
-           (if type
-               (make-variable-length-array (make-type-ref type) max-length)
-               (unbound-type type-name (sexp-location expr)))))
+           (make-variable-length-array type max-length)))
+
 
         (else
          (error "unsupported type form" expr))))

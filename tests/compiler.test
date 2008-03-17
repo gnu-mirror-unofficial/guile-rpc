@@ -72,6 +72,21 @@
                                 (cdr values)))))
                types)))
 
+(define (matches? pattern sexp)
+  ;; Return true if SEXP matches PATTERN.  PATTERN is a regular S-exp, with
+  ;; `_' as the match-all thing.
+  (let loop ((pattern pattern)
+             (sexp    sexp))
+    (cond ((eq? pattern '_) #t)
+          ((list? pattern)
+           (and (list? sexp)
+                (or (and (pair? pattern) (pair? sexp)
+                         (loop (car pattern) (car sexp))
+                         (loop (cdr pattern) (cdr sexp)))
+                    (and (null? pattern) (null? sexp)))))
+          (else
+           (equal? pattern sexp)))))
+
 
 ;;;
 ;;; Compiler.
@@ -132,6 +147,54 @@
                        "  case two:            void;"
                        "  default:             the_enum chbouib;"
                        "};")))
+
+(test-eq    "union with anonymous types"
+            #t
+
+            (matches?
+             '((define foo
+                 (make-xdr-union-type
+                  (make-xdr-enumeration _ `((a . 0) (b . 1)))
+                  `((a . ,(make-xdr-struct-type (list xdr-integer
+                                                      xdr-double))))
+                  xdr-integer)))
+
+             (rpc-language->scheme-client
+              (xdr-text "union foo"
+                        "  switch (enum { a = 0, b = 1 } d) {"
+                        "    case a:  struct { int x; double y; } chbouib;"
+                        "    default: int bar;"
+                        "  };"))))
+
+(test-eq    "arrays of anonymous types"
+            #t
+
+            (matches?
+             '((define foo
+                 (make-xdr-struct-type
+                  (make-list 10
+                             (make-xdr-struct-type
+                              (list (make-xdr-struct-type (list xdr-integer
+                                                                xdr-double))
+                                    xdr-double)))))
+               (define bar
+                 (make-xdr-vector-type
+                  (make-xdr-union-type xdr-integer
+                                       `((0 . ,xdr-boolean))
+                                       (make-xdr-struct-type
+                                        (make-list 10
+                                                   (make-xdr-enumeration
+                                                    _ `((a . 0))))))
+                  #f)))
+
+             (rpc-language->scheme-client
+              (xdr-text "typedef struct {"
+                        "  struct { int x; double y; } x; double y;"
+                        "} foo[10];"
+                        "typedef union switch (int d) {"
+                        "  case 0:  bool b;"
+                        "  default: enum { a = 0 } a[10];"
+                        "} bar<>;"))))
 
 (test-equal "optional data unions"
             '((define the-union
