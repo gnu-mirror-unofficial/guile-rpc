@@ -313,20 +313,16 @@
                                                . ,(lambda () list-of-ints))
                                               (FALSE . ,xdr-void))
                                             #f))))
-              ;; FIXME: There's a pending bug with structs that needs to be
-              ;; resolved first.
-;;               (define another-list
-;;                 (make-xdr-struct-type
-;;                  (list xdr-integer
-;;                        (make-xdr-vector-type (lambda () another-list) 1))))
-              )
+              (define another-list
+                (make-xdr-struct-type
+                 (list xdr-integer
+                       (make-xdr-vector-type (lambda () another-list) 1)))))
 
             (rpc-language->scheme-client
              (xdr-text "struct list_of_ints { int x; list_of_ints *next; };"
-;;                        "struct another_list {"
-;;                        "  int x; another_list next<1>;"
-;;                        "};"
-                       )
+                       "struct another_list {"
+                       "  int x; another_list next<1>;"
+                       "};")
              #t #t))
 
 (test-equal "client RPC programs"
@@ -436,12 +432,19 @@
                    (rpc-language->xdr-types
                     (xdr-text "struct list_of_ints {"
                               "  int x; list_of_ints *next;"
+                              "};"
+                              "struct another_list {"
+                              "  int x; another_list next<1>;"
                               "};"))))
               (valid-xdr-types? types
                                 `(("list_of_ints"
                                    (1 (TRUE  . (2 (TRUE  . (3 (FALSE . ,%void))))))
                                    (1 (TRUE  . (2 (FALSE . ,%void))))
-                                   (1 (FALSE . ,%void)))))))
+                                   (1 (FALSE . ,%void)))
+                                  ("another_list"
+                                   (1 #((2 #((3 #())))))
+                                   (1 #((2 #())))
+                                   (1 #()))))))
 
 (test-end "xdr-compiler")
 
