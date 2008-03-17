@@ -51,6 +51,9 @@ exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -l "$0"    \
         (option '(#\x "xdr") #f #f
                 (lambda (opt name arg result)
                   (cons 'xdr result)))
+        (option '(#\C "constants") #f #f
+                (lambda (opt name arg result)
+                  (cons 'constants result)))
         (option '(#\c "client") #f #f
                 (lambda (opt name arg result)
                   (cons 'client result)))
@@ -67,7 +70,9 @@ exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -l "$0"    \
   (format #t "corresponding Scheme definitions on the standard output.~%~%")
   (format #t "  --help         Show this help message~%")
   (format #t "  --version      Show program version~%~%")
-  (format #t "  -x, --xdr      Compile XDR type and constant definitions.~%")
+  (format #t "  -x, --xdr      Compile XDR type definitions.~%")
+  (format #t "  -C, --constants~%")
+  (format #t "                 Compile XDR constant definitions.~%")
   (format #t "  -c, --client   Compile client RPC stubs.~%")
   (format #t "  -s, --server   Compile server RPC stubs.~%~%")
   (format #t "  -S, --strict   Use strict XDR compliance (RFC 4506).  The main~%")
@@ -151,6 +156,8 @@ There is NO WARRANTY, to the extent permitted by law.~%")
                               result)
                             '()))
          (strict? (memq 'strict opts))
+         (xdr?    (memq 'xdr opts))
+         (consts? (memq 'constants opts))
          (input   `(,@(if strict?
                           '()
                           ;; RFC 4506 (and its predecessor RFC 1832) do *not*
@@ -174,22 +181,20 @@ There is NO WARRANTY, to the extent permitted by law.~%")
                 (or (eq? (car exp) 'define-constant)
                     (eq? (car exp) 'define-type)))
               input))
-    (define programs
-      input)
 
     (with-error-catch
      (lambda ()
-       (for-each (lambda (opt input)
-                   ;; FIXME: `--server' and `--client' should emit only stubs,
-                   ;; not XDR type definitions.
-                   (let ((->scheme (if (eq? opt 'server)
-                                       rpc-language->scheme-server
-                                       rpc-language->scheme-client)))
-                     (if (memq opt opts)
-                         (for-each (lambda (def)
-                                     (pretty-print def))
-                                   (->scheme input)))))
-                 '(xdr client server)
-                 (list consts+types programs programs))))
+       (and consts?
+            (for-each pretty-print
+                      (rpc-language->scheme-client consts+types #f #t)))
+       (and xdr?
+            (for-each pretty-print
+                      (rpc-language->scheme-client consts+types #t #f)))
 
+       (and (memq 'client opts)
+            (for-each pretty-print
+                      (rpc-language->scheme-client input #f #f)))
+       (and (memq 'server opts)
+            (for-each pretty-print
+                      (rpc-language->scheme-server input #f #f)))))
     #t))

@@ -112,7 +112,8 @@
              (xdr-text "const the_constant = 2;"
                        "struct the_struct { int x; float y; };"
                        "typedef enum { one = 1, two = the_constant } "
-                       "        the_enum;")))
+                       "        the_enum;")
+             #t #t))
 
 (test-equal "unions"
             '((define foo
@@ -146,7 +147,8 @@
                        "  case zero: case one: foo      the_foo;"
                        "  case two:            void;"
                        "  default:             the_enum chbouib;"
-                       "};")))
+                       "};")
+             #t #t))
 
 (test-eq    "union with anonymous types"
             #t
@@ -164,7 +166,8 @@
                         "  switch (enum { a = 0, b = 1 } d) {"
                         "    case a:  struct { int x; double y; } chbouib;"
                         "    default: int bar;"
-                        "  };"))))
+                        "  };")
+              #t #t)))
 
 (test-eq    "arrays of anonymous types"
             #t
@@ -194,7 +197,8 @@
                         "typedef union switch (int d) {"
                         "  case 0:  bool b;"
                         "  default: enum { a = 0 } a[10];"
-                        "} bar<>;"))))
+                        "} bar<>;")
+              #t #t)))
 
 (test-equal "optional data unions"
             '((define the-union
@@ -204,7 +208,8 @@
                                      #f)))
 
             (rpc-language->scheme-client
-             (xdr-text "typedef int *the_union;")))
+             (xdr-text "typedef int *the_union;")
+             #t #t))
 
 (test-equal "fixed-length arrays"
             '((define the-array
@@ -214,7 +219,8 @@
 
             (rpc-language->scheme-client
              (xdr-text "typedef int the_array[10];"
-                       "typedef opaque the_opaque_array[010];")))
+                       "typedef opaque the_opaque_array[010];")
+             #t #t))
 
 (test-equal "variable-length arrays"
             '((define the-array
@@ -224,7 +230,8 @@
 
             (rpc-language->scheme-client
              (xdr-text "typedef float the_array<10>;"
-                       "typedef opaque the_opaque_array<>;")))
+                       "typedef opaque the_opaque_array<>;")
+             #t #t))
 
 (test-equal "constant as array size"
             '((define LEN 10)
@@ -236,7 +243,8 @@
              (xdr-text "const LEN = 10;"
                        "typedef string foo<LEN>;"
                        "typedef int bar<LEN>;"
-                       "typedef double chbouib[LEN];")))
+                       "typedef double chbouib[LEN];")
+             #t #t))
 
 (test-equal "struct with array and string members"
             '((define MAX 10)
@@ -249,7 +257,8 @@
             (rpc-language->scheme-client
              (xdr-text "const MAX = 10;"
                        "struct s { string foo<MAX>; opaque bar[9];"
-                       "           int chbouib<8>; };")))
+                       "           int chbouib<8>; };")
+             #t #t))
 
 (test-equal "unknown type"
             '(1 13 "foo")
@@ -260,7 +269,8 @@
                          (list (location-line loc) (location-column loc)
                                name))))
                (rpc-language->scheme-client
-                (xdr-text "typedef foo bar;"))
+                (xdr-text "typedef foo bar;")
+                #t #t)
                #f))
 
 (test-equal "unknown constant"
@@ -274,7 +284,8 @@
                          (list (location-line loc) (location-column loc)
                                name))))
               (rpc-language->scheme-client
-               (xdr-text "typedef opaque chbouib<MAX>;"))))
+               (xdr-text "typedef opaque chbouib<MAX>;")
+               #t #t)))
 
 (test-equal "union with struct and array members"
             '((define u
@@ -290,7 +301,8 @@
              (xdr-text "union u switch (bool b) {"
                        "  case TRUE: struct { int x; double y; } foo;"
                        "  case FALSE: int bar<10>;"
-                       "};")))
+                       "};")
+             #t #t))
 
 (test-equal "recursive types"
             '((define list-of-ints
@@ -314,7 +326,8 @@
 ;;                        "struct another_list {"
 ;;                        "  int x; another_list next<1>;"
 ;;                        "};"
-                       )))
+                       )
+             #t #t))
 
 (test-equal "client RPC programs"
             '((define foo-t xdr-integer)
@@ -339,7 +352,8 @@
                        "    bool greetings_world (foo_t,"
                        "                          struct { int x; int y;}) = 1;"
                        "  } = 0;"
-                       "} = 77;")))
+                       "} = 77;")
+             #t #t))
 
 
 ;;;

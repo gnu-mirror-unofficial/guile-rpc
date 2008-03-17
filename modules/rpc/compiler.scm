@@ -539,18 +539,27 @@ form, e.g., one with dashed instead of underscores, etc."
                                         rpc-version-code
                                         rpc-procedure-code)))
 
-    (lambda (input)
+    ;; Program specifications may need to see type and constant definitions.
+    ;; Thus, we can't just expect the caller to filter out all
+    ;; `define-constant' and `define-type' from the input, hence the
+    ;; TYPE-DEFS? and CONSTANT-DEFS? booleans, which determine whether to
+    ;; include resp. type and constant definitions in the output.
+    (lambda (input type-defs? constant-defs?)
       (let ((output (translator input)))
         (and (context? output)
 
              ;; Output constant definitions first, then type definitions, the
              ;; program/procedure definitions.
-             (append (reverse (map cdr (context-constants output)))
-                     (reverse (filter-map (lambda (name+def)
-                                            (let ((name (car name+def)))
-                                              (and (not (known-type? name))
-                                                   (cdr name+def))))
-                                          (context-types output)))
+             (append (if constant-defs?
+                         (reverse (map cdr (context-constants output)))
+                         '())
+                     (if type-defs?
+                         (reverse (filter-map (lambda (name+def)
+                                                (let ((name (car name+def)))
+                                                  (and (not (known-type? name))
+                                                       (cdr name+def))))
+                                              (context-types output)))
+                         '())
                      (reverse (concatenate
                                (map cdr (context-programs output))))))))))
 
