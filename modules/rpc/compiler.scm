@@ -466,34 +466,67 @@ form, e.g., one with dashed instead of underscores, etc."
               (reverse versions)))
 
 (define (rpc-program-code/server program-name program-number versions)
-  ;; Return server-side Scheme code for the given program.  FIXME: We need to
-  ;; find a convention allowing the user to specify "handlers".
-  (let ((program-name
-         (schemify-name (string-append program-name "-program"))))
+  ;; Return server-side Scheme code for the given program.  An example
+  ;; invocation of the function that's produced looks like this:
+  ;;
+  ;;   (make-NFS-PROGRAM-server
+  ;;     `(("NFS_VERSION"
+  ;;        ("NFSPROC_PROCNULL" . ,stub)
+  ;;        ("NFSPROC_LOOKUP"   . ,stub))))
+  ;;
+  ;; IOW, callers pass a list of version/procedures pair, where versions are
+  ;; identified by their name; procedures are specified as a list of
+  ;; name/handler pairs, where the name is the procedure's name.  Version and
+  ;; procedure name lookup is performed beforehand, at instantiation time.
+  (let ((make-program-name
+         (schemify-name (string-append "make-" program-name "-server"))))
 
-    (define (make-proc-code proc)
-      (let ((number    (cadr proc))
-            (ret-type  (caddr proc))
-            (arg-types (cadddr proc)))
-        `(make-rpc-procedure ,number
-                             ,ret-type
-                             ,(cond ((null? arg-types)
-                                     'xdr-void)
-                                    ((null? (cdr arg-types))
-                                     (car arg-types))
-                                    (else
-                                     `(make-xdr-struct-type
-                                       (list ,@arg-types))))
-                             FIXME:need-a-way-to-specify-handler)))
+    (define proc-code
+      `(let ((version-procs (cddr version)))
+         (filter-map (lambda (user-proc)
+                       (let* ((name    (car user-proc))
+                              (handler (cdr user-proc))
+                              (proc    (assoc name version-procs)))
+                         (and proc
+                              (let ((number    (car (cdr proc)))
+                                    (ret-type  (cadr (cdr proc)))
+                                    (arg-types (caddr (cdr proc))))
+                                (make-rpc-procedure number ret-type
+                                                    arg-types handler)))))
+                     user-procs)))
 
-    `(define ,program-name
+    `((define (,make-program-name versions+procs)
+        (define %program-versions
+          ,(list 'quasiquote
+                 (map (lambda (version+procs)
+                        (let ((name   (car version+procs))
+                              (number (cadr version+procs))
+                              (procs  (caddr version+procs)))
+                          `(,name ,number
+                                  ,@(map (lambda (proc)
+                                           (let ((name   (car proc))
+                                                 (number (cadr proc))
+                                                 (ret    (caddr proc))
+                                                 (args   (cadddr proc)))
+                                             `(,name ,number
+                                                     ,(list 'unquote ret)
+                                                     ,(map (lambda (arg)
+                                                             (list 'unquote arg))
+                                                           args))))
+                                         procs))))
+                      versions)))
+
        (make-rpc-program ,program-number
-          (list ,@(map (lambda (version)
-                         (let ((version-number (cadr version))
-                               (procs          (caddr version)))
-                           `(make-rpc-program-version ,version-number
-                              (list ,@(map make-proc-code procs)))))
-                       versions))))))
+          (filter-map (lambda (version+procs)
+                        (let* ((name    (car version+procs))
+                               (version (assoc name %program-versions)))
+                          (and version
+                               (let ((number     (car (cdr version)))
+                                     (user-procs (cdr version+procs)))
+                                 (make-rpc-program-version number
+                                                           ,proc-code)))))
+                      versions+procs))))))
+
 
 (define (rpc-version-code . args)
   args)
