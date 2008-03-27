@@ -20,7 +20,6 @@
   :autoload    (rpc compiler lexer) (lexer-init)
   :use-module  (text parse-lalr)
   :use-module  (srfi srfi-1)
-  :use-module  (srfi srfi-9)
   :use-module  (srfi srfi-34)
   :use-module  (srfi srfi-35)
   :use-module  (srfi srfi-39)
@@ -239,13 +238,23 @@
                    (identifier) : (car $1)
 
                    ;; non-standard extensions
+
                    (unsigned) :
                      ;; Sun's `rpcgen' recognizes "unsigned" as "unsigned int".
                      (if (memq 'allow-unsigned (*parser-options*))
                          "unsigned int"
                          (raise (condition (&parser-error
                                             (location (export-location (car $1)))
-                                            (token    'unsigned))))))
+                                            (token    'unsigned)))))
+                   (struct identifier) :
+                     ;; Sun's `rpcgen' allows referring to struct types using
+                     ;; "struct T" instead of just "T".
+                     (if (memq 'allow-struct-type-specifier
+                               (*parser-options*))
+                         (car $2)
+                         (raise (condition (&parser-error
+                                            (location (export-location (car $1)))
+                                            (token    'struct))))))
 
    ;; Enums
 

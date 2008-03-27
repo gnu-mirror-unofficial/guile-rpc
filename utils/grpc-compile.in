@@ -140,7 +140,7 @@ There is NO WARRANTY, to the extent permitted by law.~%")
 (define (compile . args)
   (define %non-strict-parser-options
     ;; Parser options when in non-strict mode.
-    '(allow-unsigned))
+    '(allow-unsigned allow-struct-type-specifier))
 
   (let* ((opts   (args-fold (cdr args) %options
                             (lambda (opt name args result)

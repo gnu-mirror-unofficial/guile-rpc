@@ -263,7 +263,7 @@
                        "  } = 1;"
                        "} = 20;")))
 
-(test-equal "Sun extensions"
+(test-equal "Sun extension for `unsigned' type-specifier"
             '((define-type "foo" "unsigned int")
               (define-type "array"
                 (fixed-length-array "unsigned int" 10))
@@ -282,6 +282,17 @@
                          "    unsigned proc (unsigned, int) = 0;"
                          "  } = 0;"
                          "} = 0;"))))
+
+(test-equal "Sun extension for struct type-specifier"
+            '((define-type "foo"
+                (struct ("x" "int")
+                        ("y" "double")))
+              (define-type "bar" "foo"))
+
+            (parameterize ((*parser-options* '(allow-struct-type-specifier)))
+              (rpc-language->sexp
+               (xdr-text "struct foo { int x; double y; };"
+                         "typedef struct foo bar;"))))
 
 (test-equal "location information on type definitions"
             '(#(#f #f)
@@ -349,6 +360,28 @@
               (rpc-language->sexp
                (xdr-text "const chbouib;"))
               #f))
+
+(test-equal "`unsigned' type-specifier not recognized by default"
+            '(1 9 unsigned)
+
+            (guard (c ((parser-error? c)
+                       (let ((loc   (compiler-error:location c))
+                             (token (parser-error:token c)))
+                         (list (location-line loc) (location-column loc)
+                               token))))
+              (rpc-language->sexp
+               (xdr-text "typedef unsigned foo;"))))
+
+(test-equal "struct type-specifier not recognized by default"
+            '(1 9 struct)
+
+            (guard (c ((parser-error? c)
+                       (let ((loc   (compiler-error:location c))
+                             (token (parser-error:token c)))
+                         (list (location-line loc) (location-column loc)
+                               token))))
+              (rpc-language->sexp
+               (xdr-text "typedef struct foo *bar;"))))
 
 (test-end "xdr-parser")
 
