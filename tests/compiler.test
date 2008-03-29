@@ -20,7 +20,8 @@
 
 (define-module (tests compiler)
   :use-module (rpc compiler)
-  :use-module ((rpc compiler parser) (location-line location-column))
+  :use-module ((rpc compiler parser) (*parser-options*
+                                      location-line location-column))
 
   :use-module (rpc xdr types)
   :use-module (rpc xdr)
@@ -31,6 +32,7 @@
   :use-module (srfi srfi-1)
   :use-module (srfi srfi-13)
   :use-module (srfi srfi-34)
+  :use-module (srfi srfi-39)
   :use-module (srfi srfi-64))
 
 
@@ -324,6 +326,37 @@
                        "  int x; another_list next<1>;"
                        "};")
              #t #t))
+
+(test-equal "forward type refs not supported by default"
+            '(1 20 "foo")
+
+            (guard (c ((compiler-unknown-type-error? c)
+                       (let ((name (compiler-unknown-type-error:type-name c))
+                             (loc  (compiler-error:location c)))
+                         (list (location-line loc) (location-column loc)
+                               name))))
+               (parameterize ((*parser-options* '(allow-struct-type-specifier)))
+                 (rpc-language->scheme-client
+                  (xdr-text "typedef struct foo *bar;"
+                            "struct foo { int x; double y; };")
+                  #t #t))))
+
+(test-equal "Sun extension for forward type refs"
+            '((define foo
+                (make-xdr-struct-type (list xdr-integer xdr-double)))
+              (define bar
+                (make-xdr-union-type xdr-boolean
+                                     `((TRUE  . ,foo)
+                                       (FALSE . ,xdr-void))
+                                     #f)))
+
+            (parameterize ((*parser-options* '(allow-struct-type-specifier))
+                           (*compiler-options*
+                            '(allow-forward-type-references)))
+              (rpc-language->scheme-client
+               (xdr-text "typedef struct foo *bar;"
+                         "struct foo { int x; double y; };")
+               #t #t)))
 
 (test-equal "client RPC programs"
             '((define foo-t xdr-integer)

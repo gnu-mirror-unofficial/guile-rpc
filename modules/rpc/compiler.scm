@@ -25,6 +25,7 @@
   :use-module  (srfi srfi-9)
   :use-module  (srfi srfi-34)
   :use-module  (srfi srfi-35)
+  :use-module  (srfi srfi-39)
 
   ;; Andrew K. Wright's pattern matching system.
   :use-module  (ice-9 match)
@@ -32,6 +33,8 @@
   :re-export   (&compiler-error compiler-error? compiler-error:location)
   :export (rpc-language->scheme-client rpc-language->scheme-server
            rpc-language->xdr-types
+
+           *compiler-options*
 
            &compiler-unknown-type-error &compiler-unknown-constant-error
            compiler-unknown-type-error? compiler-unknown-constant-error?
@@ -78,24 +81,59 @@
 ;;;
 
 (define-record-type <context>
-  (make-context types constants programs)
+  (make-context types fwdrefs constants programs)
   context?
   (types     context-types)
+  (fwdrefs   context-forward-type-refs)
   (constants context-constants)
   (programs  context-programs))
 
 (define (cons-constant name value context)
   (make-context (context-types context)
+                (context-forward-type-refs context)
                 (alist-cons name value (context-constants context))
                 (context-programs context)))
 
 (define (cons-type name value context)
-  (make-context (alist-cons name value (context-types context))
+  ;; Return a new context based on CONTEXT with the addition of type VALUE
+  ;; named NAME.  In addition, pending forward references to NAME are
+  ;; resolved and added to CONTEXT.
+  (let* ((refs (context-forward-type-refs context))
+         (fwd  (assoc name refs))
+         (ctx  (make-context (alist-cons name value (context-types context))
+                             (if (pair? fwd)
+                                 (alist-delete name refs string=?)
+                                 refs)
+                             (context-constants context)
+                             (context-programs context))))
+    (if (pair? fwd)
+        (fold (lambda (forward-ref ctx)
+                ;; Resolve the forward reference.  FORWARD-REF is a procedure
+                ;; that's passed the new context that includes the name it
+                ;; was referring to.
+                (forward-ref ctx))
+              ctx
+              (cdr fwd))
+        ctx)))
+
+(define (cons-forward-type-ref name proc context)
+  ;; Add to CONTEXT a forward type reference to NAME.  PROC will be invoked
+  ;; either when NAME is added through `cons-type' or when compilation is
+  ;; over and NAME was not defined.
+  (make-context (context-types context)
+                (let ((name+procs (assoc name
+                                         (context-forward-type-refs context))))
+                  (alist-cons name
+                              (if (pair? name+procs)
+                                  (cons proc (cdr name+procs))
+                                  (list proc))
+                              (context-forward-type-refs context)))
                 (context-constants context)
                 (context-programs context)))
 
 (define (cons-program name value context)
   (make-context (context-types context)
+                (context-forward-type-refs context)
                 (context-constants context)
                 (alist-cons name value (context-programs context))))
 
@@ -121,6 +159,11 @@
   ;; Return true if X denotes a reference to type being defined, a so-called
   ;; "self-reference".
   (eq? x %self-reference))
+
+(define *compiler-options*
+  ;; A list of symbols denoting options for the parser.  The empty list means
+  ;; strict RFC 4506 conformance.
+  (make-parameter '()))
 
 
 (define (make-rpc-language-translator initial-context
@@ -263,7 +306,6 @@
                                                 (sexp-location expr)))))
            (make-variable-length-array type max-length)))
 
-
         (else
          (error "unsupported type form" expr))))
 
@@ -313,34 +355,61 @@
                        (else
                         (error "invalid argument" input)))))
 
-      (fold (lambda (expr c)
-              (case (car expr)
-                ((define-constant)
-                 (let ((name  (cadr expr))
-                       (value (caddr expr)))
-                   (cons-constant (cadr expr)
-                                  (make-constant-definition
-                                   name value c)
-                                  c)))
-                ((define-type)
-                 (let ((name (cadr expr))
-                       (spec (caddr expr)))
-                   (cons-type name
-                              (make-type-definition name spec
-                                                    (cons-type name
-                                                               %self-reference
-                                                               c)
-                                                    (sexp-location expr))
-                              c)))
-                ((define-program)
-                 (let ((name (cadr expr)))
-                   (cons-program name
-                                 (make-program-definition expr c)
-                                 c)))
-                (else
-                 (error "unrecognized expression" expr))))
-            initial-context
-            input))))
+      (define (iterate context)
+        (fold (lambda (expr c)
+                (case (car expr)
+                  ((define-constant)
+                   (let ((name  (cadr expr))
+                         (value (caddr expr)))
+                     (cons-constant (cadr expr)
+                                    (make-constant-definition
+                                     name value c)
+                                    c)))
+                  ((define-type)
+                   (let ((name (cadr expr))
+                         (spec (caddr expr)))
+                     (define (make-new-context c)
+                       (cons-type name
+                                  (make-type-definition name spec
+                                                        (cons-type name
+                                                                   %self-reference
+                                                                   c)
+                                                        (sexp-location expr))
+                                  c))
+
+                     (if (memq 'allow-forward-type-references
+                               (*compiler-options*))
+                         ;; Catch any unbound type (perhaps a forward
+                         ;; reference) so we can try again later.
+                         (guard (e ((compiler-unknown-type-error? e)
+                                    (let ((name
+                                           (compiler-unknown-type-error:type-name
+                                            e)))
+                                      (cons-forward-type-ref name
+                                                             make-new-context
+                                                             c))))
+                           (make-new-context c))
+                         (make-new-context c))))
+                  ((define-program)
+                   (let ((name (cadr expr)))
+                     (cons-program name
+                                   (make-program-definition expr c)
+                                   c)))
+                  (else
+                   (error "unrecognized expression" expr))))
+              initial-context
+              input))
+
+      (let ((output (iterate initial-context)))
+        (if (not (null? (context-forward-type-refs output)))
+            (map (lambda (forward-ref)
+                   ;; This is an unresolved (forward) type reference.  We
+                   ;; invoke it with the context we got, which should raise an
+                   ;; `unbound-type' exception (so `map' is not really needed).
+                   (forward-ref output))
+                 (append-map cdr (context-forward-type-refs output))))
+
+        output))))
 
 
 ;;;
@@ -550,6 +619,7 @@ form, e.g., one with dashed instead of underscores, etc."
              ;; FIXME: We lack support for `quadruple'.
              )
            '()
+           '()
            '()))
          (known-type? (lambda (name)
                         (lookup-type name initial-context)))
@@ -653,6 +723,7 @@ form, e.g., one with dashed instead of underscores, etc."
              ("double"           . ,xdr-double)
              ;; FIXME: We lack support for `quadruple'.
              )
+           '()
            '()
            '()))
          (known-type? (lambda (name)

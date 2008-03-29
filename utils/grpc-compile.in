@@ -30,7 +30,8 @@ exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -l "$0"    \
 
 (define-module (guile-rpc compile)
   :autoload   (rpc compiler)         (rpc-language->scheme-server
-                                      rpc-language->scheme-client)
+                                      rpc-language->scheme-client
+                                      *compiler-options*)
   :autoload   (rpc compiler parser)  (rpc-language->sexp *parser-options*)
   :autoload   (rpc compiler lexer)   (*strip-%-comments?*)
   :autoload   (ice-9 pretty-print)   (pretty-print)
@@ -77,7 +78,9 @@ exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -l "$0"    \
   (format #t "  -s, --server   Compile server RPC stubs.~%~%")
   (format #t "  -S, --strict   Use strict XDR compliance (RFC 4506).  The main~%")
   (format #t "                 differences are: `char' type not recognized, `%'~%")
-  (format #t "                 comments not permitted, `unsigned' type not recognized.~%")
+  (format #t "                 comments not permitted, `unsigned' type not recognized,~%")
+  (format #t "                 `struct' no authorized in type specifiers, forward type~%")
+  (format #t "                 references not allowed.~%")
   (format #t "~%")
   (format #t "It is customary to use C preprocessor directives in XDR/RPC specifications.~%")
   (format #t "When that is the case, pipe the specification through \"cpp -P\" before~%")
@@ -142,6 +145,10 @@ There is NO WARRANTY, to the extent permitted by law.~%")
     ;; Parser options when in non-strict mode.
     '(allow-unsigned allow-struct-type-specifier))
 
+  (define %non-strict-compiler-options
+    ;; Compiler options when in non-strict mode.
+    '(allow-forward-type-references))
+
   (let* ((opts   (args-fold (cdr args) %options
                             (lambda (opt name args result)
                               (format (current-error-port)
@@ -173,7 +180,11 @@ There is NO WARRANTY, to the extent permitted by law.~%")
                                         (*parser-options*
                                          (if strict?
                                              '()
-                                             %non-strict-parser-options)))
+                                             %non-strict-parser-options))
+                                        (*compiler-options*
+                                         (if strict?
+                                             '()
+                                             %non-strict-compiler-options)))
                             (rpc-language->sexp (current-input-port))))))))
 
     (define consts+types
