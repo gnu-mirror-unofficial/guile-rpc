@@ -108,15 +108,16 @@
                              (context-programs context))))
     (if (pair? fwd)
         (fold (lambda (forward-ref ctx)
-                ;; Resolve the forward reference.  FORWARD-REF is a procedure
-                ;; that's passed the new context that includes the name it
-                ;; was referring to.
-                (forward-ref ctx))
+                ;; Resolve the forward reference.  FORWARD-REF is a
+                ;; name+procedure that's passed the new context that includes
+                ;; the name it was referring to.
+                (let ((proc (cdr forward-ref)))
+                  (proc ctx)))
               ctx
               (cdr fwd))
         ctx)))
 
-(define (cons-forward-type-ref name proc context)
+(define (cons-forward-type-ref name from proc context)
   ;; Add to CONTEXT a forward type reference to NAME.  PROC will be invoked
   ;; either when NAME is added through `cons-type' or when compilation is
   ;; over and NAME was not defined.
@@ -125,8 +126,8 @@
                                          (context-forward-type-refs context))))
                   (alist-cons name
                               (if (pair? name+procs)
-                                  (cons proc (cdr name+procs))
-                                  (list proc))
+                                  (cons (cons from proc) (cdr name+procs))
+                                  (list (cons from proc)))
                               (context-forward-type-refs context)))
                 (context-constants context)
                 (context-programs context)))
@@ -151,14 +152,6 @@
 ;;;
 ;;; Compilation.
 ;;;
-
-(define %self-reference
-  (cons 'self 'reference))
-
-(define (self-reference? x)
-  ;; Return true if X denotes a reference to type being defined, a so-called
-  ;; "self-reference".
-  (eq? x %self-reference))
 
 (define *compiler-options*
   ;; A list of symbols denoting options for the parser.  The empty list means
@@ -217,10 +210,6 @@
          (let ((def (lookup-type expr c)))
            (cond ((not def)
                   (unbound-type expr location))
-                 ((self-reference? def)
-                  ;; Leave self-references as is.  It's up to the back-end to
-                  ;; resolve them.
-                  def)
                  (else
                   (make-type-ref def)))))
 
@@ -309,10 +298,6 @@
         (else
          (error "unsupported type form" expr))))
 
-    (define (make-type-definition name expr c location)
-      ;; Process EXPR, a type definition for NAME.
-      (make-type-def name (type-ref expr c name location)))
-
     (define (make-program-definition expr c)
       ;; Process EXPR, an RPC program definition.
       (define (version-procs proc-defs)
@@ -369,23 +354,25 @@
                    (let ((name (cadr expr))
                          (spec (caddr expr)))
                      (define (make-new-context c)
-                       (cons-type name
-                                  (make-type-definition name spec
-                                                        (cons-type name
-                                                                   %self-reference
-                                                                   c)
-                                                        (sexp-location expr))
-                                  c))
+                       (letrec ((type
+                                 (type-ref spec
+                                           (cons-type name
+                                                      (make-type-def
+                                                       name
+                                                       (lambda () type))
+                                                      c)
+                                           name (sexp-location expr))))
+                         (cons-type name (make-type-def name type) c)))
 
                      (if (memq 'allow-forward-type-references
                                (*compiler-options*))
                          ;; Catch any unbound type (perhaps a forward
                          ;; reference) so we can try again later.
                          (guard (e ((compiler-unknown-type-error? e)
-                                    (let ((name
+                                    (let ((missing
                                            (compiler-unknown-type-error:type-name
                                             e)))
-                                      (cons-forward-type-ref name
+                                      (cons-forward-type-ref missing name
                                                              make-new-context
                                                              c))))
                            (make-new-context c))
@@ -405,8 +392,10 @@
             (map (lambda (forward-ref)
                    ;; This is an unresolved (forward) type reference.  We
                    ;; invoke it with the context we got, which should raise an
-                   ;; `unbound-type' exception (so `map' is not really needed).
-                   (forward-ref output))
+                   ;; `unbound-type' exception (so `map' is not really
+                   ;; needed).
+                   (let ((proc (cdr forward-ref)))
+                     (proc output)))
                  (append-map cdr (context-forward-type-refs output))))
 
         output))))
@@ -447,21 +436,19 @@ form, e.g., one with dashed instead of underscores, etc."
   (define type-name
     (type-name->symbol name))
 
-  (define (resolve-self-references tree)
-    ;; Turn self-references to NAME into a thunk that returns NAME.
-    (let loop ((tree tree))
-      (cond ((list? tree)
-             (map loop tree))
-            ((self-reference? tree)
-             `(lambda () ,type-name))
-            (else tree))))
-
   `(define ,type-name
-     ,(resolve-self-references typespec)))
+     ,typespec))
 
 (define (type-ref-code def)
+  ;; Return a reference to the type defined by DEF.  DEF is an sexp of the
+  ;; form `(define foo ...)'
   (define definition-name cadr)
-  (definition-name def))
+
+  (let ((def-body (caddr def)))
+    ;; If the definition body is a thunk, then it's a forward reference.
+    (if (procedure? def-body)
+        `(lambda () ,(definition-name def))
+        (definition-name def))))
 
 (define constant-ref-code type-ref-code)
 
@@ -678,37 +665,29 @@ form, e.g., one with dashed instead of underscores, etc."
 ;;; Run-time type generation back-end.
 ;;;
 
-(define (resolve-type type self)
-  ;; Resolve type, i.e., replacing self-references with SELF or invoking it
-  ;; with SELF.
-  (cond ((self-reference? type)
-         self)
-        ((procedure? type)
-         (type self))
-        (else
-         type)))
-
 (define (->schemey-enum-alist values)
   (map (lambda (n+v)
          (cons (enum-value-name->symbol (car n+v))
                (cdr n+v)))
        values))
 
-(define (->schemey-union-values-alist values self)
+(define (->schemey-union-values-alist values)
   (map (lambda (v+t)
          (let ((value (car v+t)))
            (cons (if (number? value)
                      value
                      (enum-value-name->symbol value))
-                 (resolve-type (cdr v+t) self))))
+                 (cdr v+t))))
        values))
 
 (define rpc-language->xdr-types
   ;; To handle recursive types, the strategy here is to represent types using
   ;; one-argument procedures that are to be invoked at type-definition time
-  ;; and passed a "self-referencing thunk".  A self-referencing thunk is a
-  ;; nullary procedure that, when applied, returns a reference to the type
-  ;; being defined.
+  ;; and passed a "recursive-reference thunk".  A recursive-reference thunk
+  ;; (named by analogy with `letrec') is a nullary procedure that, when
+  ;; applied, returns a circular reference, e.g., a reference to the type
+  ;; being defined or a reference to a type dependent on the type being
+  ;; defined.
   (let* ((initial-context
           ;; The initial compilation context.
           (make-context
@@ -730,55 +709,34 @@ form, e.g., one with dashed instead of underscores, etc."
                         (lookup-type name initial-context)))
 
          (constant-definition   (lambda (name value) value))
-         (type-definition       (lambda (name spec)
-                                  ;; Pass SPEC a thunk that returns a
-                                  ;; reference to the type being defined.
-                                  ;; This thunk is then propagated as the
-                                  ;; SELF argument to all type instantiating
-                                  ;; procedures below.
-                                  (letrec ((type (if (procedure? spec)
-                                                     (spec (lambda () type))
-                                                     spec)))
-                                    type)))
+         (type-definition       (lambda (name spec) spec))
          (type-ref              (lambda (spec) spec))
          (constant-ref          (lambda (value) value))
          (enum                  (lambda (name values)
                                   (let ((name   (type-name->symbol name))
                                         (values (->schemey-enum-alist values)))
-                                    (lambda (self)
-                                      (make-xdr-enumeration name values)))))
+                                    (make-xdr-enumeration name values))))
          (struct                (lambda (types)
-                                  (lambda (self)
-                                    (make-xdr-struct-type
-                                     (map (lambda (type)
-                                            (resolve-type type self))
-                                          types)))))
+                                  (make-xdr-struct-type types)))
          (union                 (lambda (discr values default)
-                                  (lambda (self)
-                                    (let ((values (->schemey-union-values-alist
-                                                   values self)))
-                                      (make-xdr-union-type
-                                       (resolve-type discr self)
-                                       values
-                                       (and default (resolve-type default self)))))))
+                                  (let ((values (->schemey-union-values-alist
+                                                 values)))
+                                    (make-xdr-union-type discr
+                                                         values
+                                                         default))))
          (string                (lambda (max-length)
-                                  (lambda (self)
-                                    (make-xdr-string max-length))))
+                                  (make-xdr-string max-length)))
          (fixed-length-array    (lambda (type length)
-                                  (lambda (self)
-                                    (let ((type (resolve-type type self)))
-                                      (if (eq? type 'opaque)
-                                          (make-xdr-fixed-length-opaque-array
-                                           length)
-                                          (make-xdr-struct-type
-                                           (make-list length type)))))))
+                                  (if (eq? type 'opaque)
+                                      (make-xdr-fixed-length-opaque-array
+                                       length)
+                                      (make-xdr-struct-type
+                                       (make-list length type)))))
          (variable-length-array (lambda (type limit)
-                                  (lambda (self)
-                                    (let ((type (resolve-type type self)))
-                                      (if (eq? type 'opaque)
-                                          (make-xdr-variable-length-opaque-array
-                                           limit)
-                                          (make-xdr-vector-type type limit))))))
+                                  (if (eq? type 'opaque)
+                                      (make-xdr-variable-length-opaque-array
+                                       limit)
+                                      (make-xdr-vector-type type limit))))
 
          (translator
           (make-rpc-language-translator initial-context
