@@ -511,8 +511,10 @@ by @code{make-xdr-struct-type} are immutable.
 
 The API addresses this problem by allowing @dfn{thunks} (zero-argument
 procedures) to be used as types.  Together with Scheme's @code{letrec}
-recursive binding construct (or a top-level @code{define}), it makes it
-possible to create such recursive types:
+recursive binding construct or a top-level @code{define} (@pxref{Binding
+constructs, @code{letrec},, r5rs, Revised@math{^5} Report on the
+Algorithmic Language Scheme}), it makes it possible to create such
+recursive types:
 
 @example
 (letrec ((integer-list
