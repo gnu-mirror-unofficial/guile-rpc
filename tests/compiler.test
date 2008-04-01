@@ -327,21 +327,7 @@
                        "};")
              #t #t))
 
-(test-equal "forward type refs not supported by default"
-            '(1 20 "foo")
-
-            (guard (c ((compiler-unknown-type-error? c)
-                       (let ((name (compiler-unknown-type-error:type-name c))
-                             (loc  (compiler-error:location c)))
-                         (list (location-line loc) (location-column loc)
-                               name))))
-               (parameterize ((*parser-options* '(allow-struct-type-specifier)))
-                 (rpc-language->scheme-client
-                  (xdr-text "typedef struct foo *bar;"
-                            "struct foo { int x; double y; };")
-                  #t #t))))
-
-(test-equal "Sun extension for forward type refs"
+(test-equal "forward type refs"
             '((define foo
                 (make-xdr-struct-type (list xdr-integer xdr-double)))
               (define bar
@@ -350,13 +336,10 @@
                                        (FALSE . ,xdr-void))
                                      #f)))
 
-            (parameterize ((*parser-options* '(allow-struct-type-specifier))
-                           (*compiler-options*
-                            '(allow-forward-type-references)))
-              (rpc-language->scheme-client
-               (xdr-text "typedef struct foo *bar;"
-                         "struct foo { int x; double y; };")
-               #t #t)))
+            (rpc-language->scheme-client
+             (xdr-text "typedef foo *bar;"
+                       "struct foo { int x; double y; };")
+             #t #t))
 
 (test-equal "client RPC programs"
             '((define foo-t xdr-integer)

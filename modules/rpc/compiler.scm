@@ -364,19 +364,16 @@
                                            name (sexp-location expr))))
                          (cons-type name (make-type-def name type) c)))
 
-                     (if (memq 'allow-forward-type-references
-                               (*compiler-options*))
-                         ;; Catch any unbound type (perhaps a forward
-                         ;; reference) so we can try again later.
-                         (guard (e ((compiler-unknown-type-error? e)
-                                    (let ((missing
-                                           (compiler-unknown-type-error:type-name
-                                            e)))
-                                      (cons-forward-type-ref missing name
-                                                             make-new-context
-                                                             c))))
-                           (make-new-context c))
-                         (make-new-context c))))
+                     ;; Catch any unbound type (perhaps a forward reference)
+                     ;; so we can try again later.
+                     (guard (e ((compiler-unknown-type-error? e)
+                                (let ((missing
+                                       (compiler-unknown-type-error:type-name
+                                        e)))
+                                  (cons-forward-type-ref missing name
+                                                         make-new-context
+                                                         c))))
+                       (make-new-context c))))
                   ((define-program)
                    (let ((name (cadr expr)))
                      (cons-program name

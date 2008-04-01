@@ -79,8 +79,7 @@ exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -l "$0"    \
   (format #t "  -S, --strict   Use strict XDR compliance (RFC 4506).  The main~%")
   (format #t "                 differences are: `char' type not recognized, `%'~%")
   (format #t "                 comments not permitted, `unsigned' type not recognized,~%")
-  (format #t "                 `struct' no authorized in type specifiers, forward type~%")
-  (format #t "                 references not allowed.~%")
+  (format #t "                 `struct' no authorized in type specifiers.~%")
   (format #t "~%")
   (format #t "It is customary to use C preprocessor directives in XDR/RPC specifications.~%")
   (format #t "When that is the case, pipe the specification through \"cpp -P\" before~%")
@@ -147,7 +146,7 @@ There is NO WARRANTY, to the extent permitted by law.~%")
 
   (define %non-strict-compiler-options
     ;; Compiler options when in non-strict mode.
-    '(allow-forward-type-references))
+    '())
 
   (let* ((opts   (args-fold (cdr args) %options
                             (lambda (opt name args result)
