@@ -96,31 +96,49 @@
 
 (define (cons-type name value context)
   ;; Return a new context based on CONTEXT with the addition of type VALUE
-  ;; named NAME.  In addition, pending forward references to NAME are
-  ;; resolved and added to CONTEXT.
+  ;; named NAME.
+  (make-context (alist-cons name value (context-types context))
+                (context-forward-type-refs context)
+                (context-constants context)
+                (context-programs context)))
+
+(define (resolve-forward-type-refs name make-type-def context)
+  ;; Return a context where pending forward references to NAME are resolved
+  ;; and added to CONTEXT.
   (let* ((refs (context-forward-type-refs context))
          (fwd  (assoc name refs))
-         (ctx  (make-context (alist-cons name value (context-types context))
+         (ctx  (make-context (context-types context)
                              (if (pair? fwd)
                                  (alist-delete name refs string=?)
                                  refs)
                              (context-constants context)
                              (context-programs context))))
     (if (pair? fwd)
-        (fold (lambda (forward-ref ctx)
-                ;; Resolve the forward reference.  FORWARD-REF is a
-                ;; name+procedure that's passed the new context that includes
-                ;; the name it was referring to.
-                (let ((proc (cdr forward-ref)))
-                  (proc ctx)))
+        (fold (lambda (name+proc ctx)
+                ;; Resolve the forward reference.
+                (let ((name (car name+proc))
+                      (proc (cdr name+proc)))
+                  (cons-type name (make-type-def name (proc ctx))
+                             ctx)))
               ctx
               (cdr fwd))
         ctx)))
 
 (define (cons-forward-type-ref name from proc context)
-  ;; Add to CONTEXT a forward type reference to NAME.  PROC will be invoked
-  ;; either when NAME is added through `cons-type' or when compilation is
-  ;; over and NAME was not defined.
+  ;; Add to CONTEXT a forward reference to type NAME, which is referred to by
+  ;; FROM.  PROC will be invoked and passed a context containing the
+  ;; definition of NAME when it is available; it should return a "type-ref",
+  ;; i.e., something returned by the back-end's `make-type-ref'.
+
+  ;; For `resolve-forward-type-refs' to be efficient, we store forward type
+  ;; refs in a double alist of the following form:
+  ;;
+  ;;   (("DEP1" . ("TYPE1" . <PROC>) ("TYPE2" . <PROC>))
+  ;;    ("DEP2" . ("TYPE3" . <PROC>) ("TYPE4" . <PROC>)))
+  ;;
+  ;; `DEP1' and `DEP2' are types depended on but not yet defined (the NAME
+  ;; argument); `TYPE1', etc., are types depending on the given type.  For
+  ;; instance, `TYPE1' and `TYPE2' both depends on `DEP1'.
   (make-context (context-types context)
                 (let ((name+procs (assoc name
                                          (context-forward-type-refs context))))
@@ -145,6 +163,13 @@
 
 (define (lookup-type name context)
   (let ((result (assoc name (context-types context))))
+    (and (pair? result)
+         (cdr result))))
+
+(define (lookup-forward-type-ref name context)
+  (let ((result (find (lambda (name+proc)
+                        (string=? (car name+proc) name))
+                      (append-map cdr (context-forward-type-refs context)))))
     (and (pair? result)
          (cdr result))))
 
@@ -298,6 +323,45 @@
         (else
          (error "unsupported type form" expr))))
 
+    (define (instantiate-forward-type-refs c)
+      ;; Instantiate forward type references left in C and return the new
+      ;; context, whose `fwdrefs' field is empty.  If all forward refs in C
+      ;; are mutually referenced (e.g., type A depends on B and B depends on
+      ;; A), then it will work, using thunks to denote recursive type
+      ;; references.  Otherwise, `unbound-type' exceptions will be raised.
+      ;;
+      ;; The trick here is to resolve each type in a (temporary) context
+      ;; where each of its dependencies is added as a partial definition,
+      ;; i.e., a `make-type-def' whose TYPE argument is a thunk that, when
+      ;; applied, returns the actual dependency.
+      (letrec
+          ((new-context
+            (fold (lambda (dep+refs c)
+                    (let ((dep-name (car dep+refs)))
+                      (fold (lambda (name+proc c)
+                              (let* ((name (car name+proc))
+                                     (proc (cdr name+proc))
+                                     (dep  (lookup-forward-type-ref dep-name c))
+
+                                     (dep-def (and dep
+                                                   (make-type-def
+                                                    dep-name
+                                                    (lambda ()
+                                                      (dep new-context)))))
+                                     (c*      (if dep
+                                                  (cons-type dep-name
+                                                             dep-def c)
+                                                  c))
+                                     (type    (proc c*)))
+                                  (cons-type name
+                                             (make-type-def name type)
+                                             c)))
+                            c
+                            (cdr dep+refs))))
+                  c
+                  (context-forward-type-refs c))))
+        new-context))
+
     (define (make-program-definition expr c)
       ;; Process EXPR, an RPC program definition.
       (define (version-procs proc-defs)
@@ -353,7 +417,9 @@
                   ((define-type)
                    (let ((name (cadr expr))
                          (spec (caddr expr)))
-                     (define (make-new-context c)
+                     (define (make-type c)
+                       ;; Construct the type specified by SPEC in a context
+                       ;; where NAME is bound to a "self-referencing thunk".
                        (letrec ((type
                                  (type-ref spec
                                            (cons-type name
@@ -362,7 +428,7 @@
                                                        (lambda () type))
                                                       c)
                                            name (sexp-location expr))))
-                         (cons-type name (make-type-def name type) c)))
+                         type))
 
                      ;; Catch any unbound type (perhaps a forward reference)
                      ;; so we can try again later.
@@ -371,10 +437,16 @@
                                        (compiler-unknown-type-error:type-name
                                         e)))
                                   (cons-forward-type-ref missing name
-                                                         make-new-context
+                                                         make-type
                                                          c))))
-                       (make-new-context c))))
+                       (let ((c (cons-type name
+                                           (make-type-def name (make-type c))
+                                           c)))
+                         (resolve-forward-type-refs name make-type-def c)))))
                   ((define-program)
+                   ;; FIXME: Programs are allowed to refer to types not yet
+                   ;; defined, thus we should also use the forward-ref trick
+                   ;; here.
                    (let ((name (cadr expr)))
                      (cons-program name
                                    (make-program-definition expr c)
@@ -384,18 +456,9 @@
               initial-context
               input))
 
-      (let ((output (iterate initial-context)))
-        (if (not (null? (context-forward-type-refs output)))
-            (map (lambda (forward-ref)
-                   ;; This is an unresolved (forward) type reference.  We
-                   ;; invoke it with the context we got, which should raise an
-                   ;; `unbound-type' exception (so `map' is not really
-                   ;; needed).
-                   (let ((proc (cdr forward-ref)))
-                     (proc output)))
-                 (append-map cdr (context-forward-type-refs output))))
-
-        output))))
+      ;; Process the initial context, then instantiate remaining forward type
+      ;; references (mutual references).
+      (instantiate-forward-type-refs (iterate initial-context)))))
 
 
 ;;;

@@ -327,6 +327,46 @@
                        "};")
              #t #t))
 
+(test-equal "mutually recursive types"
+            '((define mountbody
+                (make-xdr-struct-type
+                 (list xdr-integer (lambda () mountlist))))
+              (define mountlist
+                (make-xdr-union-type xdr-boolean
+                                     `((TRUE  . ,(lambda () mountbody))
+                                       (FALSE . ,xdr-void))
+                                     #f)))
+
+            (parameterize ((*parser-options* '(allow-struct-type-specifier)))
+              (rpc-language->scheme-client
+               ;; Example adapted from Sun's `mount.x'.
+               (xdr-text "typedef struct mountbody *mountlist;"
+                         "struct mountbody {"
+                         "  int x;"
+                         "  mountlist next;"
+                         "};")
+               #t #t)))
+
+(test-equal "4 mutually recursive types"
+            '((define d
+                (make-xdr-struct-type (list xdr-integer (lambda () c))))
+              (define c
+                (make-xdr-struct-type (list xdr-integer (lambda () b))))
+              (define b
+                (make-xdr-struct-type (list xdr-integer (lambda () a))))
+              (define a
+                (make-xdr-union-type xdr-boolean
+                                     `((TRUE  . ,(lambda () d))
+                                       (FALSE . ,xdr-void))
+                                     #f)))
+
+            (rpc-language->scheme-client
+             (xdr-text "typedef d *a;"
+                       "struct b { int x; a list; };"
+                       "struct c { int x; b list; };"
+                       "struct d { int x; c list; };")
+             #t #t))
+
 (test-equal "forward type refs"
             '((define foo
                 (make-xdr-struct-type (list xdr-integer xdr-double)))
@@ -461,6 +501,55 @@
                                    (1 #((2 #((3 #())))))
                                    (1 #((2 #())))
                                    (1 #()))))))
+
+(test-equal "mutually recursive types [run-time]"
+            #t
+
+            (parameterize ((*parser-options* '(allow-struct-type-specifier)))
+              (let ((types
+                     (rpc-language->xdr-types
+                      ;; Example adapted from Sun's `mount.x'.
+                      (xdr-text "typedef struct mountbody *mountlist;"
+                                "struct mountbody {"
+                                "  int x;"
+                                "  mountlist next;"
+                                "};"))))
+                (valid-xdr-types? types
+                                  `(("mountbody"
+                                     (1 (TRUE  . (2 (TRUE  . (3 (FALSE . ,%void))))))
+                                     (1 (TRUE  . (2 (FALSE . ,%void))))
+                                     (1 (FALSE . ,%void)))
+                                    ("mountlist"
+                                     (TRUE  . (2 (TRUE  . (3 (FALSE . ,%void)))))
+                                     (TRUE  . (2 (FALSE . ,%void)))
+                                     (FALSE . ,%void)))))))
+
+(test-equal "4 mutually recursive types [run-time]"
+            #t
+
+            (let ((types
+                   (rpc-language->xdr-types
+                    (xdr-text "typedef d *a;"
+                              "struct b { int x; a list; };"
+                              "struct c { int x; b list; };"
+                              "struct d { int x; c list; };"))))
+              (valid-xdr-types? types
+                                `(("a"
+                                   (TRUE  . (1 (2 (3 (TRUE  . (4 (5 (6 (FALSE . ,%void)))))))))
+                                   (TRUE  . (1 (2 (3 (FALSE . ,%void)))))
+                                   (FALSE . ,%void))
+                                  ("b"
+                                   (1 (TRUE  . (2 (3 (4 (TRUE  . (5 (6 (7 (FALSE . ,%void))))))))))
+                                   (1 (TRUE  . (2 (3 (4 (FALSE . ,%void))))))
+                                   (1 (FALSE . ,%void)))
+                                  ("c"
+                                   (1 (2 (TRUE  . (3 (4 (5 (TRUE  . (6 (7 (8 (FALSE . ,%void)))))))))))
+                                   (1 (2 (TRUE  . (3 (4 (5 (FALSE . ,%void)))))))
+                                   (1 (2 (FALSE . ,%void))))
+                                  ("d"
+                                   (1 (2 (3 (TRUE  . (4 (5 (6 (TRUE  . (7 (8 (9 (FALSE . ,%void))))))))))))
+                                   (1 (2 (3 (TRUE  . (4 (5 (6 (FALSE . ,%void))))))))
+                                   (1 (2 (3 (FALSE . ,%void)))))))))
 
 (test-end "xdr-compiler")
 
