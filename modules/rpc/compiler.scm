@@ -107,45 +107,54 @@
   ;; and added to CONTEXT.
   (let* ((refs (context-forward-type-refs context))
          (fwd  (assoc name refs))
-         (ctx  (make-context (context-types context)
+         (c    (make-context (context-types context)
                              (if (pair? fwd)
                                  (alist-delete name refs string=?)
                                  refs)
                              (context-constants context)
                              (context-programs context))))
     (if (pair? fwd)
-        (fold (lambda (name+proc ctx)
+        (fold (lambda (name+tag+proc c)
                 ;; Resolve the forward reference.
-                (let ((name (car name+proc))
-                      (proc (cdr name+proc)))
-                  (cons-type name (make-type-def name (proc ctx))
-                             ctx)))
-              ctx
+                (let ((name (car   name+tag+proc))
+                      (tag  (cadr  name+tag+proc))
+                      (proc (caddr name+tag+proc)))
+                  (cond ((eq? tag 'type)
+                         (cons-type name (make-type-def name (proc c))
+                                    c))
+                        ((eq? tag 'program)
+                         (proc c))
+                        (else
+                         (error "internal error: unsupported forward-ref tag"
+                                tag)))))
+              c
               (cdr fwd))
-        ctx)))
+        c)))
 
-(define (cons-forward-type-ref name from proc context)
+(define (cons-forward-type-ref name tag from proc context)
   ;; Add to CONTEXT a forward reference to type NAME, which is referred to by
-  ;; FROM.  PROC will be invoked and passed a context containing the
-  ;; definition of NAME when it is available; it should return a "type-ref",
-  ;; i.e., something returned by the back-end's `make-type-ref'.
+  ;; FROM; if TAG is `type', then FROM is a type, if TAG is `program' then
+  ;; FROM is a program.  PROC will be invoked and passed a context containing
+  ;; the definition of NAME when it is available; it should return a
+  ;; "type-ref", i.e., something returned by the back-end's `make-type-ref'.
 
   ;; For `resolve-forward-type-refs' to be efficient, we store forward type
   ;; refs in a double alist of the following form:
   ;;
-  ;;   (("DEP1" . ("TYPE1" . <PROC>) ("TYPE2" . <PROC>))
-  ;;    ("DEP2" . ("TYPE3" . <PROC>) ("TYPE4" . <PROC>)))
+  ;;   (("DEP1" . ("OBJ1" TAG <PROC>) ("OBJ2" TAG <PROC>))
+  ;;    ("DEP2" . ("OBJ3" TAG <PROC>) ("OBJ4" TAG <PROC>)))
   ;;
   ;; `DEP1' and `DEP2' are types depended on but not yet defined (the NAME
-  ;; argument); `TYPE1', etc., are types depending on the given type.  For
-  ;; instance, `TYPE1' and `TYPE2' both depends on `DEP1'.
+  ;; argument); `OBJ1', etc., are types or programs depending on the given
+  ;; type.  For instance, `OBJ1' and `OBJ2' both depends on `DEP1', and
+  ;; whether they are programs or types is determined by their TAG.
   (make-context (context-types context)
-                (let ((name+procs (assoc name
-                                         (context-forward-type-refs context))))
+                (let ((name+refs (assoc name
+                                        (context-forward-type-refs context))))
                   (alist-cons name
-                              (if (pair? name+procs)
-                                  (cons (cons from proc) (cdr name+procs))
-                                  (list (cons from proc)))
+                              (if (pair? name+refs)
+                                  (cons (list from tag proc) (cdr name+refs))
+                                  (list (list from tag proc)))
                               (alist-delete name
                                             (context-forward-type-refs
                                              context)
@@ -337,14 +346,17 @@
         ;; based on the SOURCE context where forward refs in SOURCE are
         ;; instantiated as thunks that refer to NEW-CONTEXT.
         (fold (lambda (dep+refs c)
-                (fold (lambda (name+proc c)
-                        (let ((name (car name+proc))
-                              (proc (cdr name+proc)))
-                          (cons-type name
-                                     (make-type-def name
-                                                    (lambda ()
-                                                      (proc (new-context))))
-                                     c)))
+                (fold (lambda (name+tag+proc c)
+                        (let ((name (car   name+tag+proc))
+                              (tag  (cadr  name+tag+proc))
+                              (proc (caddr name+tag+proc)))
+                          (if (eq? tag 'type)
+                              (cons-type name
+                                         (make-type-def name
+                                                        (lambda ()
+                                                          (proc (new-context))))
+                                         c)
+                              c)))
                       c
                       (cdr dep+refs)))
               source
@@ -355,12 +367,15 @@
             (fold (let ((c* (make-resolution-context c
                                                      (lambda () new-context))))
                     (lambda (dep+refs c)
-                      (fold (lambda (name+proc c)
-                              (let ((name (car name+proc))
-                                    (proc (cdr name+proc)))
-                                (cons-type name
-                                           (make-type-def name (proc c*))
-                                           c)))
+                      (fold (lambda (name+tag+proc c)
+                              (let ((name (car   name+tag+proc))
+                                    (tag  (cadr  name+tag+proc))
+                                    (proc (caddr name+tag+proc)))
+                                (if (eq? tag 'type)
+                                    (cons-type name
+                                               (make-type-def name (proc c*))
+                                               c)
+                                    c)))
                             c
                             (cdr dep+refs))))
                   (make-context (context-types c)
@@ -444,7 +459,7 @@
                                 (let ((missing
                                        (compiler-unknown-type-error:type-name
                                         e)))
-                                  (cons-forward-type-ref missing name
+                                  (cons-forward-type-ref missing 'type name
                                                          make-type
                                                          c))))
                        (let ((c (cons-type name
@@ -456,9 +471,19 @@
                    ;; defined, thus we should also use the forward-ref trick
                    ;; here.
                    (let ((name (cadr expr)))
-                     (cons-program name
-                                   (make-program-definition expr c)
-                                   c)))
+                     (define (make-program c)
+                       (cons-program name
+                                     (make-program-definition expr c)
+                                     c))
+
+                     (guard (e ((compiler-unknown-type-error? e)
+                                (let ((missing
+                                       (compiler-unknown-type-error:type-name
+                                        e)))
+                                  (cons-forward-type-ref missing 'program
+                                                         name make-program
+                                                         c))))
+                       (make-program c))))
                   (else
                    (error "unrecognized expression" expr))))
               initial-context

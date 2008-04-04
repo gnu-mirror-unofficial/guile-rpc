@@ -445,6 +445,32 @@
                        "} = 77;")
              #t #t))
 
+(test-equal "client RPC program with forward type ref"
+            '((define foo-t xdr-integer)
+              (define prog-hello
+                (make-synchronous-rpc-call 77 0 0
+                                           xdr-integer xdr-void))
+              (define prog-greetings-world
+                (make-synchronous-rpc-call 77 0 1
+                                           xdr-boolean
+                                           (make-xdr-struct-type
+                                            (list
+                                             foo-t
+                                             (make-xdr-struct-type
+                                              (list xdr-integer
+                                                    xdr-integer)))))))
+
+            (rpc-language->scheme-client
+             (xdr-text "program prog {"
+                       "  version zero {"
+                       "    int hello (void) = 0;"
+                       "    bool greetings_world (foo_t,"
+                       "                          struct { int x; int y;}) = 1;"
+                       "  } = 0;"
+                       "} = 77;"
+                       "typedef int foo_t;")
+             #t #t))
+
 
 ;;;
 ;;; Run-time compiler back-end.
