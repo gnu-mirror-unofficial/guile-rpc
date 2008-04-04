@@ -146,7 +146,10 @@
                               (if (pair? name+procs)
                                   (cons (cons from proc) (cdr name+procs))
                                   (list (cons from proc)))
-                              (context-forward-type-refs context)))
+                              (alist-delete name
+                                            (context-forward-type-refs
+                                             context)
+                                            string=?)))
                 (context-constants context)
                 (context-programs context)))
 
@@ -163,13 +166,6 @@
 
 (define (lookup-type name context)
   (let ((result (assoc name (context-types context))))
-    (and (pair? result)
-         (cdr result))))
-
-(define (lookup-forward-type-ref name context)
-  (let ((result (find (lambda (name+proc)
-                        (string=? (car name+proc) name))
-                      (append-map cdr (context-forward-type-refs context)))))
     (and (pair? result)
          (cdr result))))
 
@@ -334,31 +330,43 @@
       ;; where each of its dependencies is added as a partial definition,
       ;; i.e., a `make-type-def' whose TYPE argument is a thunk that, when
       ;; applied, returns the actual dependency.
+
+      (define (make-resolution-context source new-context)
+        ;; Return a context suitable for the resolution of
+        ;; mutually-referencing types left in C.  The returned context is
+        ;; based on the SOURCE context where forward refs in SOURCE are
+        ;; instantiated as thunks that refer to NEW-CONTEXT.
+        (fold (lambda (dep+refs c)
+                (fold (lambda (name+proc c)
+                        (let ((name (car name+proc))
+                              (proc (cdr name+proc)))
+                          (cons-type name
+                                     (make-type-def name
+                                                    (lambda ()
+                                                      (proc (new-context))))
+                                     c)))
+                      c
+                      (cdr dep+refs)))
+              source
+              (context-forward-type-refs source)))
+
       (letrec
           ((new-context
-            (fold (lambda (dep+refs c)
-                    (let ((dep-name (car dep+refs)))
+            (fold (let ((c* (make-resolution-context c
+                                                     (lambda () new-context))))
+                    (lambda (dep+refs c)
                       (fold (lambda (name+proc c)
-                              (let* ((name (car name+proc))
-                                     (proc (cdr name+proc))
-                                     (dep  (lookup-forward-type-ref dep-name c))
-
-                                     (dep-def (and dep
-                                                   (make-type-def
-                                                    dep-name
-                                                    (lambda ()
-                                                      (dep new-context)))))
-                                     (c*      (if dep
-                                                  (cons-type dep-name
-                                                             dep-def c)
-                                                  c))
-                                     (type    (proc c*)))
-                                  (cons-type name
-                                             (make-type-def name type)
-                                             c)))
+                              (let ((name (car name+proc))
+                                    (proc (cdr name+proc)))
+                                (cons-type name
+                                           (make-type-def name (proc c*))
+                                           c)))
                             c
                             (cdr dep+refs))))
-                  c
+                  (make-context (context-types c)
+                                '() ;; no forward references
+                                (context-constants c)
+                                (context-programs c))
                   (context-forward-type-refs c))))
         new-context))
 

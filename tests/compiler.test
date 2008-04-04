@@ -57,7 +57,8 @@
 (define (valid-xdr-types? types value-alist)
   (define (failed name value)
     (format (current-error-port) "~a: failed to encode `~A'~%"
-            name value))
+            name value)
+    #f)
 
   (and (every? (lambda (value-alist)
                  (let ((type-name (car value-alist)))
@@ -367,6 +368,43 @@
                        "struct d { int x; c list; };")
              #t #t))
 
+(test-equal "complex mutually recursive types"
+            '((define exportnode
+                (make-xdr-struct-type
+                 (list (make-xdr-string 10)
+                       (lambda () groups)
+                       (lambda () exports))))
+              (define groupnode
+                (make-xdr-struct-type
+                 (list (make-xdr-string 10) (lambda () groups))))
+              (define exports
+                (make-xdr-union-type xdr-boolean
+                                     `((TRUE  . ,(lambda () exportnode))
+                                       (FALSE . ,xdr-void))
+                                     #f))
+              (define groups
+                (make-xdr-union-type xdr-boolean
+                                     `((TRUE  . ,(lambda () groupnode))
+                                       (FALSE . ,xdr-void))
+                                     #f)))
+
+            (parameterize ((*parser-options* '(allow-struct-type-specifier)))
+              (rpc-language->scheme-client
+               ;; Example adapted from Sun's `mount.x'.
+               (xdr-text "typedef struct groupnode *groups;"
+                         "struct groupnode {"
+                         "  string gr_name<10>;"
+                         "  groups gr_next;"
+                         "};"
+
+                         "typedef struct exportnode *exports;"
+                         "struct exportnode {"
+                         "  string ex_dir<10>;"
+                         "  groups ex_groups;"
+                         "  exports ex_next;"
+                         "};")
+               #t #t)))
+
 (test-equal "forward type refs"
             '((define foo
                 (make-xdr-struct-type (list xdr-integer xdr-double)))
@@ -550,6 +588,56 @@
                                    (1 (2 (3 (TRUE  . (4 (5 (6 (TRUE  . (7 (8 (9 (FALSE . ,%void))))))))))))
                                    (1 (2 (3 (TRUE  . (4 (5 (6 (FALSE . ,%void))))))))
                                    (1 (2 (3 (FALSE . ,%void)))))))))
+
+(test-equal "complex mutually recursive types [run-time]"
+            #t
+
+            (let ((types
+                   (parameterize ((*parser-options* '(allow-struct-type-specifier)))
+                     (rpc-language->xdr-types
+                      ;; Example adapted from Sun's `mount.x'.
+                      (xdr-text "typedef struct groupnode *groups;"
+                                "struct groupnode {"
+                                "  string gr_name<10>;"
+                                "  groups gr_next;"
+                                "};"
+
+                                "typedef struct exportnode *exports;"
+                                "struct exportnode {"
+                                "  string ex_dir<10>;"
+                                "  groups ex_groups;"
+                                "  exports ex_next;"
+                                "};"))))
+                  (| (lambda (str)
+                       (list->vector (map char->integer
+                                          (string->list str))))))
+              (valid-xdr-types? types
+                                `(("groups"
+                                   (TRUE  . (,(| "gr_name") (TRUE . (,(| "gr_name") (FALSE . ,%void)))))
+                                   (TRUE  . (,(| "gr_name") (FALSE . ,%void)))
+                                   (FALSE . ,%void))
+                                  ("groupnode"
+                                   (,(| "gr_name") (TRUE . (,(| "gr_name") (FALSE . ,%void))))
+                                   (,(| "gr_name") (FALSE . ,%void)))
+                                  ("exports"
+                                   (TRUE
+                                    . (,(| "ex_dir")
+                                       (TRUE . (,(| "gr_name") (FALSE . ,%void))) ;; groups
+                                       (TRUE . (,(| "ex_dir")                     ;; ex_next
+                                                (TRUE . (,(| "gr_name") (FALSE . ,%void)))
+                                                (FALSE . ,%void)))))
+                                   (TRUE . (,(| "ex_dir") (FALSE . ,%void)
+                                            (FALSE . ,%void)))
+                                   (FALSE . ,%void)
+                                   )
+                                  ("exportnode"
+                                   (,(| "ex_dir")
+                                    (TRUE . (,(| "gr_name") (FALSE . ,%void))) ;; groups
+                                    (TRUE . (,(| "ex_dir")                     ;; ex_next
+                                             (TRUE . (,(| "gr_name") (FALSE . ,%void)))
+                                             (FALSE . ,%void))))
+                                   (,(| "ex_dir") (FALSE . ,%void) (FALSE . ,%void)))
+                                  ))))
 
 (test-end "xdr-compiler")
 
