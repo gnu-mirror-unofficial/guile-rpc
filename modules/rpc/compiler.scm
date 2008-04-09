@@ -37,9 +37,13 @@
            *compiler-options*
 
            &compiler-unknown-type-error &compiler-unknown-constant-error
+           &compiler-duplicate-identifier-error
            compiler-unknown-type-error? compiler-unknown-constant-error?
+           compiler-duplicate-identifier-error?
            compiler-unknown-type-error:type-name
-           compiler-unknown-constant-error:constant-name))
+           compiler-unknown-constant-error:constant-name
+           compiler-duplicate-identifier-error:name
+           compiler-duplicate-identifier-error:previous-location))
 
 ;;; Author: Ludovic Courtès <ludo@gnu.org>
 ;;;
@@ -65,6 +69,11 @@
   compiler-unknown-constant-error?
   (constant-name compiler-unknown-constant-error:constant-name))
 
+(define-condition-type &compiler-duplicate-identifier-error &compiler-error
+  compiler-duplicate-identifier-error?
+  (name               compiler-duplicate-identifier-error:name)
+  (previous-location  compiler-duplicate-identifier-error:previous-location))
+
 
 ;;;
 ;;; Workarounds.
@@ -88,19 +97,33 @@
   (constants context-constants)
   (programs  context-programs))
 
-(define (cons-constant name value context)
-  (make-context (context-types context)
-                (context-forward-type-refs context)
-                (alist-cons name value (context-constants context))
-                (context-programs context)))
+(define (cons-constant name value loc context)
+  (if (free-identifier? name context)
+      (make-context (context-types context)
+                    (context-forward-type-refs context)
+                    (alist-cons name (list value loc)
+                                (context-constants context))
+                    (context-programs context))
+      (raise (condition (&compiler-duplicate-identifier-error
+                         (location          loc)
+                         (name              name)
+                         (previous-location (identifier-location name
+                                                                 context)))))))
 
-(define (cons-type name value context)
+(define (cons-type name value override? loc context)
   ;; Return a new context based on CONTEXT with the addition of type VALUE
   ;; named NAME.
-  (make-context (alist-cons name value (context-types context))
-                (context-forward-type-refs context)
-                (context-constants context)
-                (context-programs context)))
+  (if (or override? (free-identifier? name context))
+      (make-context (alist-cons name (list value loc)
+                                (context-types context))
+                    (context-forward-type-refs context)
+                    (context-constants context)
+                    (context-programs context))
+      (raise (condition (&compiler-duplicate-identifier-error
+                         (location          loc)
+                         (name              name)
+                         (previous-location (identifier-location name
+                                                                 context)))))))
 
 (define (resolve-forward-type-refs name make-type-def context)
   ;; Return a context where pending forward references to NAME are resolved
@@ -121,6 +144,8 @@
                       (proc (caddr name+tag+proc)))
                   (cond ((eq? tag 'type)
                          (cons-type name (make-type-def name (proc c))
+                                    #f
+                                    #f ;; FIXME: no location info
                                     c))
                         ((eq? tag 'program)
                          (proc c))
@@ -162,21 +187,61 @@
                 (context-constants context)
                 (context-programs context)))
 
-(define (cons-program name value context)
-  (make-context (context-types context)
-                (context-forward-type-refs context)
-                (context-constants context)
-                (alist-cons name value (context-programs context))))
+(define (cons-program name value loc context)
+  (if (free-identifier? name context)
+      (make-context (context-types context)
+                    (context-forward-type-refs context)
+                    (context-constants context)
+                    (alist-cons name (list value loc)
+                                (context-programs context)))
+      (raise (condition (&compiler-duplicate-identifier-error
+                         (location          loc)
+                         (name              name)
+                         (previous-location (identifier-location name
+                                                                 context)))))))
 
-(define (lookup-constant name context)
-  (let ((result (assoc name (context-constants context))))
-    (and (pair? result)
-         (cdr result))))
+(define (make-lookup-procedure accessor)
+  (lambda (name context)
+    (let ((result (assoc name (accessor context) string=?)))
+      (and (pair? result)
+           (cadr result)))))
 
-(define (lookup-type name context)
-  (let ((result (assoc name (context-types context))))
-    (and (pair? result)
-         (cdr result))))
+(define lookup-constant
+  (make-lookup-procedure context-constants))
+
+(define lookup-type
+  (make-lookup-procedure context-types))
+
+(define lookup-program
+  (make-lookup-procedure context-programs))
+
+(define (free-identifier? name context)
+  ;; Per RFC 4506 and RFC 1831, type, constant and program identifiers all
+  ;; share the same name space.  This procedures returns true if NAME is
+  ;; already used.
+
+  ;; XXX: We could use a single alist for all three kinds of objects but it
+  ;; would consume slightly more memory (to record the type of each object)
+  ;; and this procedure would still be O(N), with N the number of currently
+  ;; used identifiers.  This could be improved by using VList-based hash
+  ;; lists or similar.
+  (not (or (lookup-type name context)
+           (lookup-constant name context)
+           (lookup-program name context))))
+
+(define (identifier-location name context)
+  ;; Return the location of the definition of NAME or `#f' if it's not bound
+  ;; in CONTEXT.
+  (let ((name+value+loc (let loop ((accessors (list context-types
+                                                    context-constants
+                                                    context-programs)))
+                          (if (null? accessors)
+                              #f
+                              (let ((get (car accessors)))
+                                (or (assoc name (get context))
+                                    (loop (cdr accessors))))))))
+    (and (pair? name+value+loc)
+         (caddr name+value+loc))))
 
 
 ;;;
@@ -355,6 +420,8 @@
                                          (make-type-def name
                                                         (lambda ()
                                                           (proc (new-context))))
+                                         #f
+                                         #f ;; FIXME: no location info
                                          c)
                               c)))
                       c
@@ -374,6 +441,8 @@
                                 (if (eq? tag 'type)
                                     (cons-type name
                                                (make-type-def name (proc c*))
+                                               #f
+                                               #f ;; FIXME: no location info
                                                c)
                                     c)))
                             c
@@ -436,6 +505,7 @@
                      (cons-constant (cadr expr)
                                     (make-constant-definition
                                      name value c)
+                                    (sexp-location expr)
                                     c)))
                   ((define-type)
                    (let ((name (cadr expr))
@@ -449,6 +519,8 @@
                                                       (make-type-def
                                                        name
                                                        (lambda () type))
+                                                      #t ;; override existing def
+                                                      (sexp-location expr)
                                                       c)
                                            name (sexp-location expr))))
                          type))
@@ -464,6 +536,8 @@
                                                          c))))
                        (let ((c (cons-type name
                                            (make-type-def name (make-type c))
+                                           #f
+                                           (sexp-location expr)
                                            c)))
                          (resolve-forward-type-refs name make-type-def c)))))
                   ((define-program)
@@ -474,6 +548,7 @@
                      (define (make-program c)
                        (cons-program name
                                      (make-program-definition expr c)
+                                     (sexp-location expr)
                                      c))
 
                      (guard (e ((compiler-unknown-type-error? e)
@@ -685,17 +760,18 @@ form, e.g., one with dashed instead of underscores, etc."
 
 (define (make-rpc-language->scheme rpc-program-code)
   (let* ((initial-context
-          ;; The initial compilation context.
+          ;; The initial compilation context.  The `#f's denote source
+          ;; location information (lack thereof).
           (make-context
-           '(("void"             . (define xdr-void ...))
-             ("opaque"           . (define xdr-opaque ...)) ;; pseudo-type
-             ("bool"             . (define xdr-boolean ...))
-             ("int"              . (define xdr-integer ...))
-             ("unsigned int"     . (define xdr-unsigned-integer ...))
-             ("hyper"            . (define xdr-hyper-integer ...))
-             ("unsigned hyper"   . (define xdr-unsigned-hyper-integer ...))
-             ("float"            . (define xdr-float ...))
-             ("double"           . (define xdr-double ...))
+           '(("void"             (define xdr-void ...) #f)
+             ("opaque"           (define xdr-opaque ...) #f) ;; pseudo-type
+             ("bool"             (define xdr-boolean ...) #f)
+             ("int"              (define xdr-integer ...) #f)
+             ("unsigned int"     (define xdr-unsigned-integer ...) #f)
+             ("hyper"            (define xdr-hyper-integer ...) #f)
+             ("unsigned hyper"   (define xdr-unsigned-hyper-integer ...) #f)
+             ("float"            (define xdr-float ...) #f)
+             ("double"           (define xdr-double ...) #f)
              ;; FIXME: We lack support for `quadruple'.
              )
            '()
@@ -734,17 +810,17 @@ form, e.g., one with dashed instead of underscores, etc."
              ;; Output constant definitions first, then type definitions, the
              ;; program/procedure definitions.
              (append (if constant-defs?
-                         (reverse (map cdr (context-constants output)))
+                         (reverse (map cadr (context-constants output)))
                          '())
                      (if type-defs?
                          (reverse (filter-map (lambda (name+def)
                                                 (let ((name (car name+def)))
                                                   (and (not (known-type? name))
-                                                       (cdr name+def))))
+                                                       (cadr name+def))))
                                               (context-types output)))
                          '())
                      (reverse (concatenate
-                               (map cdr (context-programs output))))))))))
+                               (map cadr (context-programs output))))))))))
 
 (define rpc-language->scheme-client
   (make-rpc-language->scheme rpc-program-code/client))
@@ -782,17 +858,18 @@ form, e.g., one with dashed instead of underscores, etc."
   ;; being defined or a reference to a type dependent on the type being
   ;; defined.
   (let* ((initial-context
-          ;; The initial compilation context.
+          ;; The initial compilation context.  The `#f's denote source
+          ;; location information (lack thereof).
           (make-context
-           `(("void"             . ,xdr-void)
-             ("opaque"           . opaque) ;; pseudo-type
-             ("bool"             . ,xdr-boolean)
-             ("int"              . ,xdr-integer)
-             ("unsigned int"     . ,xdr-unsigned-integer)
-             ("hyper"            . ,xdr-hyper-integer)
-             ("unsigned hyper"   . ,xdr-unsigned-hyper-integer)
-             ("float"            . ,xdr-float)
-             ("double"           . ,xdr-double)
+           `(("void"             ,xdr-void #f)
+             ("opaque"           opaque #f) ;; pseudo-type
+             ("bool"             ,xdr-boolean #f)
+             ("int"              ,xdr-integer #f)
+             ("unsigned int"     ,xdr-unsigned-integer #f)
+             ("hyper"            ,xdr-hyper-integer #f)
+             ("unsigned hyper"   ,xdr-unsigned-hyper-integer #f)
+             ("float"            ,xdr-float #f)
+             ("double"           ,xdr-double #f)
              ;; FIXME: We lack support for `quadruple'.
              )
            '()
@@ -853,10 +930,11 @@ form, e.g., one with dashed instead of underscores, etc."
     (let ((output (translator input)))
       (and (context? output)
            (filter-map (lambda (name+type)
-                         (let ((name (car name+type)))
+                         (let ((name (car name+type))
+                               (type (cadr name+type)))
                            (and (not (known-type? name))
-                                (cdr name+type)
-                                name+type)))
+                                type
+                                (cons name type))))
                        (context-types output)))))))
 
 

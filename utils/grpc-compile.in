@@ -97,13 +97,15 @@ There is NO WARRANTY, to the extent permitted by law.~%")
   (exit 0))
 
 (define (report-compiler-error c)
+  (define (location->string loc)
+    (if loc
+        (format #f "<standard input>:~a:~a" (location-line loc)
+                (location-column loc))
+        "<unknown location>"))
+
   (define (error-message)
     (let ((loc (compiler-error:location c)))
-      (string-append "<standard input>:"
-                     (if loc
-                         (format #f "~a:~a: " (location-line loc)
-                                 (location-column loc))
-                         "<unknown location>: ")
+      (string-append (location->string loc) ": "
 
                      (cond ((parser-error? c)
                             (let ((token (parser-error:token c)))
@@ -123,6 +125,22 @@ There is NO WARRANTY, to the extent permitted by law.~%")
                                    (compiler-unknown-constant-error:constant-name
                                     c)))
                               (string-append "unknown constant `" c "'")))
+                           ((compiler-duplicate-identifier-error? c)
+                            (let ((name
+                                   (compiler-duplicate-identifier-error:name
+                                    c))
+                                  (prev-loc
+                                   (compiler-duplicate-identifier-error:previous-location
+                                    c)))
+                              (string-append "duplicate identifier `" name "'"
+                                             (if prev-loc
+                                                 (string-append "\n"
+                                                                (location->string
+                                                                 prev-loc)
+                                                                ": previous "
+                                                                "definition "
+                                                                "is here")
+                                                 ""))))
                            (else
                             (format #f "unexpected error (~a)" c))))))
 

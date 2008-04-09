@@ -419,6 +419,50 @@
                        "struct foo { int x; double y; };")
              #t #t))
 
+(test-equal "duplicate identifier"
+            '("chbouib" (2 13) (1 7))
+
+            (guard (c ((compiler-duplicate-identifier-error? c)
+                       (let ((loc  (compiler-error:location c))
+                             (name (compiler-duplicate-identifier-error:name
+                                    c))
+                             (ploc
+                              (compiler-duplicate-identifier-error:previous-location
+                               c)))
+                         (list name
+                               (list (location-line loc)
+                                     (location-column loc))
+                               (list (location-line ploc)
+                                     (location-column ploc))))))
+              (rpc-language->scheme-client
+               (xdr-text "const chbouib = 7;"
+                         "typedef int chbouib;")
+               #t #t)))
+
+(test-equal "duplicate identifier with program"
+            '("chbouib" (2 9) (1 13))
+
+            (guard (c ((compiler-duplicate-identifier-error? c)
+                       (let ((loc  (compiler-error:location c))
+                             (name (compiler-duplicate-identifier-error:name
+                                    c))
+                             (ploc
+                              (compiler-duplicate-identifier-error:previous-location
+                               c)))
+                         (list name
+                               (list (location-line loc)
+                                     (location-column loc))
+                               (list (location-line ploc)
+                                     (location-column ploc))))))
+              (rpc-language->scheme-client
+               (xdr-text "typedef int chbouib;"
+                         "program chbouib {"
+                         "  version v {"
+                         "    int foo (int) = 0;"
+                         "  } = 0;"
+                         "} = 0;")
+               #t #t)))
+
 (test-equal "client RPC programs"
             '((define foo-t xdr-integer)
               (define prog-hello
