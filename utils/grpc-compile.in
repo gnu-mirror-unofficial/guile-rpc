@@ -63,7 +63,10 @@ exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -l "$0"    \
                   (cons 'server result)))
         (option '(#\S "strict") #f #f
                 (lambda (opt name arg result)
-                  (cons 'strict result)))))
+                  (cons 'strict result)))
+        (option '("intermediate") #f #f
+                (lambda (opt name arg result)
+                  (cons 'intermediate result)))))
 
 (define (show-help)
   (format #t "Usage: grpc-compile [OPTIONS]~%")
@@ -80,6 +83,8 @@ exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -l "$0"    \
   (format #t "                 differences are: `char' type not recognized, `%'~%")
   (format #t "                 comments not permitted, `unsigned' type not recognized,~%")
   (format #t "                 `struct' no authorized in type specifiers.~%")
+  (format #t "      --intermediate~%")
+  (format #t "                 Output the intermediate form produced by the parser.~%")
   (format #t "~%")
   (format #t "It is customary to use C preprocessor directives in XDR/RPC specifications.~%")
   (format #t "When that is the case, pipe the specification through \"cpp -P\" before~%")
@@ -179,6 +184,7 @@ There is NO WARRANTY, to the extent permitted by law.~%")
                                       operand)
                               result)
                             '()))
+         (intermediate? (memq 'intermediate opts))
          (strict? (memq 'strict opts))
          (xdr?    (memq 'xdr opts))
          (consts? (memq 'constants opts))
@@ -212,6 +218,15 @@ There is NO WARRANTY, to the extent permitted by law.~%")
 
     (with-error-catch
      (lambda ()
+       (and intermediate?
+            (if (null? (lset-intersection eq?
+                                          '(server client consts xdr constants)
+                                          opts))
+                (for-each pretty-print input)
+                (begin
+                  (format (current-error-port)
+                          "`--intermediate' and code generation options are exclusive.~%")
+                  (exit 1))))
        (and consts?
             (for-each pretty-print
                       (rpc-language->scheme-client consts+types #f #t)))
