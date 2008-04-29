@@ -515,6 +515,59 @@
                        "typedef int foo_t;")
              #t #t))
 
+(test-equal "client RPC program with mutually recursive type refs"
+
+            ;; The difficulty here is that `exports' and `groups' are
+            ;; mutually recursive (so they are added as forward type
+            ;; references), and the RPC program depends on one of them (so
+            ;; it's also a forward type reference).
+
+            '((define exportnode
+                (make-xdr-struct-type
+                 (list (make-xdr-string 10)
+                       (lambda () groups)
+                       (lambda () exports))))
+              (define groupnode
+                (make-xdr-struct-type
+                 (list (make-xdr-string 10) (lambda () groups))))
+              (define exports
+                (make-xdr-union-type xdr-boolean
+                                     `((TRUE  . ,(lambda () exportnode))
+                                       (FALSE . ,xdr-void))
+                                     #f))
+              (define groups
+                (make-xdr-union-type xdr-boolean
+                                     `((TRUE  . ,(lambda () groupnode))
+                                       (FALSE . ,xdr-void))
+                                     #f))
+
+              (define MOUNTPROG-MOUNTPROC-EXPORT
+                (make-synchronous-rpc-call 100005 1 5
+                                           exports xdr-void)))
+
+            (parameterize ((*parser-options* '(allow-struct-type-specifier)))
+              (rpc-language->scheme-client
+               ;; Example adapted from Sun's `mount.x'.
+               (xdr-text "typedef struct groupnode *groups;"
+                         "struct groupnode {"
+                         "  string gr_name<10>;"
+                         "  groups gr_next;"
+                         "};"
+
+                         "typedef struct exportnode *exports;"
+                         "struct exportnode {"
+                         "  string ex_dir<10>;"
+                         "  groups ex_groups;"
+                         "  exports ex_next;"
+                         "};"
+
+                         "program MOUNTPROG {"
+                         "  version MOUNTVERS {"
+                         "    exports MOUNTPROC_EXPORT(void)  = 5;"
+                         "  } = 1;"
+                         "} = 100005;")
+               #t #t)))
+
 
 ;;;
 ;;; Run-time compiler back-end.

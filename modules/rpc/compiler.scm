@@ -444,7 +444,10 @@
                                                #f
                                                #f ;; FIXME: no location info
                                                c)
-                                    c)))
+                                    ;; requeue the forward type ref (a program)
+                                    (cons-forward-type-ref (car dep+refs)
+                                                           tag name proc
+                                                           c))))
                             c
                             (cdr dep+refs))))
                   (make-context (context-types c)
@@ -453,6 +456,16 @@
                                 (context-programs c))
                   (context-forward-type-refs c))))
         new-context))
+
+    (define (instantiate-remaining-forward-type-refs c)
+      ;; Instantiate forward type refs from C in a simple way, which assumes
+      ;; that they are not mutually recursive.  This is the case when the
+      ;; only remaining forward refs are programs.
+      (fold (lambda (dep+refs c)
+              (resolve-forward-type-refs (car dep+refs) make-type-def
+                                         c))
+            c
+            (context-forward-type-refs c)))
 
     (define (make-program-definition expr c)
       ;; Process EXPR, an RPC program definition.
@@ -564,9 +577,16 @@
               initial-context
               input))
 
-      ;; Process the initial context, then instantiate remaining forward type
-      ;; references (mutual references).
-      (instantiate-forward-type-refs (iterate initial-context)))))
+      ;; Process the initial context, then instantiate remaining types
+      ;; containing forward type references (mutual references), and finally
+      ;; instantiate programs that contained forward type references.
+      (let* ((stage1 (iterate initial-context))
+             (stage2 (instantiate-forward-type-refs stage1))
+             (stage3 (instantiate-remaining-forward-type-refs stage2)))
+        (if (null? (context-forward-type-refs stage3))
+            stage3
+            (error "internal error: there shouldn't be any forward ref left"
+                   stage3))))))
 
 
 ;;;
