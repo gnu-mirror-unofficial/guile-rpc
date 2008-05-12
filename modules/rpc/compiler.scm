@@ -735,8 +735,17 @@ form, e.g., one with dashed instead of underscores, etc."
                               (let ((number    (car (cdr proc)))
                                     (ret-type  (cadr (cdr proc)))
                                     (arg-types (caddr (cdr proc))))
-                                (make-rpc-procedure number ret-type
-                                                    arg-types handler)))))
+                                (make-rpc-procedure number
+                                                    (cond ((null? arg-types)
+                                                           xdr-void)
+                                                          ((null? (cdr arg-types))
+                                                           (car arg-types))
+                                                          (else
+                                                           (apply
+                                                            make-xdr-struct-type
+                                                            arg-types)))
+                                                    ret-type
+                                                    handler)))))
                      user-procs)))
 
     `((define (,make-program-name versions+procs)
