@@ -17,6 +17,7 @@
 ;;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-module (rpc xdr)
+  :autoload   (srfi srfi-1)    (fold)
   :use-module (srfi srfi-9)
   :autoload   (srfi srfi-34)   (raise)
   :use-module (srfi srfi-35)
@@ -359,16 +360,10 @@ independently of the value of type @var{type} being encoded, then return it
                        (round-up-size index))))))
 
           ((xdr-struct-type? type)
-           (let liip ((types  (xdr-struct-base-types type))
-                      (values value)
-                      (index  index))
-             (if (null? values)
-                 (round-up-size index)
-                 (liip (cdr types)
-                       (cdr values)
-                       (encode (car types)
-                               (car values)
-                               index)))))
+           (round-up-size (fold encode
+                                index
+                                (xdr-struct-base-types type)
+                                value)))
 
           ((xdr-union-type? type)
            (let ((discr (car value))
@@ -436,15 +431,10 @@ independently of the value of type @var{type} being encoded, then return it
                    result))))
 
           ((xdr-struct-type? type)
-           (let liip ((types  (xdr-struct-base-types type))
-                      (result '()))
-             (if (null? types)
-                 (let ((padding (or (xdr-struct-padding type) 0)))
-                   (if (> padding 0) (get-bytevector-n port padding))
-                   (reverse! result))
-                 (let ((value (decode (car types))))
-                   (liip (cdr types)
-                         (cons value result))))))
+           (let ((padding (or (xdr-struct-padding type) 0))
+                 (result  (map decode (xdr-struct-base-types type))))
+             (if (> padding 0) (get-bytevector-n port padding))
+             result))
 
           ((xdr-union-type? type)
            (let* ((discr (decode (xdr-union-discriminant-type type)))
