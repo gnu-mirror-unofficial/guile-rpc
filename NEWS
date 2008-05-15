@@ -4,6 +4,7 @@
 *** Support for recursive XDR data types
 ** Bug fixes
 *** Fix encoding of vectors of floats, doubles
+*** Throw an exception if not enough struct fields are passed to `xdr-encode!'
 
 
 * New in GNU Guile-RPC 0.2

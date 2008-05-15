@@ -88,6 +88,16 @@
               (xdr-encode! bv 0 s (list 1 2 3.0))
               (xdr-decode s (open-bytevector-input-port bv))))
 
+(test-eq    "struct with fewer fields than expected"
+            %error-raised
+
+            (guard (c ((xdr-input-type-error? c) %error-raised))
+              (let ((s (make-xdr-struct-type (list xdr-integer
+                                                   xdr-integer
+                                                   xdr-integer))))
+                (xdr-encode! bv 0 s (list 1))
+                #t)))
+
 (test-equal "enumeration" 'one
             (let ((e (make-xdr-enumeration 'ordinals
                                            '((one . 1) (two . 2)))))

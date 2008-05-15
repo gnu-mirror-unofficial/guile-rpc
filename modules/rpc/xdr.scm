@@ -360,10 +360,20 @@ independently of the value of type @var{type} being encoded, then return it
                        (round-up-size index))))))
 
           ((xdr-struct-type? type)
-           (round-up-size (fold encode
-                                index
-                                (xdr-struct-base-types type)
-                                value)))
+           (let liip ((types  (xdr-struct-base-types type))
+                      (values value)
+                      (index  index))
+             (cond ((null? types)
+                    (round-up-size index))
+                   ((null? values)
+                    ;; not enough struct fields provided
+                    (type-error type value))
+                   (else
+                    (liip (cdr types)
+                          (cdr values)
+                          (encode (car types)
+                                  (car values)
+                                  index))))))
 
           ((xdr-union-type? type)
            (let ((discr (car value))
