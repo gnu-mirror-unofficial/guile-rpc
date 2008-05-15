@@ -37,10 +37,14 @@ exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -L "@pkgdatadir@" -l "$0"    \
   :use-module (srfi srfi-11)
   :use-module (srfi srfi-37)
   :use-module (srfi srfi-39)
-  :use-module (srfi srfi-60))
+  :use-module (srfi srfi-60)
+  :export (nfs-export))
 
-(load "mount-server-stub.scm")
-(load "nfs-server-stub.scm")
+;; XXX: Guile-Lint as of version 14 doesn't know how to handle
+;; `load-from-path', so it just ignores it, leading to unbound symbol errors
+;; right after.
+(load-from-path "mount-server-stub.scm")
+(load-from-path "nfs-server-stub.scm")
 
 ;;(debug-set! stack 50000)
 
@@ -171,12 +175,12 @@ There is NO WARRANTY, to the extent permitted by law.~%")
   (debug "mount/mnt ~A~%" dirpath)
 
   ;; Return an `OK' error code along with the root's file handle.
-  (cons 0 (car (module->file-handle the-root-module))))
+  (cons 0 (car %root-handle)))
 
 (define (mount/umnt dirpath)
   (debug "mount/umnt ~A~%" dirpath)
   ;; Nothing special to do.
-  )
+  #t)
 
 (define mount-server
   (make-MOUNTPROG-server
@@ -198,30 +202,53 @@ There is NO WARRANTY, to the extent permitted by law.~%")
   ;; wide) to modules.
   (make-weak-value-hash-table 256))
 
-(define (module->file-handle module)
+(define (variable->file-handle var)
   ;; Return a file handle (an XDR opaque array of `FHSIZE' bytes) for MODULE.
-  (let ((hash (object-address module)))
+  (let ((hash (object-address var)))
     ;;(format #t "  mapping ~A to ~A~%" module hash)
-    (hash-set! %module-handle-table hash module)
+    (hash-set! %module-handle-table hash var)
     (list (integer->u8list hash FHSIZE))))
 
-(define (file-handle->module handle)
+(define (file-handle->variable handle)
   ;; Return the module that corresponds to HANDLE.
   (let ((hash (u8list->integer (car handle))))
     ;;(format #t "  lookup object ~A~%" hash)
     (hash-ref %module-handle-table hash)))
 
-(define (object->fileid handle obj)
-  ;; Return a presumably unique NFS file ID for HANDLE and OBJ.
-  (u8list->integer (car handle)))
+(define %root
+  ;; The file system root.
+  (module-variable the-root-module 'the-root-module))
 
-(define (make-fattr handle obj)
+(define %root-handle
+  ;; The file system root handle.
+  (variable->file-handle %root))
+
+(define (variable->fileid var)
+  ;; Return a presumably unique NFS file ID for HANDLE and OBJ.  On 32-bit
+  ;; machines, it's easy to get a unique file ID: the variable's address.  On
+  ;; 64-bit machines, we use a modulo and hope for the best (we can strip the
+  ;; 3 lower-level bits since variable objects are cells, which are 8-byte
+  ;; aligned).
+  (modulo (/ (object-address var) 8) %max-unsigned))
+
+(define (variable->file-size var)
+  ;; Return the size of the file corresponding to VAR.
+  (if (variable-bound? var)
+      (let ((content (with-output-to-string
+                       (lambda ()
+                         (write (variable-ref var))))))
+        (string-length content))
+      0))
+
+(define (make-fattr handle var)
   ;; Return NFS file attributes (aka. `fattr') for HANDLE and whose contents
   ;; are OBJ.
-  (let ((type (if (module? obj) 'NFDIR 'NFREG))
-        (mode (if (module? obj)
-                  (bitwise-ior NFSMODE-DIR #o555)
-                  (bitwise-ior NFSMODE-REG #o444))))
+  (let* ((obj  (and (variable? var) (variable-bound? var)
+                    (variable-ref var)))
+         (type (if (module? obj) 'NFDIR 'NFREG))
+         (mode (if (module? obj)
+                   (bitwise-ior NFSMODE-DIR #o555)
+                   (bitwise-ior NFSMODE-REG #o444))))
     (list type   ;; ftype type;		/* file type */
           mode   ;; unsigned mode;		/* protection mode bits */
           (if (module? obj)
@@ -232,12 +259,12 @@ There is NO WARRANTY, to the extent permitted by law.~%")
               1) ;; unsigned nlink;		/* # hard links */
           0      ;; unsigned uid;		/* owner user id */
           0      ;; unsigned gid;		/* owner group id */
-          1      ;; unsigned size;		/* file size in bytes */
+          (variable->file-size var)  ;; unsigned size;		/* file size in bytes */
           4096   ;; unsigned blocksize;	/* preferred block size */
           7      ;; unsigned rdev;		/* special device # */
           1      ;; unsigned blocks;	/* Kb of disk used by file */
           7      ;; unsigned fsid;		/* device # */
-          (object->fileid handle obj)      ;; unsigned fileid;	/* inode # */
+          (variable->fileid var)      ;; unsigned fileid;	/* inode # */
           (list 0 0) ;; nfstime	atime;		/* time of last access */
           (list 0 0) ;; nfstime	mtime;		/* time of last modification */
           (list 0 0) ;; nfstime	ctime;		/* time of last change */
@@ -245,32 +272,66 @@ There is NO WARRANTY, to the extent permitted by law.~%")
 
 (define (nfs/get-attr handle)
   (debug "nfs/get-attr ~A~%" handle)
-  (let ((obj (file-handle->module handle)))
+  (let ((var (file-handle->variable handle)))
     ;;(format #t "  -> ~A~%" obj)
-    (if obj
-        (cons 'NFS-OK (make-fattr handle obj))
+    (if (variable? var)
+        (cons 'NFS-OK (make-fattr handle var))
         (cons 'NFSERR-NOENT #f))))
 
 (define (nfs/lookup arg)
   (let ((dir-handle (car arg))
         (name       (cadr arg)))
     (debug "nfs/lookup `~a' in ~A~%" name dir-handle)
-    (let ((dir (file-handle->module dir-handle)))
-      (if (module? dir)
-          (let ((item (false-if-exception
-                       (module-ref dir
-                                   (string->symbol (filename->string name))))))
-            (if item
-                (cons 'NFS-OK
-                      (let ((handle (module->file-handle item)))
-                        (list handle
-                              (make-fattr handle item))))
-                '(NFSERR-NOENT . #f)))
+    (let ((var (file-handle->variable dir-handle)))
+      (if (and (variable? var) (variable-bound? var))
+          (let ((dir (variable-ref var)))
+            (if (module? dir)
+                (let ((item (false-if-exception
+                             (module-variable dir
+                                              (string->symbol
+                                               (filename->string name))))))
+                  (if item
+                      (cons 'NFS-OK
+                            (let ((handle (variable->file-handle item)))
+                              (list handle
+                                    (make-fattr handle item))))
+                      '(NFSERR-NOENT . #f)))
+                '(NFSERR-NOTDIR . #f)))
           '(NFSERR-IO . #f)))))
 
 (define (nfs/set-attr arg)
   (debug "nfs/set-attr ~A~%" arg)
   #t)
+
+(define (nfs/read arg)
+  (let* ((handle (car arg))
+         (offset (cadr arg))
+         (count  (caddr arg))
+
+         (var    (file-handle->variable handle)))
+    (debug "nfs/read ~A bytes at offset ~A~%" count offset)
+    (cond ((not var)
+           '(NFSERR-NOENT . #f))
+          ((not (variable-bound? var))
+           (cons 'NFS-OK
+                 (list (make-fattr handle var)
+                       '#())))
+          ((module? (variable-ref var))
+           '(NFSERR-ISDIR . #f))
+          (else
+           (let ((data  (with-output-to-string
+                          (lambda ()
+                            (write (variable-ref var)))))
+                 (fattr (make-fattr handle var)))
+             (cons 'NFS-OK
+                   (list fattr
+                         (if (>= offset (string-length data))
+                             #()
+                             (list->vector
+                              (map char->integer
+                                   (string->list
+                                    (substring data offset
+                                               (+ offset count)))))))))))))
 
 (define (nfs/statfs arg)
   (debug "nfs/statfs ~A~%" arg)
@@ -313,12 +374,11 @@ There is NO WARRANTY, to the extent permitted by law.~%")
                 (values (reverse result) #f)
                 (let* ((entry (car entries))
                        (key   (symbol->string (car entry)))
-                       (value (cdr entry)))
+                       (var   (cdr entry)))
                   (loop (cdr entries)
                         (+ 1 index)
                         (+ entry-size size)
-                        (cons (list (object->fileid (module->file-handle value)
-                                                    value)
+                        (cons (list (variable->fileid var)
                                     (string->filename key)
                                     (integer->u8list (+ 1 index) NFS-COOKIESIZE))
                               result))))))))
@@ -328,26 +388,29 @@ There is NO WARRANTY, to the extent permitted by law.~%")
          (cookie (cadr arg))
          (count  (caddr arg))
 
-         (dir    (file-handle->module handle))
+         (var    (file-handle->variable handle))
          (start  (u8list->integer cookie)))
-    (cond ((not dir)
+    (cond ((or (not var) (not (variable-bound? var)))
            (cons 'NFSERR-NOENT #f))
-          ((not (module? dir))
+          ((not (module? (variable-ref var)))
            (cons 'NFSERR-NOTDIR #f))
           (else
-           (cons 'NFS-OK
-                 (let-values (((entries eof?)
-                               (make-entry-list (module-entry-alist dir)
-                                                start
-                                                (if (> count 200)
-                                                    200 ;; FIXME: hack
-                                                    count)
-                                                )))
-                   ;;(format #t "  got ~A readdir entries~A~%"
-                   ;;        (length entries) (if eof? ", eof" ""))
-                   ;;(format #t "  entries: ~A~%" entries)
-                   (list (list->optional-data-list entries)
-                         (if eof? 'TRUE 'FALSE))))))))
+           (let ((dir (variable-ref var)))
+             (cons 'NFS-OK
+                   (let-values (((entries eof?)
+                                 (make-entry-list (module-entry-alist dir)
+                                                  start
+                                                  ;; FIXME: Hack to work around
+                                                  ;; the fact that
+                                                  ;; optional-data list
+                                                  ;; encoding consumes too much
+                                                  ;; stack space.
+                                                  (min count 300))))
+                     ;;(format #t "  got ~A readdir entries~A~%"
+                     ;;        (length entries) (if eof? ", eof" ""))
+                     ;;(format #t "  entries: ~A~%" entries)
+                     (list (list->optional-data-list entries)
+                           (if eof? 'TRUE 'FALSE)))))))))
 
 (define nfs-server
   (make-NFS-PROGRAM-server
@@ -357,6 +420,7 @@ There is NO WARRANTY, to the extent permitted by law.~%")
       ("NFSPROC_SETATTR"  . ,nfs/set-attr)
       ("NFSPROC_LOOKUP"   . ,nfs/lookup)
       ("NFSPROC_READDIR"  . ,nfs/readdir)
+      ("NFSPROC_READ"     . ,nfs/read)
       ("NFSPROC_STATFS"   . ,nfs/statfs)))))
 
 ;; The default NFS port.
