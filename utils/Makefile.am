@@ -56,7 +56,12 @@ mount-server-stub.scm: $(top_srcdir)/rpcsvc/mount.x
 
 
 if HAVE_GUILE_LINT
-all-local: $(bin_SCRIPTS)
+
+CLEANFILES += stamp-lint
+
+all-local: stamp-lint
+stamp-lint: $(bin_SCRIPTS)
 	GUILE=$(GUILE)					\
-	$(GUILE_LINT) -L $(top_srcdir)/modules -L $(builddir) $^
+	$(GUILE_LINT) -L $(top_srcdir)/modules -L $(builddir) $(bin_SCRIPTS)
+	touch $@
 endif

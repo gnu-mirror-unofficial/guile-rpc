@@ -21,3 +21,4 @@ lib/*
 pre-inst-guile
 stamp-h[0-9]
 modules/silex/silex.info
+stamp-lint

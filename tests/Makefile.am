@@ -37,7 +37,8 @@ CLEANFILES = xdr-type-size.log xdr-encoding.log	\
 # `define-syntax' macros used by SRFI-64.
 #
 # if HAVE_GUILE_LINT
-# all-local: $(TESTS)
+# all-local: stamp-lint
+# stamp-lint: $(TESTS)
 #	GUILE=$(GUILE)				\
-# 	$(GUILE_LINT) -L $(top_srcdir)/modules $^
+# 	$(GUILE_LINT) -L $(top_srcdir)/modules $(TESTS)
 # endif
