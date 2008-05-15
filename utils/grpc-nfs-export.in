@@ -1,0 +1,443 @@
+#!/bin/sh
+# aside from this initial boilerplate, this is actually -*- scheme -*- code
+main='(module-ref (resolve-module '\''(guile-rpc nfs-export)) '\'nfs-export')'
+exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -L "@pkgdatadir@" -l "$0"    \
+         -c "(apply $main (command-line))" "$@"
+!#
+;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
+;;; Copyright (C) 2008  Free Software Foundation, Inc.
+;;;
+;;; This program is free software; you can redistribute it and/or modify it
+;;; under the terms of the GNU General Public License as published by the
+;;; Free Software Foundation; either version 3 of the License, or (at your
+;;; option) any later version.
+;;;
+;;; This program is distributed in the hope that it will be useful, but
+;;; WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General
+;;; Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License along
+;;; with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+;;;
+;;; Compile XDR/RPC specifications to Scheme code.
+;;;
+
+;; Tell Guile to not issue warnings about duplicate bindings.
+(default-duplicate-binding-handler '(last))
+
+(define-module (guile-rpc nfs-export)
+  :use-module (rpc xdr)
+  :use-module (rpc xdr types)
+  :use-module (rpc rpc server)
+  :use-module (rpc rpc portmap)
+  :use-module (srfi srfi-1)
+  :use-module (srfi srfi-11)
+  :use-module (srfi srfi-37)
+  :use-module (srfi srfi-39)
+  :use-module (srfi srfi-60))
+
+(load "mount-server-stub.scm")
+(load "nfs-server-stub.scm")
+
+;;(debug-set! stack 50000)
+
+
+;;;
+;;; Options.
+;;;
+
+(define %options
+  (list (option '("help") #f #f (lambda args (show-help)))
+        (option '("version") #f #f (lambda args (show-version)))
+        (option '("debug") #f #f
+                (lambda (opt name arg result)
+                  (alist-cons 'debug? #t result)))
+        (option '(#\p "nfs-port") #t #f
+                (lambda (opt name arg result)
+                  (alist-cons 'nfs-port (string->number arg)
+                              (alist-delete 'nfs-port result))))
+        (option '(#\P "mount-port") #t #f
+                (lambda (opt name arg result)
+                  (alist-cons 'mount-port (string->number arg)
+                              (alist-delete 'mount-port result))))))
+
+(define (show-help)
+  (format #t "Usage: grpc-nfs-export [OPTIONS] [FILE-TO-LOAD]~%")
+  (format #t "Start a new Guile interpreter and export its module and variable~%")
+  (format #t "hierarchy as NFS (Network File System), optionally loading FILE-TO-LOAD~%")
+  (format #t "in a separate thread.~%~%")
+  (format #t "  --help         Show this help message~%")
+  (format #t "  --version      Show program version~%~%")
+  (format #t "  -p, --nfs-port=PORT~%")
+  (format #t "                 Listen for NFS connections on PORT (default: ~A)~%"
+          %nfs-port)
+  (format #t "  -P, --mount-port=MOUNT-PORT~%")
+  (format #t "                 Listen for `mount' connections on MOUNT-PORT (default: ~A)~%"
+          %mount-port)
+  (format #t "  --debug        Produce debugging messages~%")
+  (format #t "~%")
+  (format #t "Under GNU/Linux, the exported NFS hierarchy can be mounted using~%")
+  (format #t "a command-line (run as root) such as:~%~%")
+  (format #t "  mount -t nfs -o nfsvers=2,tcp,port=PORT localhost: /mnt/nfs~%~%")
+  (format #t "Note that currently the program spawns its own `mount' RPC server~%")
+  (format #t "which it registers with the system portmapper.  This may break~%")
+  (format #t "things if your machine is also intended to run a ``real'' NFS~%")
+  (format #t "server.~%~%")
+  (format #t "Report bugs to <@PACKAGE_BUGREPORT@>.~%")
+  (exit 0))
+
+(define (show-version)
+  (format #t "grpc-nfs-export (GNU Guile-RPC) @PACKAGE_VERSION@
+Copyright (C) 2008 Free Software Foundation
+
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.~%")
+  (exit 0))
+
+
+;;;
+;;; Utilities.
+;;;
+
+(define (list->optional-data-list lst)
+  ;; Return an RPC-usable representation of LST, a list of lists (each item
+  ;; of LST thus represents an XDR structure).
+
+  ;; XXX: inefficient
+  (fold (lambda (elt result)
+          (cons 'TRUE
+                (append elt (list result))))
+        '(FALSE . #f)
+        (reverse lst)))
+
+(define (string->filename str)
+  ;; Give a representation of STR suitable as an XDR variable-length array.
+
+  ;; XXX: inefficient
+  (list->vector (map char->integer (string->list str))))
+
+(define (filename->string f)
+  ;; XXX: inefficient
+  (list->string (map integer->char (vector->list f))))
+
+(define (u8list->integer lst)
+  (let loop ((lst    (reverse lst))
+             (item   0)
+             (result 0))
+    (if (null? lst)
+        result
+        (loop (cdr lst)
+              (+ item 1)
+              (bitwise-ior result
+                           (arithmetic-shift (car lst)
+                                             (* item 8)))))))
+
+(define (integer->u8list int size)
+  (let loop ((byte   0)
+             (result '()))
+    (if (>= byte size)
+        result
+        (loop (+ 1 byte)
+              (cons (bit-field int
+                               (* byte 8)
+                               (* (+ 1 byte) 8))
+                    result)))))
+
+(define %max-unsigned
+  (- (expt 2 32) 1))
+
+(define *debug?*
+  ;; Whether to produce debugging output.
+  (make-parameter #f))
+
+(define (debug fmt . args)
+  (and (*debug?*)
+       (apply format #t fmt args)))
+
+
+;;;
+;;; Mount server.
+;;;
+
+(define (null-rpc unused-arg)
+  (debug "null rpc~%")
+  #t)
+
+(define (mount/mnt dirpath)
+  (debug "mount/mnt ~A~%" dirpath)
+
+  ;; Return an `OK' error code along with the root's file handle.
+  (cons 0 (car (module->file-handle the-root-module))))
+
+(define (mount/umnt dirpath)
+  (debug "mount/umnt ~A~%" dirpath)
+  ;; Nothing special to do.
+  )
+
+(define mount-server
+  (make-MOUNTPROG-server
+   `(("MOUNTVERS"
+      ("MOUNTPROC_NULL" . ,null-rpc)
+      ("MOUNTPROC_MNT"  . ,mount/mnt)
+      ("MOUNTPROC_UMNT" . ,mount/umnt)))))
+
+;; The default port for the `mount' server.
+(define %mount-port 6666)
+
+
+;;;
+;;; NFS server.
+;;;
+
+(define %module-handle-table
+  ;; Mapping of file handles (integers that must be less that `FHSIZE' bytes
+  ;; wide) to modules.
+  (make-weak-value-hash-table 256))
+
+(define (module->file-handle module)
+  ;; Return a file handle (an XDR opaque array of `FHSIZE' bytes) for MODULE.
+  (let ((hash (object-address module)))
+    ;;(format #t "  mapping ~A to ~A~%" module hash)
+    (hash-set! %module-handle-table hash module)
+    (list (integer->u8list hash FHSIZE))))
+
+(define (file-handle->module handle)
+  ;; Return the module that corresponds to HANDLE.
+  (let ((hash (u8list->integer (car handle))))
+    ;;(format #t "  lookup object ~A~%" hash)
+    (hash-ref %module-handle-table hash)))
+
+(define (object->fileid handle obj)
+  ;; Return a presumably unique NFS file ID for HANDLE and OBJ.
+  (u8list->integer (car handle)))
+
+(define (make-fattr handle obj)
+  ;; Return NFS file attributes (aka. `fattr') for HANDLE and whose contents
+  ;; are OBJ.
+  (let ((type (if (module? obj) 'NFDIR 'NFREG))
+        (mode (if (module? obj)
+                  (bitwise-ior NFSMODE-DIR #o555)
+                  (bitwise-ior NFSMODE-REG #o444))))
+    (list type   ;; ftype type;		/* file type */
+          mode   ;; unsigned mode;		/* protection mode bits */
+          (if (module? obj)
+              (hash-fold (lambda (key value prior)
+                           (if (string? key) (1+ prior) prior))
+                         2 ;; `.' and `..' entries
+                         (module-obarray obj))
+              1) ;; unsigned nlink;		/* # hard links */
+          0      ;; unsigned uid;		/* owner user id */
+          0      ;; unsigned gid;		/* owner group id */
+          1      ;; unsigned size;		/* file size in bytes */
+          4096   ;; unsigned blocksize;	/* preferred block size */
+          7      ;; unsigned rdev;		/* special device # */
+          1      ;; unsigned blocks;	/* Kb of disk used by file */
+          7      ;; unsigned fsid;		/* device # */
+          (object->fileid handle obj)      ;; unsigned fileid;	/* inode # */
+          (list 0 0) ;; nfstime	atime;		/* time of last access */
+          (list 0 0) ;; nfstime	mtime;		/* time of last modification */
+          (list 0 0) ;; nfstime	ctime;		/* time of last change */
+          )))
+
+(define (nfs/get-attr handle)
+  (debug "nfs/get-attr ~A~%" handle)
+  (let ((obj (file-handle->module handle)))
+    ;;(format #t "  -> ~A~%" obj)
+    (if obj
+        (cons 'NFS-OK (make-fattr handle obj))
+        (cons 'NFSERR-NOENT #f))))
+
+(define (nfs/lookup arg)
+  (let ((dir-handle (car arg))
+        (name       (cadr arg)))
+    (debug "nfs/lookup `~a' in ~A~%" name dir-handle)
+    (let ((dir (file-handle->module dir-handle)))
+      (if (module? dir)
+          (let ((item (false-if-exception
+                       (module-ref dir
+                                   (string->symbol (filename->string name))))))
+            (if item
+                (cons 'NFS-OK
+                      (let ((handle (module->file-handle item)))
+                        (list handle
+                              (make-fattr handle item))))
+                '(NFSERR-NOENT . #f)))
+          '(NFSERR-IO . #f)))))
+
+(define (nfs/set-attr arg)
+  (debug "nfs/set-attr ~A~%" arg)
+  #t)
+
+(define (nfs/statfs arg)
+  (debug "nfs/statfs ~A~%" arg)
+  (cons 'NFS-OK
+        (list 8192      ;; tsize (optimum read/write size)
+              4096      ;; bsize (block size)
+              10        ;; blocks (number of blocks of BSIZE bytes)
+              0         ;; bfree (number of free blocks)
+              0         ;; bavail (number of free blocks for non-root users)
+              )))
+
+(define (nfs/readdir arg)
+  (define %zero-nfs-cookie
+    (make-list NFS-COOKIESIZE 0))
+
+  (define (entry-size file-name)
+    ;; Approximate estimate of an entry size.
+    (xdr-type-size entry
+                   (list 0 file-name %zero-nfs-cookie
+                         '(FALSE . #f))))
+
+  (define (module-entry-alist module)
+    ;; Return the contents of MODULE as an alist.
+    ;; XXX: This could be at least memoized.
+    (hash-fold alist-cons '() (module-obarray module)))
+
+  (define (make-entry-list module-entries start max)
+    ;; Return a list of `entry' structures of at most MAX bytes, starting
+    ;; from the STARTth entry in MODULE-ENTRIES.
+    (let loop ((entries (or (false-if-exception (drop module-entries start))
+                            '()))
+               (index   start)
+               (size    0)
+               (result  '()))
+      (if (null? entries)
+          (values (reverse result) #t)
+          (let* ((entry-size (entry-size (symbol->string (caar entries))))
+                 (new-size   (+ size entry-size)))
+            (if (> new-size max)
+                (values (reverse result) #f)
+                (let* ((entry (car entries))
+                       (key   (symbol->string (car entry)))
+                       (value (cdr entry)))
+                  (loop (cdr entries)
+                        (+ 1 index)
+                        (+ entry-size size)
+                        (cons (list (object->fileid (module->file-handle value)
+                                                    value)
+                                    (string->filename key)
+                                    (integer->u8list (+ 1 index) NFS-COOKIESIZE))
+                              result))))))))
+
+  (debug "nfs/readdir ~A~%" arg)
+  (let* ((handle (car arg))
+         (cookie (cadr arg))
+         (count  (caddr arg))
+
+         (dir    (file-handle->module handle))
+         (start  (u8list->integer cookie)))
+    (cond ((not dir)
+           (cons 'NFSERR-NOENT #f))
+          ((not (module? dir))
+           (cons 'NFSERR-NOTDIR #f))
+          (else
+           (cons 'NFS-OK
+                 (let-values (((entries eof?)
+                               (make-entry-list (module-entry-alist dir)
+                                                start
+                                                (if (> count 200)
+                                                    200 ;; FIXME: hack
+                                                    count)
+                                                )))
+                   ;;(format #t "  got ~A readdir entries~A~%"
+                   ;;        (length entries) (if eof? ", eof" ""))
+                   ;;(format #t "  entries: ~A~%" entries)
+                   (list (list->optional-data-list entries)
+                         (if eof? 'TRUE 'FALSE))))))))
+
+(define nfs-server
+  (make-NFS-PROGRAM-server
+   `(("NFS_VERSION"
+      ("NFSPROC_NULL"     . ,null-rpc)
+      ("NFSPROC_GETATTR"  . ,nfs/get-attr)
+      ("NFSPROC_SETATTR"  . ,nfs/set-attr)
+      ("NFSPROC_LOOKUP"   . ,nfs/lookup)
+      ("NFSPROC_READDIR"  . ,nfs/readdir)
+      ("NFSPROC_STATFS"   . ,nfs/statfs)))))
+
+;; The default NFS port.
+(define %nfs-port 2049)
+
+
+;;;
+;;; The program.
+;;;
+
+(define (nfs-export . args)
+  (let ((opts   (args-fold (cdr args) %options
+                            (lambda (opt name args result)
+                              (format (current-error-port)
+                                      "~a: unrecognized option~%"
+                                      (if (string? name)
+                                          (string-append "--" name)
+                                          (string-append "-" (string name)))))
+                            (lambda (operand result)
+                              (if (assq 'load-file result)
+                                  (begin
+                                    (format (current-error-port)
+                                            "parameter `~a' ignored~%"
+                                            operand)
+                                    result)
+                                  (alist-cons 'load-file operand
+                                              result)))
+                            `((nfs-port   . ,%nfs-port)
+                              (mount-port . ,%mount-port))))
+        (sock-for-mount (socket PF_INET SOCK_STREAM 0))
+        (sock-for-nfs   (socket PF_INET SOCK_STREAM 0)))
+
+  (for-each (lambda (s)
+              (setsockopt s SOL_SOCKET SO_REUSEADDR 1))
+            (list sock-for-mount sock-for-nfs))
+
+  ;; Listen for connections on the loopback device.
+  (bind sock-for-mount AF_INET INADDR_LOOPBACK (cdr (assq 'mount-port opts)))
+  (bind sock-for-nfs   AF_INET INADDR_LOOPBACK (cdr (assq 'nfs-port opts)))
+
+  (listen sock-for-mount 1024)
+  (listen sock-for-nfs 1024)
+
+  (let ((pmap (socket PF_INET SOCK_STREAM 0)))
+    ;; Register the `mount' server with portmapper.
+    (connect pmap AF_INET INADDR_LOOPBACK %portmapper-port)
+    (portmapper-set (list 100005 1 IPPROTO_TCP
+                          (cdr (assq 'mount-port opts)))
+                    0 pmap) ;; MOUNTPROG
+    (close pmap))
+
+  (let ((file (assq 'load-file opts)))
+    (if (pair? file)
+        (if (provided? 'threads)
+            (call-with-new-thread
+             (lambda ()
+             ;; Load the user-specified file.
+               (dynamic-wind
+                   (lambda ()
+                     #t)
+                   (lambda ()
+                     (catch 'system-error
+                       (lambda ()
+                         (load (cdr file)))
+                       (lambda args
+                         (let ((errno (system-error-errno args)))
+                           (format (current-error-port)
+                                   "~a: ~a~%" (cdr file)
+                                   (strerror errno))
+                           (exit 1)))))
+                   (lambda ()
+                     (exit 0)))))
+            (format (current-error-port)
+                    "Thread support unavailable, `~a' not loaded~%"
+                    (cdr file)))))
+
+  (parameterize ((*debug?* (assq 'debug? opts)))
+    (run-stream-rpc-server (list (cons sock-for-nfs nfs-server)
+                                 (cons sock-for-mount mount-server))
+                           5000000 #f
+                           (lambda ()
+                             ;; The idle thunk.
+                             ;;(format #t "one more time~%")
+                             #t)))))

@@ -18,4 +18,5 @@
 
 SUBDIRS = doc modules utils tests benchmarks
 
-EXTRA_DIST = TODO
+EXTRA_DIST = TODO				\
+	     rpcsvc/nfs_prot.x rpcsvc/mount.x

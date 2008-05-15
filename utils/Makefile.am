@@ -16,13 +16,21 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-EXTRA_DIST = grpc-rpcinfo.in grpc-compile.in
+EXTRA_DIST = grpc-rpcinfo.in grpc-compile.in grpc-nfs-export.in
 
-bin_SCRIPTS = grpc-rpcinfo grpc-compile
+bin_SCRIPTS = grpc-rpcinfo grpc-compile grpc-nfs-export
 CLEANFILES  = $(bin_SCRIPTS)
+
+pkgdata_DATA = nfs-server-stub.scm mount-server-stub.scm
+CLEANFILES  += $(pkgdata_DATA)
+
+GRPC_COMPILE =							\
+  GUILE_LOAD_PATH="$(top_srcdir)/modules:$$GUILE_LOAD_PATH"	\
+  "$(builddir)/grpc-compile"
 
 
 substitute = sed -e 's,[@]guilemoduledir[@],$(guilemoduledir),g'	\
+		 -e 's,[@]pkgdatadir[@],$(pkgdatadir),g'		\
 		 -e 's,[@]GUILE[@],$(GUILE),g'				\
 		 -e 's,[@]PACKAGE_STRING[@],$(PACKAGE_STRING),g'	\
 		 -e 's,[@]PACKAGE_NAME[@],$(PACKAGE_NAME),g'		\
@@ -35,6 +43,16 @@ SUFFIXES = .in
 	$(substitute) "$^" > "$@.tmp" &&	\
 	chmod +x "$@.tmp" &&			\
 	mv "$@.tmp" "$@"
+
+nfs-server-stub.scm: $(top_srcdir)/rpcsvc/nfs_prot.x
+	$(GRPC_COMPILE) --xdr --constants --server	\
+	  < "$(top_srcdir)/rpcsvc/nfs_prot.x"		\
+	  > "$@"
+
+mount-server-stub.scm: $(top_srcdir)/rpcsvc/mount.x
+	$(GRPC_COMPILE) --xdr --constants --server	\
+	  < "$(top_srcdir)/rpcsvc/mount.x"		\
+	  > "$@"
 
 
 if HAVE_GUILE_LINT
