@@ -18,11 +18,17 @@
 
 EXTRA_DIST = grpc-rpcinfo.in grpc-compile.in grpc-nfs-export.in
 
-bin_SCRIPTS = grpc-rpcinfo grpc-compile grpc-nfs-export
+bin_SCRIPTS = grpc-rpcinfo grpc-compile
 CLEANFILES  = $(bin_SCRIPTS)
+
+if HAVE_PARSE_LALR
 
 pkgdata_DATA = nfs-server-stub.scm mount-server-stub.scm
 CLEANFILES  += $(pkgdata_DATA)
+
+bin_SCRIPTS += grpc-nfs-export
+
+endif
 
 GRPC_COMPILE =							\
   GUILE_LOAD_PATH="$(top_srcdir)/modules:$$GUILE_LOAD_PATH"	\
