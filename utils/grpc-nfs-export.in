@@ -151,6 +151,31 @@ There is NO WARRANTY, to the extent permitted by law.~%")
                                (* (+ 1 byte) 8))
                     result)))))
 
+(define %r5rs-identifier->file-name
+  ;; A bidirectional mapping of characters not allowed in file names to file
+  ;; name characters not allowed in R5RS identifiers.
+  '((#\/ . #\,)))
+
+(define (r5rs-identifier->file-name id)
+  (string-map (lambda (chr)
+                (let ((replace (assq chr %r5rs-identifier->file-name)))
+                  (if (pair? replace)
+                      (cdr replace)
+                      chr)))
+              (symbol->string id)))
+
+(define file-name->r5rs-identifier
+  (let ((id-map (map (lambda (pair)
+                       (cons (cdr pair) (car pair)))
+                     %r5rs-identifier->file-name)))
+    (lambda (name)
+      (string->symbol (string-map (lambda (chr)
+                                    (let ((replace (assq chr id-map)))
+                                      (if (pair? replace)
+                                          (cdr replace)
+                                          chr)))
+                                  name)))))
+
 (define %max-unsigned
   (- (expt 2 32) 1))
 
@@ -288,7 +313,7 @@ There is NO WARRANTY, to the extent permitted by law.~%")
             (if (module? dir)
                 (let ((item (false-if-exception
                              (module-variable dir
-                                              (string->symbol
+                                              (file-name->r5rs-identifier
                                                (filename->string name))))))
                   (if item
                       (cons 'NFS-OK
@@ -368,13 +393,13 @@ There is NO WARRANTY, to the extent permitted by law.~%")
                (result  '()))
       (if (null? entries)
           (values (reverse result) #t)
-          (let* ((entry-size (entry-size (symbol->string (caar entries))))
+          (let* ((entry      (car entries))
+                 (key        (r5rs-identifier->file-name (car entry)))
+                 (entry-size (entry-size key))
                  (new-size   (+ size entry-size)))
             (if (> new-size max)
                 (values (reverse result) #f)
-                (let* ((entry (car entries))
-                       (key   (symbol->string (car entry)))
-                       (var   (cdr entry)))
+                (let ((var (cdr entry)))
                   (loop (cdr entries)
                         (+ 1 index)
                         (+ entry-size size)
