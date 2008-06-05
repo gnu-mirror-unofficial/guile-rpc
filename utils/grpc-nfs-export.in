@@ -28,6 +28,8 @@ exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -L "@pkgdatadir@" -l "$0"    \
 ;; Tell Guile to not issue warnings about duplicate bindings.
 (default-duplicate-binding-handler '(last))
 
+(debug-set! stack 50000)
+
 (define-module (guile-rpc nfs-export)
   :use-module (rpc xdr)
   :use-module (rpc xdr types)
@@ -106,6 +108,21 @@ There is NO WARRANTY, to the extent permitted by law.~%")
 ;;;
 ;;; Utilities.
 ;;;
+
+(define %unknown
+  ;; The "unknown" value, to be compared with `eq?'.
+  (cons 'unknown 'marker))
+
+(define (memoize proc)
+  ;; Memoize PROC, a one-argument procedure with no side-effect.
+  (let ((cache (make-weak-key-hash-table 1024)))
+    (lambda (arg)
+      (let ((result (hashq-ref cache arg %unknown)))
+        (if (eq? result %unknown)
+            (let ((result (proc arg)))
+              (hashq-set! cache arg result)
+              result)
+            result)))))
 
 (define (list->optional-data-list lst)
   ;; Return an RPC-usable representation of LST, a list of lists (each item
@@ -227,12 +244,15 @@ There is NO WARRANTY, to the extent permitted by law.~%")
   ;; wide) to modules.
   (make-weak-value-hash-table 256))
 
-(define (variable->file-handle var)
+(define (%variable->file-handle var)
   ;; Return a file handle (an XDR opaque array of `FHSIZE' bytes) for MODULE.
   (let ((hash (object-address var)))
     ;;(format #t "  mapping ~A to ~A~%" module hash)
     (hash-set! %module-handle-table hash var)
     (list (integer->u8list hash FHSIZE))))
+
+(define variable->file-handle
+  (memoize %variable->file-handle))
 
 (define (file-handle->variable handle)
   ;; Return the module that corresponds to HANDLE.
@@ -256,13 +276,19 @@ There is NO WARRANTY, to the extent permitted by law.~%")
   ;; aligned).
   (modulo (/ (object-address var) 8) %max-unsigned))
 
+(define object->file-size
+  ;; Return the size of the file whose contents are OBJ.
+  (memoize
+   (lambda (obj)
+     (let ((content (with-output-to-string
+                      (lambda ()
+                        (write obj)))))
+       (string-length content)))))
+
 (define (variable->file-size var)
   ;; Return the size of the file corresponding to VAR.
   (if (variable-bound? var)
-      (let ((content (with-output-to-string
-                       (lambda ()
-                         (write (variable-ref var))))))
-        (string-length content))
+      (object->file-size (variable-ref var))
       0))
 
 (define (make-fattr handle var)
@@ -430,7 +456,7 @@ There is NO WARRANTY, to the extent permitted by law.~%")
                                                   ;; optional-data list
                                                   ;; encoding consumes too much
                                                   ;; stack space.
-                                                  (min count 300))))
+                                                  (min count 3000))))
                      ;;(format #t "  got ~A readdir entries~A~%"
                      ;;        (length entries) (if eof? ", eof" ""))
                      ;;(format #t "  entries: ~A~%" entries)
