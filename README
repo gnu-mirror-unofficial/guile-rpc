@@ -15,8 +15,12 @@ Requirements
     http://www.fdn.fr/~lcourtes/software/guile/guile-r6rs-libs-0.1.tar.gz
     http://repo.or.cz/w/guile-r6rs-libs.git
 
-  * Guile-Lib (needed to use the XDR Language compiler), any recent version
+  * Guile-Lib (needed to use the XDR Language compiler) 0.1.7 or later
     http://home.gna.org/guile-lib/
+
+    Actually, 0.1.6 will also work, but you'll need the following
+    patch for proper error reporting from the compiler:
+    https://mail.gna.org/public/guile-lib-dev/2008-03/msg00005.html .
 
 
 Development
