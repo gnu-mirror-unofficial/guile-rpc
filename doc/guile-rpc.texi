@@ -84,17 +84,19 @@ This document describes GNU Guile-RPC version @value{VERSION}.  It was
 last updated in @value{UPDATED-MONTH}.
 
 @menu
-* Introduction::                   Overview of Guile-RPC
-* Obtaining and Installing::       Notes on installation
-* Quick Start::                    Writing an RPC client/server in a glimpse
-* API Reference::                  Everything about Guile-RPC
-* Stand-Alone Tools::              Command-line tools
-* References::                     Useful documents
-* GNU Free Documentation License:: The license of this manual
+* Introduction::                Overview of Guile-RPC
+* Obtaining and Installing::    Notes on installation
 
-* Concept Index::                  Concepts discussed in this document
-* Function Index::                 Index of Scheme procedures
-* Variable Index::                 Index of Scheme variables
+* Quick Start::                 Writing an RPC client/server in a glimpse
+* API Reference::               Everything about Guile-RPC
+* Stand-Alone Tools::           Command-line tools
+
+* References::                  Useful documents
+* GNU Free Documentation License::  The license of this manual
+
+* Concept Index::               Concepts discussed in this document
+* Function Index::              Index of Scheme procedures
+* Variable Index::              Index of Scheme variables
 @end menu
 
 
@@ -168,17 +170,28 @@ you are using one of these versions of Guile, you need to install
 @uref{http://home.gna.org/guile-lib/, Guile-Lib}, which contains the
 relevant module.
 
+GNU Guile-RPC comes with a compiler for the XDR/RPC interface
+description language (@pxref{Invoking grpc-compile}).  To use that,
+@uref{http://home.gna.org/guile-lib/, Guile-Lib} version 0.1.7 or later
+is needed@footnote{Guile-Lib 0.1.6 can be used but will yield inaccurate
+error reporting from the compiler in some cases.}.
+
 
 @c *********************************************************************
 @node Quick Start, API Reference, Obtaining and Installing, Top
 @chapter Quick Start
 
-Currently, Guile-RPC lacks a compiler for the XDR and RPC languages.
-So one has to write data type and RPC definitions ``by hand'', using
-the Guile-RPC's programming interface.  Hopefully, this should be
-quite straightforward.
+This section illustrates how ONC RPC clients and servers can be
+implemented using Guile-RPC.  ONC RPC defines a language to describe
+RPCs and the data types they depend on (@pxref{References, RFC
+1831@comma{} Section 11}).  This language, which we refer to as the
+@dfn{XDR/RPC language} or simply @dfn{RPC language}, resembles the C
+programming language.  It borrows C's type definition constructs and
+adds the @code{program} and @code{version} constructs that introduce RPC
+definitions.
 
-Consider the following RPC definitions:
+Consider the following RPC definition, written using the XDR/RPC
+language:
 
 @example
 typedef struct
@@ -197,7 +210,7 @@ program ARITHMETIC_PROGRAM
 @} = 80000;
 @end example
 
-This defines a simple RPC @dfn{interface} named @code{ARITHMETIC}
+It defines a simple RPC @dfn{interface} named @code{ARITHMETIC}
 which contains only one procedure called @code{split_number ()}.  The
 interface itself has a @dfn{program number} that identifies it (here,
 80000).  Normally, program numbers below 20000000 (hexadecimal) are
@@ -216,7 +229,9 @@ that contains two fields.
 
 Client and server creation are two-step.  Since the first step---data
 type definition---is the same for both, that leaves us with a total of
-three steps, described below.
+three steps, described below.  Nicely, each of these steps can be
+automated using the XDR/RPC language compiler (@pxref{Invoking
+grpc-compile, @code{grpc-compile}}).
 
 @menu
 * Defining Data Types::         Defining RPC data types
@@ -232,16 +247,31 @@ Reference}).
 @node Defining Data Types, Creating the Client, Quick Start, Quick Start
 @subsection Defining Data Types
 
-Before actually creating a client or server for this interface, one
-must define the types it uses.  To that end, one must first import the
-relevant Guile-RPC modules:
+Before actually creating a client or server for this interface, one must
+define the types it uses.  The simplest way to define one or several
+data types is to pipe their definition in XDR/RPC language through the
+compiler (@pxref{Invoking grpc-compile, @command{grpc-compile}}):
+
+@example
+$ grpc-compile --xdr --constants < input.x > types.scm
+@end example
+
+Given the description from @file{input.x} in RPC language, this command
+generates code that provides access to the constants and data types
+defined therein.  The resulting Scheme code, @file{types.scm}, can then
+be @code{load}ed in other Scheme files (@pxref{Loading,,, guile, The GNU
+Guile Reference Manual}).
+
+In addition, code in @file{types.scm} depends on Guile-RPC modules that
+it uses at run-time.  Thus, it must first import the relevant modules:
 
 @example
 (use-modules (rpc xdr)
              (rpc xdr types))
 @end example
 
-Then, the @code{result_t} type must be defined:
+Then, the @code{result_t} type is defined (this is the code generated by
+the compiler but it can also be written ``by hand''):
 
 @example
 (define result-type
@@ -263,6 +293,15 @@ this:
                              1          ;; procedure number
                              xdr-double ;; argument type
                              result-type))
+@end example
+
+Again, this definition, minus the @code{use-modules} clause, can
+alternatively be generated by the compiler from the RPC description in
+XDR/RPC language (@pxref{Invoking grpc-compile,
+@command{grpc-compile}}):
+
+@example
+$ grpc-compile --client < input.x > client.scm
 @end example
 
 Once this is done, invoking the procedure is as simple as this:
@@ -353,6 +392,7 @@ build ONC RPC clients and servers.
 * Implementation of XDR::       The external data representation
 * Implementation of ONC RPC::   Remote procedure calls
 * Standard RPC Programs::       Interfaces to common RPC programs
+* Compiler::                    The XDR/RPC language compiler
 @end menu
 
 @node Usage Notes, Implementation of XDR, API Reference, API Reference
@@ -1093,7 +1133,7 @@ decoding of the record marking standard (RFC 1831, Section 10).
 @end deffn
 
 
-@node Standard RPC Programs,  , Implementation of ONC RPC, API Reference
+@node Standard RPC Programs, Compiler, Implementation of ONC RPC, API Reference
 @section Standard RPC Programs
 
 GNU Guile-RPC provides client-side and/or server-side of some commonly
@@ -1216,20 +1256,65 @@ returned by @code{read-rpc-service-list}) and return its RPC program
 number.
 @end deffn
 
+@node Compiler,  , Standard RPC Programs, API Reference
+@section XDR/RPC Language Compiler
+
+This section describes the compiler's @emph{programming interface}.
+Most of the time, its command-line interface is all is needed; it is
+described in @xref{Invoking grpc-compile, @command{grpc-compile}}.  This
+section is intended for users who need more flexibility than is provided
+by @command{grpc-compile}.
+
+@cindex compiler front-ends
+
+The compiler consists of a lexer, a parser and two @dfn{compiler
+front-ends}.  The lexer separates input data into valid XDR/RPC language
+tokens; the parser then validates the input syntax and produces an
+abstract syntax tree of the input.  Finally, the front-ends are
+responsible for actually ``compiling'' the input into something usable
+by the programmer.  The front-end used by the @command{grpc-compile}
+command is the @dfn{code generation front-end}.  In addition, an
+experimental @dfn{run-time compiler front-end} is available, making it
+possible to compile dynamically definitions in the XDR/RPC language
+@emph{at run-time}; this technology paves the way for a wide range of
+crazy distributed applications, the programmer's imagination being the
+only real limitation@footnote{Finding useful applications leveraging the
+flexibility offered by the run-time compiler front-end is left as an
+exercise to the reader.}.
+
+@menu
+* Parser::                      Parser API
+* Code Generation Compiler Front-End::  Code generation API
+* Run-Time Compiler Front-End::  The incredible run-time compiler
+@end menu
+
+FIXME: Describe the compiler's API.
+
+@node Parser, Code Generation Compiler Front-End, Compiler, Compiler
+@subsection Parser
+
+@node Code Generation Compiler Front-End, Run-Time Compiler Front-End, Parser, Compiler
+@subsection Code Generation Compiler Front-End
+
+@node Run-Time Compiler Front-End,  , Code Generation Compiler Front-End, Compiler
+@subsection Run-Time Compiler Front-End
+
+
 
 @c *********************************************************************
 @node Stand-Alone Tools, References, API Reference, Top
 @chapter Stand-Alone Tools
 
 GNU Guile-RPC comes with stand-alone tools that can be used from the
-command-line.  Actually, there's currently only one such tool,
-@code{grpc-rpcinfo}.
+command-line.
 
 @menu
 * Invoking grpc-rpcinfo::       Querying the portmapper
+* Invoking grpc-compile::       Using the XDR/RPC compiler
+* Invoking grpc-nfs-export::    Playing with the toy NFS server
 @end menu
 
-@node Invoking grpc-rpcinfo,  , Stand-Alone Tools, Stand-Alone Tools
+@node Invoking grpc-rpcinfo, Invoking grpc-compile, Stand-Alone Tools, Stand-Alone Tools
 @section Invoking @code{grpc-rpcinfo}
 
 @cindex @code{rpcinfo}
@@ -1272,6 +1357,20 @@ program vers    proto   port    name
 $ grpc-rpcinfo -d 100000 2 klimt 
 ERROR: `portmapper-unset' failed FALSE
 @end example
+
+
+@node Invoking grpc-compile, Invoking grpc-nfs-export, Invoking grpc-rpcinfo, Stand-Alone Tools
+@section Invoking @code{grpc-compile}
+
+The @command{grpc-compile} command provides a simple command-line
+interface to the XDR/RPC language compiler (@pxref{Compiler}).
+
+FIXME: Write it.
+
+@node Invoking grpc-nfs-export,  , Invoking grpc-compile, Stand-Alone Tools
+@section Invoking @code{grpc-nfs-export}
+
+FIXME: Write it.
 
 
 @c *********************************************************************
