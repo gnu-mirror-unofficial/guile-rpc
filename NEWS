@@ -1,6 +1,8 @@
 * New in GNU Guile-RPC 0.3
 
 ** New features
+*** XDR/RPC language compiler, available through the `grpc-compile' command
+*** Toy NFS server providing access to Guile's variables, `grpc-nfs-export'
 *** Support for recursive XDR data types
 ** Bug fixes
 *** Fix encoding of vectors of floats, doubles
