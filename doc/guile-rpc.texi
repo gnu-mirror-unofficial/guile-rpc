@@ -353,11 +353,48 @@ our program.
 
 (define my-rpc-program
   ;; Define our RPC program.
-  (let* ((proc (make-rpc-procedure number xdr-double result-type
-                                   split-number-handler))
+  (let* ((proc    (make-rpc-procedure 1 xdr-double result-type
+                                      split-number-handler))
          (version (make-rpc-program-version 0 (list proc))))
     (make-rpc-program 80000 (list version))))
+@end example
 
+Alternatively, using the compiler allows the above definition of
+@var{my-rpc-program} to be automatically generated from the XDR/RPC
+definition file (@pxref{Invoking grpc-compile, @command{grpc-compile}}):
+
+@example
+$ grpc-compile --server < input.x > server.scm
+@end example
+
+However, there is a slight difference compared to the above
+``hand-written'' approach: @file{server.scm} does not contain the actual
+definition of @var{my-rpc-program} since it does not know about your
+@code{split-number-handler} procedure.  Instead, given the RPC/XDR
+definition given earlier, it contains a
+@code{make-ARITHMETIC-PROGRAM-server} procedure; this procedure can be
+passed a list associating RPC names to Scheme procedures, and returns
+the resulting RPC program object:
+
+@example
+(define my-rpc-program
+  (make-ARITHMETIC-PROGRAM-server
+    `(("ARITHMETIC_VERSION"  ;; specify the target version
+
+        ;; list all supported RPCs for this version
+        ("split_number" . ,split-number-handler)))))
+@end example
+
+As can be seen, using the compiler-generated server stub, one doesn't
+have to deal explicitly with program, version and RPC numbers, which
+clarifies the code.
+
+
+Finally, we can make the server listen for incoming connections and
+handle client requests, using @ref{Network Sockets and Communication,
+Guile's networking primitives,, guile, The GNU Guile Reference Manual}.
+
+@example
 ;; Creating a listening TCP socket.
 (define server-socket (socket PF_INET SOCK_STREAM 0))
 
@@ -1261,7 +1298,7 @@ number.
 
 This section describes the compiler's @emph{programming interface}.
 Most of the time, its command-line interface is all is needed; it is
-described in @xref{Invoking grpc-compile, @command{grpc-compile}}.  This
+described in @ref{Invoking grpc-compile, @command{grpc-compile}}.  This
 section is intended for users who need more flexibility than is provided
 by @command{grpc-compile}.
 
