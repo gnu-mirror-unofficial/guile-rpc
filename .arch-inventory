@@ -1,5 +1,0 @@
-# Generated files.
-
-precious ^(autom4te\.cache|config\.(cache|log)|config\.status|configure|libtool|stamp-h[0-9]+|aclocal\.m4|pre-inst-guile|lib)$
-
-# arch-tag: d30c2ffb-5ef6-4f8f-a939-9a20126c2e35
