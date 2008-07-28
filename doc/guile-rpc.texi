@@ -184,11 +184,11 @@ error reporting from the compiler in some cases.}.
 This section illustrates how ONC RPC clients and servers can be
 implemented using Guile-RPC.  ONC RPC defines a language to describe
 RPCs and the data types they depend on (@pxref{References, RFC
-1831@comma{} Section 11}).  This language, which we refer to as the
-@dfn{XDR/RPC language} or simply @dfn{RPC language}, resembles the C
-programming language.  It borrows C's type definition constructs and
-adds the @code{program} and @code{version} constructs that introduce RPC
-definitions.
+4506@comma{} Section 6 and RFC 1831@comma{} Section 11}).  This
+language, which we refer to as the @dfn{XDR/RPC language} or simply
+@dfn{RPC language}, resembles the C programming language.  It borrows
+C's type definition constructs and adds the @code{program} and
+@code{version} constructs that introduce RPC definitions.
 
 Consider the following RPC definition, written using the XDR/RPC
 language:
@@ -1346,12 +1346,114 @@ GNU Guile-RPC comes with stand-alone tools that can be used from the
 command-line.
 
 @menu
-* Invoking grpc-rpcinfo::       Querying the portmapper
 * Invoking grpc-compile::       Using the XDR/RPC compiler
+* Invoking grpc-rpcinfo::       Querying the portmapper
 * Invoking grpc-nfs-export::    Playing with the toy NFS server
 @end menu
 
-@node Invoking grpc-rpcinfo, Invoking grpc-compile, Stand-Alone Tools, Stand-Alone Tools
+
+@node Invoking grpc-compile, Invoking grpc-rpcinfo, Stand-Alone Tools, Stand-Alone Tools
+@section Invoking @code{grpc-compile}
+
+@cindex @code{grpc-compile}
+
+The @command{grpc-compile} command provides a simple command-line
+interface to the XDR/RPC language compiler (@pxref{Compiler}).  It reads
+a RPC definitions written in the XDR/RPC language on the standard input
+and, depending on the options, write Scheme code containing client,
+server, data type or constant definitions on the standard output.
+
+@cindex compiler invocation
+
+@table @option
+
+@item --help
+Print a summary of the command-line options and exit.
+
+@item --version
+Print the version number of GNU Guile-RPC and exit.
+
+@item --xdr
+@itemx -x
+Compile XDR type definitions.
+
+@item --constants
+@itemx -C
+Compile XDR constant definitions.
+
+@item --client
+@itemx -c
+Compile client RPC stubs.
+
+@item --server
+@itemx -s
+Compile server RPC stubs.
+
+@item --strict
+@itemx -S
+@cindex Sun XDR/RPC language extensions
+@cindex @code{rpcgen}
+
+Use strict XDR standard compliance per @ref{References, RFC 4506@comma{}
+Section 6}.  By default, the compiler recognizes extensions implemented
+by Sun Microsystems, Inc., and also available in the GNU C Library's
+@code{rpcgen}.  These extensions include:
+
+@itemize
+@item support for @code{%} line comments; these are actually treated
+as special directives by @code{rpcgen} but they are simply ignored by
+@code{grpc-compile};
+
+@item support for the @code{char} type, equivalent to @code{int};
+
+@item support for the @code{unsigned} type, equivalent to
+@code{unsigned int};
+
+@item the ability to use @code{struct} in type specifiers.
+
+@end itemize
+
+@cindex C preprocessor
+Also note that some XDR/RPC definition files (@file{.x} files)
+originally designed to be used in C programs with @code{rpcgen} include
+C preprocessor directives.  Unlike @code{rpcgen}, which automatically
+invokes @code{cpp}, such input files need to be piped through
+@command{cpp -P} before being fed to @code{grpc-compile}.
+
+@item --intermediate
+Output the intermediate form produced by the parser (@pxref{Parser}).
+
+@end table
+
+Code generation options can be combined.  For instance, the command line
+below writes data type and constant definitions as well as client stubs
+in a single file:
+
+@example
+$ grpc-compile --xdr --constants --client < input.x > client-stubs.scm
+@end example
+
+The various pieces of generated code can also be stored in separate
+files.  The following example shows how to create one file containing
+constant and type definitions, another one containing client stubs, and
+a third one containing server stubs.  Since the two last files depend on
+the first one, care must be taken to load them beforehand.
+
+@example
+$ grpc-compile --xdr --constants < input.x > types+constants.scm
+$ echo '(load "types+constants.scm")' > client-stubs.scm
+$ grpc-compile --client < input.x >> client-stubs.scm
+$ echo '(load "types+constants.scm")' > server-stubs.scm
+$ grpc-compile --server < input.x >> server-stubs.scm
+@end example
+
+@c FIXME: Remove paragraph when it's done.
+In the future, there may be additional @code{--use-module} and
+@code{--define-module} options to make it easier to use Guile's module
+system in generated code.
+
+
+@node Invoking grpc-rpcinfo, Invoking grpc-nfs-export, Invoking grpc-compile, Stand-Alone Tools
 @section Invoking @code{grpc-rpcinfo}
 
 @cindex @code{rpcinfo}
@@ -1396,15 +1498,7 @@ ERROR: `portmapper-unset' failed FALSE
 @end example
 
 
-@node Invoking grpc-compile, Invoking grpc-nfs-export, Invoking grpc-rpcinfo, Stand-Alone Tools
-@section Invoking @code{grpc-compile}
-
-The @command{grpc-compile} command provides a simple command-line
-interface to the XDR/RPC language compiler (@pxref{Compiler}).
-
-FIXME: Write it.
-
-@node Invoking grpc-nfs-export,  , Invoking grpc-compile, Stand-Alone Tools
+@node Invoking grpc-nfs-export,  , Invoking grpc-rpcinfo, Stand-Alone Tools
 @section Invoking @code{grpc-nfs-export}
 
 FIXME: Write it.
