@@ -181,12 +181,16 @@ error reporting from the compiler in some cases.}.
 @node Quick Start, API Reference, Obtaining and Installing, Top
 @chapter Quick Start
 
+@cindex interface description language
+@cindex IDL
+@cindex XDR/RPC language
 This section illustrates how ONC RPC clients and servers can be
 implemented using Guile-RPC.  ONC RPC defines a language to describe
 RPCs and the data types they depend on (@pxref{References, RFC
 4506@comma{} Section 6 and RFC 1831@comma{} Section 11}).  This
 language, which we refer to as the @dfn{XDR/RPC language} or simply
-@dfn{RPC language}, resembles the C programming language.  It borrows
+@dfn{RPC language}, is essentially an @dfn{interface description
+language} (IDL).  It resembles the C programming language and borrows
 C's type definition constructs and adds the @code{program} and
 @code{version} constructs that introduce RPC definitions.
 
@@ -1329,6 +1333,95 @@ FIXME: Describe the compiler's API.
 
 @node Parser, Code Generation Compiler Front-End, Compiler, Compiler
 @subsection Parser
+
+@cindex parser
+@cindex abstract syntax tree
+
+The parser is available under the @code{(rpc compiler parser)} module.
+The main procedure, @code{rpc-language->sexp}, reads XDR/RPC language
+descriptions and returns the abstract syntax tree (AST) in the form of
+an S-expression.  The AST can be shown using the @code{--intermediate}
+option of the @code{grpc-compile} command-line tool (@pxref{Invoking
+grpc-compile}).  Below is an illustration of the mapping between the
+XDR/RPC language and the S-exp representation.
+
+@example
+const SIZE = 10;
+struct foo
+@{
+  int x;
+  enum @{ NO = 0, YES = 1 @} y;
+  float z[SIZE];
+@};
+@end example
+
+... yields:
+
+@example
+(define-constant "SIZE" 10)
+(define-type
+  "foo"
+  (struct
+    ("x" "int")
+    ("y" (enum ("NO" 0) ("YES" 1)))
+    ("z" (fixed-length-array "float" "SIZE"))))
+@end example
+
+@deffn {Scheme Procedure} rpc-language->sexp port
+Read a specification written in the XDR Language from @var{port} and
+return the corresponding sexp-based representation.  This procedure can
+raise a @code{&compiler-error} exception (see below).
+@end deffn
+
+The behavior of the parser can be controlled using the
+@var{*parser-options*} parameter object:
+
+@defvr {Scheme Variable} *parser-options*
+This @uref{http://srfi.schemers.org/srfi-39/srfi-39.html, SRFI-39
+parameter object} must be a list of symbols or the empty list.  Each
+symbol describes an option.  For instance, @code{allow-unsigned}
+instructs the parser to recognize @code{unsigned} as if it were
+@code{unsigned int} (@pxref{Invoking grpc-compile, Sun XDR/RPC language
+extensions}).
+@end defvr
+
+Source location information is attached to the S-expressions returned by
+@code{rpc-language->sexp}.  It can be queried using the procedures
+below.  Note that not-only top-level S-expressions (such as
+@code{define-type} or @code{define-constant} expressions) can be
+queried, but also sub-expressions, e.g., the @code{enum} S-expression
+above.
+
+@deffn {Scheme Procedure} sexp-location sexp
+Return the source location associated with @var{sexp} or @code{#f} if no
+source location information is available.
+@end deffn
+
+@deffn {Scheme Procedure} location-line loc
+@deffnx {Scheme Procedure} location-column loc
+@deffnx {Scheme Procedure} location-file loc
+Return the line number, column number or file name from location
+@var{loc}, an object returned by @code{sexp-location}.
+@end deffn
+
+@cindex compiler errors
+In case of parse errors or other compiler errors, a
+@code{&compiler-error} error condition (or an instance of a sub-type
+thereof) may be raise.
+
+@defvr {Scheme Variable} &compiler-error
+The ``compiler error'' error condition type.
+@end defvr
+
+@deffn {Scheme Procedure} compiler-error? c
+Return @code{#t} if @var{c} is a compiler error.
+@end deffn
+
+@deffn {Scheme Procedure} compiler-error:location c
+Return the source location information associated with @var{c}, or
+@code{#f} if that information is not available.
+@end deffn
+
 
 @node Code Generation Compiler Front-End, Run-Time Compiler Front-End, Parser, Compiler
 @subsection Code Generation Compiler Front-End
