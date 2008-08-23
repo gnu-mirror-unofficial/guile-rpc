@@ -1306,32 +1306,32 @@ described in @ref{Invoking grpc-compile, @command{grpc-compile}}.  This
 section is intended for users who need more flexibility than is provided
 by @command{grpc-compile}.
 
-@cindex compiler front-ends
+@cindex compiler back-ends
 
 The compiler consists of a lexer, a parser and two @dfn{compiler
-front-ends}.  The lexer separates input data into valid XDR/RPC language
+back-ends}.  The lexer separates input data into valid XDR/RPC language
 tokens; the parser then validates the input syntax and produces an
-abstract syntax tree of the input.  Finally, the front-ends are
+abstract syntax tree of the input.  Finally, the back-ends are
 responsible for actually ``compiling'' the input into something usable
-by the programmer.  The front-end used by the @command{grpc-compile}
-command is the @dfn{code generation front-end}.  In addition, an
-experimental @dfn{run-time compiler front-end} is available, making it
+by the programmer.  The back-end used by the @command{grpc-compile}
+command is the @dfn{code generation back-end}.  In addition, an
+experimental @dfn{run-time compiler back-end} is available, making it
 possible to compile dynamically definitions in the XDR/RPC language
 @emph{at run-time}; this technology paves the way for a wide range of
 crazy distributed applications, the programmer's imagination being the
 only real limitation@footnote{Finding useful applications leveraging the
-flexibility offered by the run-time compiler front-end is left as an
+flexibility offered by the run-time compiler back-end is left as an
 exercise to the reader.}.
 
 @menu
 * Parser::                      Parser API
-* Code Generation Compiler Front-End::  Code generation API
-* Run-Time Compiler Front-End::  The incredible run-time compiler
+* Code Generation Compiler Back-End::  Code generation API
+* Run-Time Compiler Back-End::  The incredible run-time compiler
 @end menu
 
 FIXME: Describe the compiler's API.
 
-@node Parser, Code Generation Compiler Front-End, Compiler, Compiler
+@node Parser, Code Generation Compiler Back-End, Compiler, Compiler
 @subsection Parser
 
 @cindex parser
@@ -1423,11 +1423,11 @@ Return the source location information associated with @var{c}, or
 @end deffn
 
 
-@node Code Generation Compiler Front-End, Run-Time Compiler Front-End, Parser, Compiler
-@subsection Code Generation Compiler Front-End
+@node Code Generation Compiler Back-End, Run-Time Compiler Back-End, Parser, Compiler
+@subsection Code Generation Compiler Back-End
 
-@node Run-Time Compiler Front-End,  , Code Generation Compiler Front-End, Compiler
-@subsection Run-Time Compiler Front-End
+@node Run-Time Compiler Back-End,  , Code Generation Compiler Back-End, Compiler
+@subsection Run-Time Compiler Back-End
 
 
 
