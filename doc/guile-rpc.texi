@@ -198,18 +198,19 @@ Consider the following RPC definition, written using the XDR/RPC
 language:
 
 @example
-typedef struct
+struct result_t
 @{
   int          integer_part;
   unsigned int decimal_part;
-@} result_t;
+@};
 
 program ARITHMETIC_PROGRAM
 @{
   version ARITHMETIC_VERSION
   @{
-    /* Return the integer and decimal part of NUMBER.  */
-    result_t split_number (double number) = 1;
+    /* Return the integer part and the 1000th of the
+       given double-precision floating point number.  */
+    result_t split_number (double) = 1;
   @} = 0;
 @} = 80000;
 @end example
