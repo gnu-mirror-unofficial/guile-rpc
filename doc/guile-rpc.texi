@@ -1427,6 +1427,57 @@ Return the source location information associated with @var{c}, or
 @node Code Generation Compiler Back-End, Run-Time Compiler Back-End, Parser, Compiler
 @subsection Code Generation Compiler Back-End
 
+The code generation back-end is provided by the @code{(rpc compiler)}
+module.  Given an XDR/RPC description, it returns a list of
+S-expressions, each of which is a top-level Scheme expression
+implementing an element of the input description.  These expressions are
+meant to be dumped to a Scheme file; this is what the command-line
+interface of the compiler does (@pxref{Invoking grpc-compile,
+@command{grpc-compile}}).
+
+Here is an example XDR/RPC description and the resulting client code, as
+obtained, e.g., with @command{grpc-compile --xdr --constants --client}:
+
+@example
+const max = 010;
+
+struct foo
+@{
+  int   x;
+  float y<max>;
+@};
+
+=>
+
+(define max 8)
+(define foo
+  (make-xdr-struct-type
+    (list xdr-integer
+          (make-xdr-vector-type xdr-float max))))
+@end example
+
+As can be seen here, the generated code uses the run-time support
+routines described earlier (@pxref{Implementation of XDR}); an
+optimization would consist in generating specialized code that does not
+depend on the run-time support, but it is not implemented yet.
+
+This front-end consists of two procedures:
+
+@deffn {Scheme Procedure} rpc-language->scheme-client input type-defs? constant-defs?
+@deffnx {Scheme Procedure} rpc-language->scheme-server input type-defs? constant-defs?
+These procedures return a list of top-level Scheme expressions
+implementing @var{input} for an RPC client or, respectively, a server.
+
+@var{input} can be either an input port, a string, or an AST as returned
+by @code{rpc-language->sexp} (@pxref{Parser}).  If @var{type-defs?} is
+@code{#t}, then type definition code is produced; if
+@var{constant-defs?} is @code{#t}, then constant definition code is
+produced.
+
+Both procedures can raise error conditions having a sub-type of
+@code{&compiler-error}.
+@end deffn
+
 @node Run-Time Compiler Back-End,  , Code Generation Compiler Back-End, Compiler
 @subsection Run-Time Compiler Back-End
 
