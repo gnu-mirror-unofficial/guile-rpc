@@ -1330,7 +1330,6 @@ exercise to the reader.}.
 * Run-Time Compiler Back-End::  The incredible run-time compiler
 @end menu
 
-FIXME: Describe the compiler's API.
 
 @node Parser, Code Generation Compiler Back-End, Compiler, Compiler
 @subsection Parser
@@ -1478,9 +1477,77 @@ Both procedures can raise error conditions having a sub-type of
 @code{&compiler-error}.
 @end deffn
 
+
 @node Run-Time Compiler Back-End,  , Code Generation Compiler Back-End, Compiler
 @subsection Run-Time Compiler Back-End
 
+The run-time compiler back-end is also provided by the @code{(rpc
+compiler)} module.  It reads XDR/RPC definitions and returns data
+structures readily usable to deal with the XDR data types or RPC
+programs described, @emph{at run-time}.  Actually, as of version
+@value{VERSION}, it does not have an API to deal with RPC programs, only
+with XDR data types.
+
+@deffn {Scheme Procedure} rpc-language->xdr-types input
+Read XDR type definitions from @var{input} and return an alist; element
+of the returned alist is a pair whose @code{car} is a string naming an
+XDR data type and whose @code{cdr} is an XDR data type object
+(@pxref{XDR Type Representations}).  @var{input} can be either an input
+port, a string, or an AST as returned by @code{rpc-language->sexp}
+(@pxref{Parser}).
+
+This procedure can raise error conditions having a sub-type of
+@code{&compiler-error}.
+@end deffn
+
+Here is an example of two procedures that, given XDR type definitions,
+decode (respectively encode) an object of that type:
+
+@example
+(use-modules (rpc compiler)
+             (rpc xdr)
+             (r6rs bytevector)
+             (r6rs io ports))
+
+(define (decode-data type-defs type-name port)
+  ;; Read binary data from PORT as an object of type
+  ;; TYPE-NAME whose definition is given in TYPE-DEFS.
+  (let* ((types (rpc-language->xdr-types type-defs))
+         (type  (cdr (assoc type-name types))))
+    (xdr-decode type port)))
+
+(define (encode-data type-defs type-name object)
+  ;; Encode OBJECT as XDR data type named TYPE-NAME from
+  ;; the XDR type definitions in TYPE-DEFS.
+  (let* ((types (rpc-language->xdr-types type-defs))
+         (type  (cdr (assoc type-name types)))
+         (size  (xdr-type-size type object))
+         (bv    (make-bytevector size)))
+    (xdr-encode! bv 0 type object)
+    (open-bytevector-input-port bv)))
+@end example
+
+These procedures can then be used as follows:
+
+@example
+(let ((type-defs (string-append "typedef hyper chbouib<>;"
+                                "struct foo @{ "
+                                "  int x; float y; chbouib z;"
+                                "@};"))
+      (type-name "foo")
+      (object    '(1 2.0 #(3 4 5))))
+  (equal? (decode-data type-defs type-name
+                       (encode-data type-defs type-name
+                                    object))
+          object))
+
+=>
+
+#t
+@end example
+
+Note that in this example @var{type-defs} contains two type definitions,
+which is why the @var{type-name} argument is absolutely needed.
 
 
 @c *********************************************************************
