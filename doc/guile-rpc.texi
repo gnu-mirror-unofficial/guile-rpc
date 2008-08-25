@@ -1567,7 +1567,7 @@ command-line.
 @node Invoking grpc-compile, Invoking grpc-rpcinfo, Stand-Alone Tools, Stand-Alone Tools
 @section Invoking @code{grpc-compile}
 
-@cindex @code{grpc-compile}
+@cindex @command{grpc-compile}
 
 The @command{grpc-compile} command provides a simple command-line
 interface to the XDR/RPC language compiler (@pxref{Compiler}).  It reads
@@ -1668,7 +1668,8 @@ system in generated code.
 @node Invoking grpc-rpcinfo, Invoking grpc-nfs-export, Invoking grpc-compile, Stand-Alone Tools
 @section Invoking @code{grpc-rpcinfo}
 
-@cindex @code{rpcinfo}
+@cindex @command{rpcinfo}
+@cindex @command{grpc-rpcinfo}
 
 This program is equivalent to the @code{rpcinfo} program available on
 most Unix systems and notably provided by the GNU C Library.  In is a
@@ -1713,7 +1714,89 @@ ERROR: `portmapper-unset' failed FALSE
 @node Invoking grpc-nfs-export,  , Invoking grpc-rpcinfo, Stand-Alone Tools
 @section Invoking @code{grpc-nfs-export}
 
-FIXME: Write it.
+@cindex NFS
+@cindex Network File System
+@cindex @command{grpc-nfs-export}
+
+Guile-RPC comes with an example NFS (Network File System) server,
+provided by the @command{grpc-nfs-export} command.  More precisely, it
+implements NFS version 2, i.e., the @code{NFS_PROGRAM} RPC program
+version 2 along with the @code{MOUNTPROG} program version 1, which are
+closely related (@pxref{References, RFC 1094}).  It is a TCP server.
+
+Enough technical details.  The important thing about
+@code{grpc-nfs-export} is this: although it's of little use in one's
+everyday life, this NFS server is nothing less than life-changing.  It's
+different from any file system you've seen before.  It's the ultimate
+debugging aid for any good Guile hacker.
+
+The ``file hierarchy'' served by @code{grpc-nfs-export} is---guess
+what?---Guile's module hierarchy!  In other words, when mounting the
+file system exported by @command{grpc-nfs-export}, the available files
+are @dfn{bindings}, while directories represent @dfn{modules}
+(@pxref{The Guile module system,,, guile, The GNU Guile Reference
+Manual}).  The module hierarchy can also be browsed from the REPL using
+Guile's @code{nested-ref} procedure.  Here's a sample session:
+
+@example
+$ ./grpc-nfs-export &
+
+$ sudo mount -t nfs -o nfsvers=2,tcp,port=2049 localhost: /nfs/
+
+$ ls /nfs/%app/modules/
+guile/  guile-rpc/  guile-user/  ice-9/  r6rs/  rpc/  srfi/
+
+$ ls /nfs/%app/modules/rpc/rpc/portmap/%module-public-interface/
+lookup-rpc-service-name    %portmapper-port
+lookup-rpc-service-number  %portmapper-program-number
+portmapper-call-it         portmapper-set
+portmapper-dump            portmapper-unset
+portmapper-get-port        %portmapper-version-number
+portmapper-null            read-rpc-service-list
+
+$ cat /nfs/%app/modules/rpc/xdr/xdr-decode 
+#<procedure xdr-decode (type port)>
+
+$ cat /nfs/%app/modules/rpc/xdr/%xdr-endianness 
+big
+@end example
+
+Here is the option reference:
+
+@table @option
+
+@item --help
+Print a summary of the command-line options and exit.
+
+@item --version
+Print the version number of GNU Guile-RPC and exit.
+
+@item --nfs-port=@var{port}
+@itemx -p @var{port}
+Listen for NFS connections on @var{port} (default: 2049).
+
+@item --mount-port=@var{mount-port}
+@itemx -P @var{mount-port}
+Listen for @code{mount} connections on @var{mount-port} (default: 6666).
+
+@item --debug
+Produce debugging messages.
+
+@end table
+
+In addition, @command{grpc-nfs-export} can be passed the name of a
+Scheme source file, in which case it will load that file in a separate
+thread while still serving NFS and @code{mount} requests.  This allows
+the program's global variables to be monitored via the NFS mount.
+
+@c FIXME: Update when it's in a better shape.
+As of version @value{VERSION}, this toy server exhibits poor
+performance, notably when running @command{ls} (which translates into a
+few @code{readdir} and many @code{lookup} RPCs, the latter being costly)
+in directories containing a lot of files.  This is probably partly due
+to the use of TCP, and partly due to other inefficiencies that we hope
+to fix soon.
+
 
 
 @c *********************************************************************
@@ -1731,6 +1814,9 @@ External Data Representation Standard''}, May 2006.
 @item RFC 1833
 R. Srinivasan et al., @uref{http://tools.ietf.org/html/rfc1833,
 ``Binding Protocols for ONC RPC Version 2''}, August 2005.
+@item RFC 1094
+B. Nowicki, @uref{http://tools.ietf.org/html/rfc1094, ``NFS: Network
+File System Protocol Specification''}, March 1989.
 @end table
 
 @c *********************************************************************
