@@ -523,14 +523,14 @@ number of items of type @var{base-type} that are allow in actual
 arrays of this type.  If @var{base-type} is @code{#f}, then arrays of
 this type may contain up to 2^32 - 1 items of type @var{base-type}.
 
-Vector types are encoded from one-dimensional arrays such as Scheme
-vectors, SRFI-4 vectors or strings (@pxref{Arrays, Guile's generalized
-arrays,, guile, The GNU Guile Reference Manual}).  By default, vector
-types decode to vectors, but any other kind of one-dimensional array can
-be used: it only needs to be specified as the @var{vector-decoder}
-argument of @code{make-xdr-basic-type} for the corresponding base type.
-Of course, SRFI-4 vectors, for example, may only be used when an XDR
-integer vector with a matching integer range is expected.
+Vector types are encoded from @dfn{generalized vectors} such as Scheme
+vectors, SRFI-4 vectors or strings (@pxref{Generalized Vectors,,, guile,
+The GNU Guile Reference Manual}).  By default, vector types decode to
+vectors, but any other kind of generalized vector can be used: it only
+needs to be specified as the @var{vector-decoder} argument of
+@code{make-xdr-basic-type} for the corresponding base type.  Of course,
+SRFI-4 vectors, for example, may only be used when an XDR integer vector
+with a matching integer range is expected.
 
 If @var{max-element-count} is specified and a vector to be encoded
 contains more than @var{max-element-count} elements, then an
