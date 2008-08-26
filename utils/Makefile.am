@@ -18,7 +18,7 @@
 
 EXTRA_DIST = grpc-rpcinfo.in grpc-compile.in grpc-nfs-export.in
 
-bin_SCRIPTS = grpc-rpcinfo grpc-compile
+bin_SCRIPTS = grpc-rpcinfo
 CLEANFILES  = $(bin_SCRIPTS)
 
 if HAVE_PARSE_LALR
@@ -26,7 +26,7 @@ if HAVE_PARSE_LALR
 pkgdata_DATA = nfs-server-stub.scm mount-server-stub.scm
 CLEANFILES  += $(pkgdata_DATA)
 
-bin_SCRIPTS += grpc-nfs-export
+bin_SCRIPTS += grpc-nfs-export grpc-compile
 
 endif
 
