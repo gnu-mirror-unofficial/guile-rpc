@@ -24,6 +24,16 @@ May significantly improve performance, but may also require an
 
 Get source from `xdr/types.scm', perform loop unrolling, etc.
 
+** Support other Sun extensions
+
+See [[http://optics.eee.nottingham.ac.uk/vxi11/source/vxi11/vxi11.x][vxi11]] for examples of what's needed.
+
+*** string constants, as in "const foo = "str";" (see `key_prot.x')
+*** enum without values, as in "enum foo { one, two };"
+*** "unsigned long" and "long" ("hyper"?)
+*** "unsigned short" and "short" ("int"?)
+*** "unsigned char"
+
 ** Add stand-alone tools
 
 `xdr-{decode,encode,describe}', `rpc-proxy', etc.
