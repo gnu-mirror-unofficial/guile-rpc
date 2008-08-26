@@ -1,5 +1,5 @@
 # GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-# Copyright (C) 2007  Free Software Foundation, Inc.
+# Copyright (C) 2007, 2008  Free Software Foundation, Inc.
 #
 # This file is part of GNU Guile-RPC.
 #
@@ -18,4 +18,4 @@
 
 info_TEXINFOS = guile-rpc.texi
 
-EXTRA_DIST = fdl.texi
+EXTRA_DIST = portability.texi fdl.texi

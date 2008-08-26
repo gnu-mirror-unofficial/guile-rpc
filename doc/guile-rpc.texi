@@ -92,6 +92,8 @@ last updated in @value{UPDATED-MONTH}.
 * Stand-Alone Tools::           Command-line tools
 
 * References::                  Useful documents
+* Portability::			Porting Guile-RPC to other Schemes
+
 * GNU Free Documentation License::  The license of this manual
 
 * Concept Index::               Concepts discussed in this document
@@ -1800,7 +1802,7 @@ to fix soon.
 
 
 @c *********************************************************************
-@node References, GNU Free Documentation License, Stand-Alone Tools, Top
+@node References, Portability, Stand-Alone Tools, Top
 @chapter References
 
 @table @code
@@ -1819,8 +1821,16 @@ B. Nowicki, @uref{http://tools.ietf.org/html/rfc1094, ``NFS: Network
 File System Protocol Specification''}, March 1989.
 @end table
 
+
 @c *********************************************************************
-@node GNU Free Documentation License, Concept Index, References, Top
+@node Portability, GNU Free Documentation License, References, Top
+@appendix Portability Notes
+
+@include portability.texi
+
+
+@c *********************************************************************
+@node GNU Free Documentation License, Concept Index, Portability, Top
 @appendix GNU Free Documentation License
 
 @include fdl.texi

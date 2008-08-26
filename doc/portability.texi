@@ -1,0 +1,83 @@
+@c Portability Notes
+
+@cindex portability
+
+This appendix is about Guile-RPC's portability.  Of course, Guile-RPC
+can be ported to any OS/architecture Guile runs on.  What this section
+deals with is portability among Scheme implementations.
+
+Although implemented on top of GNU Guile, Guile-RPC uses mostly portable
+APIs such as @uref{http://srfi.schemers.org/, SRFIs}.  Thus, it should
+be relatively easy to port to other Scheme implementations or to systems
+like @uref{http://snow.iro.umontreal.ca/, Snow}.  Below are a few notes
+on portability, listing APIs and tools Guile-RPC depends on.
+
+@itemize
+
+@item
+Modules.  Guile-RPC uses Guile's hierarchical modules system (@pxref{The
+Guile module system,,, guile, The GNU Guile Reference Manual}).
+Nevertheless, many Scheme systems have a similar module system, e.g.,
+Snow and Bigloo, and also R6RS.  Thus, it should be easy to translate
+the @code{define-module} and @code{use-module} clauses to some other
+Scheme.
+
+@item
+@cindex R6RS
+@uref{http://www.r6rs.org/, R6RS APIs}.  While Guile-RPC is @emph{not}
+R6RS code, it employs two R6RS APIs: bytevectors and related binary I/O
+primitives.  These are provided by the @code{(r6rs bytevector)} and
+@code{(r6rs io ports)} modules of Guile-R6RS-Libs; the official R6RS
+name of these modules is the same with @code{rnrs} in lieu of
+@code{r6rs}.  MzScheme, Larceny, Ikarus (among others) provide these
+APIs.
+
+@item
+Generalized vectors.  The @code{(rpc xdr)} module uses Guile's
+generalized vectors API (@pxref{Generalized Vectors,,, guile, The GNU
+Guile Reference Manual}).  This allows applications to use regular
+vectors, SRFI-4 homogeneous vectors, arrays, etc., to represent XDR
+variable-length arrays (@pxref{XDR Type Representations,
+@code{make-xdr-vector-type}}).  On Scheme implementations that do not
+support generalized vectors, regular vectors can be used instead.
+
+@item
+Pattern matching.  The @code{(rpc compiler)} module uses
+@uref{http://www.cs.indiana.edu/scheme-repository/code.match.html,
+Andrew K. Wright's pattern matcher}, known as @code{(ice-9 match)} in
+Guile.  This pattern matcher is portable and available in many Scheme
+implementations; alternative, compatible pattern matchers are also
+available sometimes, e.g., in MzScheme.
+
+@item
+LALR parsing.  The @code{(rpc compiler parser)} module uses
+@uref{http://code.google.com/p/lalr-scm, Dominique Boucher's LALR parser
+generator}, known as @code{(text parse-lalr)} in
+@uref{http://home.gna.org/guile-lib/, Guile-Lib}.  This package is
+available on most Scheme implementations and as a ``snowball''.
+
+@item
+Lexer.  The @code{(rpc compiler lexer)} module was automatically
+generated using @url{http://www.iro.umontreal.ca/~dube/, Danny Dub@'e's
+SILex}, a portable lexer generator.
+
+@item
+Testing.  The test suite uses the
+@uref{http://srfi.schemers.org/srfi-64/srfi-64.html, SRFI-64 API for
+test suites}, whose reference implementation runs on most Schemes.
+
+@item
+Networking.  Guile's own networking primitives are only used in the
+@code{(rpc rpc server)}, which contains a server event loop.  This part
+of the module would need porting to the target system, but it would be
+quite easy to isolate the few features it depends on.
+
+@end itemize
+
+Portability patches can be posted to the @email{bug-guile-rpc@@gnu.org,
+Guile-RPC mailing list} where they will be warmly welcomed!
+
+
+@c Local Variables:
+@c ispell-local-dictionary: "american"
+@c End:
