@@ -1,7 +1,7 @@
 ;;; Excercise the RPC server API.                  -*- Scheme -*-
 ;;;
 ;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-;;; Copyright (C) 2007  Free Software Foundation, Inc.
+;;; Copyright (C) 2007, 2008  Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Guile-RPC.
 ;;;
@@ -78,6 +78,11 @@
                                                           %procedure
                                                           %argument-type
                                                           %result-type)))
+
+                          ;; Make sure the server is ready before connecting
+                          ;; to it.
+                          (sleep 1)
+
                           (connect sock AF_UNIX path)
                           (dynamic-wind
                               (lambda ()
