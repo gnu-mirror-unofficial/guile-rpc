@@ -62,6 +62,15 @@ generated using @url{http://www.iro.umontreal.ca/~dube/, Danny Dub@'e's
 SILex}, a portable lexer generator.
 
 @item
+Source location tracking.  To preserve source location information, the
+XDR/RPC parser in @code{(rpc compiler parser)} uses Guile's ``source
+property'' API, which allows such information to be attached to pairs
+(@pxref{Source Properties,,, guile, The GNU Guile Reference Manual}).
+Behind the scenes, source properties are implemented using a weak hash
+table, so it should be easy to port them to other Scheme
+implementations.
+
+@item
 Testing.  The test suite uses the
 @uref{http://srfi.schemers.org/srfi-64/srfi-64.html, SRFI-64 API for
 test suites}, whose reference implementation runs on most Schemes.
