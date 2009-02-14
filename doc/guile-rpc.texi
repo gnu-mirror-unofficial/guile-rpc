@@ -1,6 +1,6 @@
 \input texinfo  @c -*-texinfo-*-
 
-@c Copyright (C) 2007, 2008  Free Software Foundation, Inc.
+@c Copyright (C) 2007, 2008, 2009  Free Software Foundation, Inc.
 @c
 @c Permission is granted to copy, distribute and/or modify this
 @c document under the terms of the GNU Free Documentation License,
@@ -169,12 +169,12 @@ will eventually be integrated into core Guile.}.
 Before version 1.8.3, Guile 1.8 did not contain an implementation of
 @uref{http://srfi.schemers.org/srfi-35/srfi-35.html, SRFI-35}.  Thus, if
 you are using one of these versions of Guile, you need to install
-@uref{http://home.gna.org/guile-lib/, Guile-Lib}, which contains the
+@uref{http://www.nongnu.org/guile-lib/, Guile-Lib}, which contains the
 relevant module.
 
 GNU Guile-RPC comes with a compiler for the XDR/RPC interface
 description language (@pxref{Invoking grpc-compile}).  To use that,
-@uref{http://home.gna.org/guile-lib/, Guile-Lib} version 0.1.7 or later
+@uref{http://www.nongnu.org/guile-lib/, Guile-Lib} version 0.1.7 or later
 is needed@footnote{Guile-Lib 0.1.6 can be used but will yield inaccurate
 error reporting from the compiler in some cases.}.
 
@@ -449,7 +449,7 @@ mechanism} along with
 conditions} to deal with the various protocol errors@footnote{Guile
 1.8 provides an implementation of the former in the @code{(srfi
 srfi-34)} module, while the latter is currently provided by the
-@uref{http://home.gna.org/guile-lib/, @code{guile-lib} package}.}.
+@uref{http://www.nongnu.org/guile-lib/, @code{guile-lib} package}.}.
 Thus, users are expected to use these mechanisms to handle the error
 conditions described in the following sections.  Hopefully, in most
 cases, error conditions raised by Guile-RPC code provide users
