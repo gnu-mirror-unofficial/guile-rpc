@@ -1,5 +1,7 @@
 * New in GNU Guile-RPC 0.4
 
+** Bug fixes
+*** The upper bound checked by the `uint32' type predicate was off-by-one
 
 
 * New in GNU Guile-RPC 0.3

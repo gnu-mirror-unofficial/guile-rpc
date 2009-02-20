@@ -1,5 +1,5 @@
 ;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-;;; Copyright (C) 2007, 2008  Free Software Foundation, Inc.
+;;; Copyright (C) 2007, 2008, 2009  Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Guile-RPC.
 ;;;
@@ -107,7 +107,7 @@
                        (lambda (value)
                          (and (integer? value)
                               (>= value 0)
-                              (<= value 4294967296)))
+                              (<= value 4294967295)))
                        (lambda (type value bv index)
                          (bytevector-u32-set! bv index value
                                               %xdr-endianness))
