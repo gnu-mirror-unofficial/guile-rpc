@@ -76,7 +76,7 @@ endif
 if HAVE_GUILE_VM
 
 GOBJECTS = $(SOURCES:%.scm=%.go)
-nobase_dist_guilemodule_DATA += $(GOBJECTS)
+nobase_nodist_guilemodule_DATA = $(GOBJECTS)
 
 .scm.go:
 	$(MKDIR_P) `dirname $@`
