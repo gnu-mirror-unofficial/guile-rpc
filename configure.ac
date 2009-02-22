@@ -22,6 +22,10 @@ AC_ARG_WITH([guilemoduledir],
 GUILE_PROGS
 GUILE_SITE_DIR
 
+# Guile-VM's compiler (aka. Guile 2.0.x).
+AM_CONDITIONAL([HAVE_GUILE_VM],
+  [$GUILE_TOOLS compile --help 2>&1 >/dev/null])
+
 # Guile-Lint (http://www.geocities.com/user42_kevin/guile-lint/index.html)
 AC_PATH_PROG([GUILE_LINT], [guile-lint])
 AC_SUBST([GUILE_LINT])

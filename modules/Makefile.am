@@ -1,5 +1,5 @@
 # GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-# Copyright (C) 2007, 2008  Free Software Foundation, Inc.
+# Copyright (C) 2007, 2008, 2009  Free Software Foundation, Inc.
 #
 # This file is part of GNU Guile-RPC.
 #
@@ -16,12 +16,14 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-nobase_dist_guilemodule_DATA =				\
+SOURCES =						\
   rpc/xdr.scm rpc/xdr/types.scm				\
   rpc/rpc.scm rpc/rpc/types.scm rpc/rpc/transports.scm	\
   rpc/rpc/server.scm rpc/rpc/portmap.scm		\
   rpc/compiler/parser.scm rpc/compiler/lexer.scm	\
   rpc/compiler.scm
+
+nobase_dist_guilemodule_DATA = $(SOURCES)
 
 EXTRA_DIST = srfi/srfi-64.scm srfi/srfi-64.upstream.scm	\
 	     rpc/compiler/lexer.l
@@ -57,14 +59,29 @@ EXTRA_DIST = srfi/srfi-64.scm srfi/srfi-64.upstream.scm	\
 	rm "$@.tmp"
 
 
+CLEANFILES =
+
 if HAVE_GUILE_LINT
 
-CLEANFILES = stamp-lint
+CLEANFILES += stamp-lint
 
 all-local: stamp-lint
-stamp-lint: $(nobase_dist_guilemodule_DATA)
+stamp-lint: $(SOURCES)
 	GUILE=$(GUILE)				\
-	$(GUILE_LINT) -L $(srcdir) $(nobase_dist_guilemodule_DATA)
+	$(GUILE_LINT) -L $(srcdir) $^
 	touch $@
 
 endif
+
+if HAVE_GUILE_VM
+
+GOBJECTS = $(SOURCES:%.scm=%.go)
+nobase_dist_guilemodule_DATA += $(GOBJECTS)
+
+.scm.go:
+	$(MKDIR_P) `dirname $@`
+	$(GUILE_TOOLS) compile -L $(srcdir) -o "$@" "$<"
+
+CLEANFILES += $(GOBJECTS)
+
+endif HAVE_GUILE_VM

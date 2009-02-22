@@ -1,5 +1,12 @@
 * New in GNU Guile-RPC 0.4
 
+** New features
+*** Guile-RPC can now be compiled with Guile's compiler
+
+This compiles Scheme source files to Guile object files (`.go' files).
+Currently, it requires using Guile's `vm' branch.  Eventually, Guile's
+compiler and VM will be part of Guile 2.x.
+
 ** Bug fixes
 *** The upper bound checked by the `uint32' type predicate was off-by-one
 
