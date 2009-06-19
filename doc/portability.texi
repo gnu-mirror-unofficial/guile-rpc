@@ -26,10 +26,9 @@ Scheme.
 @cindex R6RS
 @uref{http://www.r6rs.org/, R6RS APIs}.  While Guile-RPC is @emph{not}
 R6RS code, it employs two R6RS APIs: bytevectors and related binary I/O
-primitives.  These are provided by the @code{(r6rs bytevector)} and
-@code{(r6rs io ports)} modules of Guile-R6RS-Libs; the official R6RS
-name of these modules is the same with @code{rnrs} in lieu of
-@code{r6rs}.  MzScheme, Larceny, Ikarus (among others) provide these
+primitives.  These are provided by the @code{(rnrs bytevector)} and
+@code{(rnrs io ports)} modules of Guile-R6RS-Libs (also included in
+Guile 2.x).  MzScheme, Larceny, Ikarus (among others) provide these
 APIs.
 
 @item

@@ -1,5 +1,5 @@
 ;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-;;; Copyright (C) 2007  Free Software Foundation, Inc.
+;;; Copyright (C) 2007, 2009  Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Guile-RPC.
 ;;;
@@ -17,8 +17,8 @@
 ;;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-module (rpc rpc transports)
-  :use-module (r6rs bytevector)
-  :use-module (r6rs io ports)
+  :use-module (rnrs bytevector)
+  :use-module (rnrs io ports)
   :use-module (srfi srfi-60)
   :export (make-rpc-record-sender send-rpc-record
            rpc-record-marking-input-port))
@@ -121,9 +121,7 @@ decoding of the record marking standard (RFC 1831, Section 10)."
                   (record-marking-read start count total)))))))
 
     (make-custom-binary-input-port "record-marking input port"
-                                   read!))
+                                   read! #f #f #f))
 
 
 ;;; transports.scm ends here
-
-;;; arch-tag: 21cfcc4a-a169-4472-a446-9a2230da9dcc

@@ -21,7 +21,7 @@
   :use-module (rpc rpc types)
   :use-module (srfi srfi-34)
   :use-module (srfi srfi-35)
-  :use-module (r6rs bytevector)
+  :use-module (rnrs bytevector)
   :use-module (ice-9 optargs)
   :autoload   (rpc rpc transports) (send-rpc-record
                                     rpc-record-marking-input-port)

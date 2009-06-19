@@ -21,8 +21,8 @@
 ;;;
 
 (use-modules (benchmark)
-             (r6rs bytevector)
-             (r6rs io ports)
+             (rnrs bytevector)
+             (rnrs io ports)
              (srfi srfi-11)
              (rpc rpc transports))
 

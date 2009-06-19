@@ -21,8 +21,8 @@
   :autoload   (srfi srfi-34) (raise)
   :use-module (srfi srfi-35)
   :use-module (rpc xdr)
-  :use-module (r6rs bytevector)
-  :use-module (r6rs io ports)
+  :use-module (rnrs bytevector)
+  :use-module (rnrs io ports)
   :export (make-xdr-fixed-length-opaque-array
            make-xdr-variable-length-opaque-array
            xdr-variable-length-opaque-array

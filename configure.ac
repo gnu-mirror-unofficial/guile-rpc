@@ -32,8 +32,8 @@ AC_SUBST([GUILE_LINT])
 AM_CONDITIONAL([HAVE_GUILE_LINT], test "x$GUILE_LINT" != "x")
 
 # Need the R6RS libs.
-GUILE_MODULE_REQUIRED([r6rs bytevector])
-GUILE_MODULE_REQUIRED([r6rs io ports])
+GUILE_MODULE_REQUIRED([rnrs bytevector])
+GUILE_MODULE_REQUIRED([rnrs io ports])
 
 # SRFI-34 is available in Guile 1.8, just checking to make sure.
 GUILE_MODULE_REQUIRED([srfi srfi-34])

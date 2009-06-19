@@ -26,8 +26,8 @@
   :use-module (rpc xdr types)
   :use-module (rpc xdr)
 
-  :use-module (r6rs bytevector)
-  :use-module (r6rs io ports)
+  :use-module (rnrs bytevector)
+  :use-module (rnrs io ports)
 
   :use-module (srfi srfi-1)
   :use-module (srfi srfi-13)

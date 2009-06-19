@@ -19,7 +19,7 @@
 ;;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-module (tests xdr)
-  :use-module (r6rs bytevector)
+  :use-module (rnrs bytevector)
   :use-module (rpc xdr)
   :use-module (rpc xdr types)
   :use-module (srfi srfi-4)

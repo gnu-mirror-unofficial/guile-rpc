@@ -24,8 +24,8 @@
              (rpc xdr)
              (rpc xdr types)
              (srfi srfi-4)
-             (r6rs bytevector)
-             (r6rs io ports))
+             (rnrs bytevector)
+             (rnrs io ports))
 
 (define vec
   (make-u8vector 12312))

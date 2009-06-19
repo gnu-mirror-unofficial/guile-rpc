@@ -24,7 +24,7 @@
              (srfi srfi-4)
              (rpc xdr)
              (rpc xdr types)
-             (r6rs bytevector))
+             (rnrs bytevector))
 
 (define vec
   (make-u8vector 12312))

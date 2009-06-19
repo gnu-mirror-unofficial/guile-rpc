@@ -161,10 +161,10 @@ GNU Guile-RPC from @uref{ftp://alpha.gnu.org/gnu/guile-rpc/}.
 In order to use GNU Guile-RPC, all that is needed is
 @uref{http://www.gnu.org/software/guile/guile.html, GNU Guile 1.8} along
 with the R6RS library package for Guile 1.8, known as
-@uref{http://www.fdn.fr/~lcourtes/software/guile/guile-r6rs-libs-0.1.tar.gz,
+@uref{http://www.fdn.fr/~lcourtes/software/guile/guile-r6rs-libs-0.2.tar.gz,
 Guile-R6RS-Libs}@footnote{The source code repository is located at
-@uref{http://repo.or.cz/w/guile-r6rs-libs.git}.  Hopefully, this package
-will eventually be integrated into core Guile.}.
+@uref{http://repo.or.cz/w/guile-r6rs-libs.git}.  These R6RS modules are
+included in Guile 2.x, so Guile-R6RS-Libs is not needed there.}.
 
 Before version 1.8.3, Guile 1.8 did not contain an implementation of
 @uref{http://srfi.schemers.org/srfi-35/srfi-35.html, SRFI-35}.  Thus, if
@@ -496,7 +496,7 @@ for encoding into this type.
 Optionally, @var{vector-encoder} and @var{vector-decoder} can be passed
 and should be procedures that efficiently encode/decode sequences of
 data items of this type (for instance, the vector decoder could use the
-@code{bytevector->int-list} procedure of the @code{(r6rs bytevector)}
+@code{bytevector->int-list} procedure of the @code{(rnrs bytevector)}
 module to speed up decoding).  The vector encoder is invoked as
 @code{(@var{vector-encoder} type value bv index)} while the vector
 decoder is invoked as @code{(@var{vector-decoder} type count port)}.
@@ -1508,8 +1508,8 @@ decode (respectively encode) an object of that type:
 @example
 (use-modules (rpc compiler)
              (rpc xdr)
-             (r6rs bytevector)
-             (r6rs io ports))
+             (rnrs bytevector)
+             (rnrs io ports))
 
 (define (decode-data type-defs type-name port)
   ;; Read binary data from PORT as an object of type
