@@ -1,5 +1,5 @@
 # GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-# Copyright (C) 2007, 2008  Free Software Foundation, Inc.
+# Copyright (C) 2007, 2008, 2010  Free Software Foundation, Inc.
 #
 # This file is part of GNU Guile-RPC.
 #
@@ -30,8 +30,10 @@ bin_SCRIPTS += grpc-nfs-export grpc-compile
 
 endif
 
-GRPC_COMPILE =							\
-  GUILE_LOAD_PATH="$(top_srcdir)/modules:$$GUILE_LOAD_PATH"	\
+GRPC_COMPILE =									\
+  GUILE_AUTO_COMPILE=0								\
+  GUILE_LOAD_PATH="$(top_srcdir)/modules:$$GUILE_LOAD_PATH"			\
+  GUILE_LOAD_COMPILED_PATH="$(top_builddir)/modules:$$GUILE_LOAD_COMPILED_PATH"	\
   "$(builddir)/grpc-compile"
 
 

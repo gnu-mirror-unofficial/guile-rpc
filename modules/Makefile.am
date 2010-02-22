@@ -1,5 +1,5 @@
 # GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-# Copyright (C) 2007, 2008, 2009  Free Software Foundation, Inc.
+# Copyright (C) 2007, 2008, 2009, 2010  Free Software Foundation, Inc.
 #
 # This file is part of GNU Guile-RPC.
 #
@@ -37,6 +37,7 @@ EXTRA_DIST = srfi/srfi-64.scm srfi/srfi-64.upstream.scm	\
 # this rule useless to the user.
 .l.scm:
 	module="`basename $@ | sed -es/\\.scm$$//g`" ;			\
+	GUILE_AUTO_COMPILE=0						\
 	$(GUILE) -L $(top_srcdir)/modules/silex				\
 	         -c "(load-from-path \"lex.scm\")			\
 		     (lex \"$^\" \"$@\" 'counters 'all)" &&		\
@@ -80,6 +81,8 @@ nobase_nodist_guilemodule_DATA = $(GOBJECTS)
 
 .scm.go:
 	$(MKDIR_P) `dirname $@`
+	GUILE_AUTO_COMPILE=0							\
+	GUILE_LOAD_COMPILED_PATH="$(builddir):$$GUILE_LOAD_COMPILED_PATH"	\
 	$(GUILE_TOOLS) compile -L $(srcdir) -o "$@" "$<"
 
 CLEANFILES += $(GOBJECTS)
