@@ -1,5 +1,5 @@
-;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-;;; Copyright (C) 2007, 2008, 2009  Free Software Foundation, Inc.
+;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.  -*- coding: utf-8 -*-
+;;; Copyright (C) 2007, 2008, 2009, 2010  Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Guile-RPC.
 ;;;
@@ -39,7 +39,7 @@
            xdr-enumeration-error:enumeration-alist
            xdr-enumeration-error:value))
 
-;;; Author: Ludovic Courtès <ludo@gnu.org>
+;;; Author: Ludovic CourtÃ¨s <ludo@gnu.org>
 ;;;
 ;;; Commentary:
 ;;;
@@ -317,9 +317,3 @@
 
 
 ;;; types.scm ends here
-
-;;; Local Variables:
-;;; coding: latin-1
-;;; End:
-
-;;; arch-tag: 0f94db34-2f49-4830-b2da-14bf08ff06cb

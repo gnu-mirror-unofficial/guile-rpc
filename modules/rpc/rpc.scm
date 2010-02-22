@@ -1,5 +1,5 @@
-;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-;;; Copyright (C) 2007  Free Software Foundation, Inc.
+;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.  -*- coding: utf-8 -*-
+;;; Copyright (C) 2007, 2010  Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Guile-RPC.
 ;;;
@@ -52,7 +52,7 @@
            rpc-system-error?
            rpc-authentication-error?))
 
-;;; Author: Ludovic Courtès <ludo@gnu.org>
+;;; Author: Ludovic CourtÃ¨s <ludo@gnu.org>
 ;;;
 ;;; Commentary:
 ;;;
@@ -293,9 +293,5 @@ condition is raised."
         (and (assert-successful-reply reply-msg xid)
              (xdr-decode result-type endpoint))))))
 
-
-;;; Local Variables:
-;;; coding: latin-1
-;;; End:
 
 ;;; rpc.scm ends here

@@ -1,5 +1,5 @@
-;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-;;; Copyright (C) 2007, 2008  Free Software Foundation, Inc.
+;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.  -*- coding: utf-8 -*-
+;;; Copyright (C) 2007, 2008, 2010  Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Guile-RPC.
 ;;;
@@ -53,7 +53,7 @@
            xdr-vector-size-exceeded-error:element-count))
 
 
-;;; Author: Ludovic Courtès <ludo@gnu.org>
+;;; Author: Ludovic CourtÃ¨s <ludo@gnu.org>
 ;;;
 ;;; Commentary:
 ;;;
@@ -455,10 +455,5 @@ independently of the value of type @var{type} being encoded, then return it
 
           (else
            (raise (condition (&xdr-unknown-type-error (type type))))))))
-
-
-;;; Local Variables:
-;;; coding: latin-1
-;;; End:
 
 ;;; xdr.scm ends here

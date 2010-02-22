@@ -1,5 +1,5 @@
-;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-;;; Copyright (C) 2007, 2009  Free Software Foundation, Inc.
+;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.  -*- coding: utf-8 -*-
+;;; Copyright (C) 2007, 2009, 2010  Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Guile-RPC.
 ;;;
@@ -24,7 +24,7 @@
            rpc-record-marking-input-port))
 
 
-;;; Author: Ludovic Courtès
+;;; Author: Ludovic CourtÃ¨s
 ;;;
 ;;; Commentary:
 ;;;
@@ -122,6 +122,5 @@ decoding of the record marking standard (RFC 1831, Section 10)."
 
     (make-custom-binary-input-port "record-marking input port"
                                    read! #f #f #f))
-
 
 ;;; transports.scm ends here

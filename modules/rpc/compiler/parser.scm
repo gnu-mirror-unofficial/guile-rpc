@@ -1,5 +1,5 @@
-;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-;;; Copyright (C) 2008  Free Software Foundation, Inc.
+;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.  -*- coding: utf-8 -*-
+;;; Copyright (C) 2008, 2010  Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Guile-RPC.
 ;;;
@@ -34,7 +34,7 @@
 
            %debug-rpc-parser?))
 
-;;; Author: Ludovic Courtès <ludo@gnu.org>
+;;; Author: Ludovic CourtÃ¨s <ludo@gnu.org>
 ;;;
 ;;; Commentary:
 ;;;
@@ -398,10 +398,5 @@ return the corresponding sexp-based representation."
                        r))
                    lexer)))
     (rpc-parser lexer %parse-error)))
-
-
-;;; Local Variables:
-;;; coding: latin-1
-;;; End:
 
 ;;; parser.scm ends here

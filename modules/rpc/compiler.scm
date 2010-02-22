@@ -1,5 +1,5 @@
-;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-;;; Copyright (C) 2008  Free Software Foundation, Inc.
+;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.  -*- coding: utf-8 -*-
+;;; Copyright (C) 2008, 2010  Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Guile-RPC.
 ;;;
@@ -45,7 +45,7 @@
            compiler-duplicate-identifier-error:name
            compiler-duplicate-identifier-error:previous-location))
 
-;;; Author: Ludovic Courtès <ludo@gnu.org>
+;;; Author: Ludovic CourtÃ¨s <ludo@gnu.org>
 ;;;
 ;;; Commentary:
 ;;;
@@ -966,10 +966,5 @@ form, e.g., one with dashed instead of underscores, etc."
                                 type
                                 (cons name type))))
                        (context-types output)))))))
-
-
-;;; Local Variables:
-;;; coding: latin-1
-;;; End:
 
 ;;; compiler.scm ends here

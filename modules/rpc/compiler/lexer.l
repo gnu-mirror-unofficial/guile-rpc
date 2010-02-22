@@ -1,5 +1,5 @@
-;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-;;; Copyright (C) 2008  Free Software Foundation, Inc.
+;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.  -*- coding: utf-8 -*-
+;;; Copyright (C) 2008, 2010  Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Guile-RPC.
 ;;;
@@ -77,9 +77,3 @@ oct-constant   0[0-7]+
 
 <<EOF>>          '*eoi*
 <<ERROR>>        (location yyline yycolumn 'error)
-
-
-;;; Local Variables:
-;;; mode: scheme
-;;; coding: latin-1
-;;; End:
