@@ -79,11 +79,16 @@ if HAVE_GUILE_VM
 GOBJECTS = $(SOURCES:%.scm=%.go)
 nobase_nodist_guilemodule_DATA = $(GOBJECTS)
 
+guile_compiler_warnings =			\
+  -Wunbound-variable -Warity-mismatch		\
+  -Wunused-variable -Wunused-toplevel
+
 .scm.go:
 	$(MKDIR_P) `dirname $@`
 	GUILE_AUTO_COMPILE=0							\
 	GUILE_LOAD_COMPILED_PATH="$(builddir):$$GUILE_LOAD_COMPILED_PATH"	\
-	$(GUILE_TOOLS) compile -L $(srcdir) -o "$@" "$<"
+	$(GUILE_TOOLS) compile -L $(srcdir) $(guile_compiler_warnings)		\
+	  -o "$@" "$<"
 
 CLEANFILES += $(GOBJECTS)
 
