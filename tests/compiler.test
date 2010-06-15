@@ -1,7 +1,7 @@
 ;;; Excercise the XDR language compiler.              -*- Scheme -*-
 ;;;
 ;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-;;; Copyright (C) 2008  Free Software Foundation, Inc.
+;;; Copyright (C) 2008, 2010  Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Guile-RPC.
 ;;;
@@ -26,7 +26,7 @@
   :use-module (rpc xdr types)
   :use-module (rpc xdr)
 
-  :use-module (rnrs bytevector)
+  :use-module (rnrs bytevectors)
   :use-module (rnrs io ports)
 
   :use-module (srfi srfi-1)

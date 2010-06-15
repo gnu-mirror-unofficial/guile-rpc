@@ -17,7 +17,7 @@
 ;;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-module (rpc rpc transports)
-  :use-module (rnrs bytevector)
+  :use-module (rnrs bytevectors)
   :use-module (rnrs io ports)
   :use-module (srfi srfi-60)
   :export (make-rpc-record-sender send-rpc-record

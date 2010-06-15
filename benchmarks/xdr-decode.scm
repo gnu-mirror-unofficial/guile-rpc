@@ -1,5 +1,5 @@
 ;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-;;; Copyright (C) 2007  Free Software Foundation, Inc.
+;;; Copyright (C) 2007, 2010  Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Guile-RPC.
 ;;;
@@ -24,7 +24,7 @@
              (rpc xdr)
              (rpc xdr types)
              (srfi srfi-4)
-             (rnrs bytevector)
+             (rnrs bytevectors)
              (rnrs io ports))
 
 (define vec

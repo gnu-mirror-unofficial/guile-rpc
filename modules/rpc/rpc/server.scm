@@ -27,7 +27,7 @@
   :use-module (srfi srfi-34)
   :use-module (srfi srfi-35)
   :use-module (srfi srfi-39)
-  :use-module (rnrs bytevector)
+  :use-module (rnrs bytevectors)
   :autoload   (rnrs io ports)       (lookahead-u8)
 
   :export (procedure-call-information rpc-call?
