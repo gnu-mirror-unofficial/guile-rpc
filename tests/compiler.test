@@ -20,8 +20,8 @@
 
 (define-module (tests compiler)
   :use-module (rpc compiler)
-  :use-module ((rpc compiler parser) (*parser-options*
-                                      location-line location-column))
+  :use-module ((rpc compiler parser)
+               #:select (*parser-options* location-line location-column))
 
   :use-module (rpc xdr types)
   :use-module (rpc xdr)
