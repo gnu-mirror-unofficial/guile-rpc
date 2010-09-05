@@ -21,16 +21,10 @@ TESTS_ENVIRONMENT =								\
   GUILE_LOAD_COMPILED_PATH="$(top_builddir)/modules:$$GUILE_LOAD_COMPILED_PATH"	\
   $(GUILE) -L $(top_srcdir)/modules
 
-TESTS = xdr.test xdr-encoding.test rpc.test server-loop.test
-compiler_tests = parser.test compiler.test
+TESTS = xdr.test xdr-encoding.test rpc.test server-loop.test	\
+        parser.test compiler.test
 
 EXTRA_DIST = $(TESTS)
-
-if HAVE_PARSE_LALR
-TESTS += $(compiler_tests)
-else
-EXTRA_DIST += $(compiler_tests)
-endif
 
 CLEANFILES = xdr-type-size.log xdr-encoding.log	\
 	     rpc-message.log server-loop.log	\
