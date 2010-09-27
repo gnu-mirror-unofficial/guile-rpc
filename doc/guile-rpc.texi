@@ -159,24 +159,8 @@ The GNU Guile-RPC web page is located at
 GNU Guile-RPC from @uref{ftp://alpha.gnu.org/gnu/guile-rpc/}.
 
 In order to use GNU Guile-RPC, all that is needed is
-@uref{http://www.gnu.org/software/guile/guile.html, GNU Guile 1.8} along
-with the R6RS library package for Guile 1.8, known as
-@uref{http://www.fdn.fr/~lcourtes/software/guile/guile-r6rs-libs-0.2.tar.gz,
-Guile-R6RS-Libs}@footnote{The source code repository is located at
-@uref{http://repo.or.cz/w/guile-r6rs-libs.git}.  These R6RS modules are
-included in Guile 2.x, so Guile-R6RS-Libs is not needed there.}.
-
-Before version 1.8.3, Guile 1.8 did not contain an implementation of
-@uref{http://srfi.schemers.org/srfi-35/srfi-35.html, SRFI-35}.  Thus, if
-you are using one of these versions of Guile, you need to install
-@uref{http://www.nongnu.org/guile-lib/, Guile-Lib}, which contains the
-relevant module.
-
-GNU Guile-RPC comes with a compiler for the XDR/RPC interface
-description language (@pxref{Invoking grpc-compile}).  To use that,
-@uref{http://www.nongnu.org/guile-lib/, Guile-Lib} version 0.1.7 or later
-is needed@footnote{Guile-Lib 0.1.6 can be used but will yield inaccurate
-error reporting from the compiler in some cases.}.
+@uref{http://www.gnu.org/software/guile/guile.html, GNU Guile 2.0}
+(Guile 1.9.13 or later.)
 
 
 @c *********************************************************************

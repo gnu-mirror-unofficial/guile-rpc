@@ -8,21 +8,8 @@ This package provides a pure Scheme implementation of XDR and ONC RPC
 Requirements
 ------------
 
-  * GNU Guile 1.8.x or later
+  * GNU Guile 2.0 (1.9.13 or later)
     http://www.gnu.org/software/guile/guile.html
-
-  * Guile-R6RS-Libs 0.2 or later if using Guile 1.8.x
-    (This is not needed when using Guile 2.x.)
-    http://www.fdn.fr/~lcourtes/software/guile/guile-r6rs-libs-0.2.tar.gz
-    http://repo.or.cz/w/guile-r6rs-libs.git
-
-  * Guile-Lib (needed to use the XDR Language compiler) 0.1.7 or later
-    http://www.nongnu.org/guile-lib/
-
-    Actually, 0.1.6 (available from http://home.gna.org/guile-lib/)
-    will also work, but you'll need the following patch for proper
-    error reporting from the compiler:
-    https://mail.gna.org/public/guile-lib-dev/2008-03/msg00005.html .
 
 
 Development
@@ -48,7 +35,7 @@ Enjoy!
 Ludovic Courtès <ludo@gnu.org>.
 
 
-Copyright 2007, 2008, 2009  Free Software Foundation, Inc.
+Copyright 2007, 2008, 2009, 2010  Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification, are
 permitted in any medium without royalty provided the copyright notice

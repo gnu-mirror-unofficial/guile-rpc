@@ -51,8 +51,8 @@ available sometimes, e.g., in MzScheme.
 @item
 LALR parsing.  The @code{(rpc compiler parser)} module uses
 @uref{http://code.google.com/p/lalr-scm, Dominique Boucher's LALR parser
-generator}, known as @code{(text parse-lalr)} in
-@uref{http://www.nongnu.org/guile-lib/, Guile-Lib}.  This package is
+generator}, known as @code{(system base lalr)} in
+Guile 2.0.  This package is
 available on most Scheme implementations and as a ``snowball''.
 
 @item
