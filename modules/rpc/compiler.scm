@@ -76,17 +76,6 @@
 
 
 ;;;
-;;; Workarounds.
-;;;
-
-;; Work around missing export in `(ice-9 match)' in Guile 1.8.4 and earlier.
-(if (not (defined? 'match:andmap))
-    (module-define! (current-module) 'match:andmap
-                    (@@ (ice-9 match) match:andmap)))
-
-
-
-;;;
 ;;; Compilation context (environment).
 ;;;
 
