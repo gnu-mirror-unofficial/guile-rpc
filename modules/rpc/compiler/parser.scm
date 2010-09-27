@@ -18,7 +18,7 @@
 
 (define-module (rpc compiler parser)
   :autoload    (rpc compiler lexer) (lexer-init)
-  :use-module  (text parse-lalr)
+  :use-module  (system base lalr)
   :use-module  (srfi srfi-1)
   :use-module  (srfi srfi-34)
   :use-module  (srfi srfi-35)
@@ -116,7 +116,7 @@
   (make-parameter '()))
 
 
-(define rpc-parser
+(define (make-rpc-parser)
   ;; The XDR Language parser.
 
   (lalr-parser
@@ -367,22 +367,10 @@
 (define (rpc-language->sexp port)
   "Read a specification written in the XDR Language from @var{port} and
 return the corresponding sexp-based representation."
-  (define (%parse-error msg . args)
-    ;; Can be called with zero or one arg.  When called with one arg, we hope
-    ;; that it's going to be the whole token (i.e., a list whose last element
-    ;; is its location information), not just the token type (a symbol such
-    ;; as `identifier').  We rely on a recent patch against `parse-lalr':
-    ;;
-    ;;  https://mail.gna.org/public/guile-lib-dev/2008-03/msg00005.html
-    ;;
-    ;; The `(pair? expr)' are here to support the unpatched version.
-    (let* ((expr     (and (not (null? args))
-                          (car args)))
-           (token    (if (pair? expr)
-                         (car expr)
-                         expr))
-           (location (and (pair? expr)
-                          (export-location (car (last-pair expr))))))
+  (define (%parse-error msg token)
+    (let* ((expr     (lexical-token-value token))
+           (token    (lexical-token-category token))
+           (location (export-location (car (last-pair expr)))))
       (raise (condition (&parser-error
                          (token    token)
                          (location location))))))
@@ -397,6 +385,6 @@ return the corresponding sexp-based representation."
                        (format (current-error-port) "TOKEN: ~A~%" r)
                        r))
                    lexer)))
-    (rpc-parser lexer %parse-error)))
+    ((make-rpc-parser) lexer %parse-error)))
 
 ;;; parser.scm ends here

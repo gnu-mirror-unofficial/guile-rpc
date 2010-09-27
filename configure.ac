@@ -44,8 +44,8 @@ GUILE_MODULE_REQUIRED([srfi srfi-35])
 # Need SRFI-37 (in Guile 1.8.3 and later).
 GUILE_MODULE_REQUIRED([srfi srfi-37])
 
-# To use the compiler `(text parse-lalr)' is required.
-GUILE_MODULE_REQUIRED([text parse-lalr])
+# To use the compiler `(system base lalr)' is required.
+GUILE_MODULE_REQUIRED([system base lalr])
 
 # Optionally, `statprof' can be used when available.
 GUILE_MODULE_AVAILABLE([have_statprof], [(statprof)])

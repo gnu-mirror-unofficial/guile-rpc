@@ -1,7 +1,7 @@
 ;;; Excercise the XDR language parser.                -*- Scheme -*-
 ;;;
 ;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-;;; Copyright (C) 2008  Free Software Foundation, Inc.
+;;; Copyright (C) 2008, 2010  Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Guile-RPC.
 ;;;
@@ -348,10 +348,6 @@
 
 (test-equal "parse error"
             '(1 14 semi-colon)
-            ;; If this test doesn't pass, make sure your Guile-Lib
-            ;; installation has this patch:
-            ;; https://mail.gna.org/public/guile-lib-dev/2008-03/msg00005.html .
-
             (guard (c ((parser-error? c)
                        (let ((loc   (compiler-error:location c))
                              (token (parser-error:token c)))

@@ -1,4 +1,5 @@
-;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.  -*- coding: utf-8 -*-
+;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
+;;; -*- mode: scheme; coding: utf-8; -*-
 ;;; Copyright (C) 2008, 2010  Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Guile-RPC.
@@ -27,12 +28,12 @@ oct-constant   0[0-7]+
 
 %%
 
-{dec-constant}   (location yyline yycolumn
+{dec-constant}   (location yyline yycolumn yyoffset
                            'constant (string->number yytext))
-{hex-constant}   (location yyline yycolumn
+{hex-constant}   (location yyline yycolumn yyoffset
                            'constant
                            (string->number (string-drop yytext 2) 16))
-{oct-constant}   (location yyline yycolumn
+{oct-constant}   (location yyline yycolumn yyoffset
                            'constant (string->number yytext 8))
 
 {identifier}     (cond ((member yytext
@@ -44,10 +45,10 @@ oct-constant   0[0-7]+
                                   "bool" "string"
                                   "typedef"
                                   "program" "version"))
-                        (location yyline yycolumn
+                        (location yyline yycolumn yyoffset
                                   (string->symbol yytext)))
                        (else
-                        (location yyline yycolumn
+                        (location yyline yycolumn yyoffset
                                   'identifier yytext)))
 {comment}
 
@@ -56,24 +57,24 @@ oct-constant   0[0-7]+
 ;; header files.
 ^{space}*%.*$    (if (*strip-%-comments?*)
                      (yycontinue)
-                     (location yyline yycolumn
+                     (location yyline yycolumn yyoffset
                                'error))
 
-\{               (location yyline yycolumn 'left-brace)
-\}               (location yyline yycolumn 'right-brace)
-\[               (location yyline yycolumn 'left-square)
-\]               (location yyline yycolumn 'right-square)
-<                (location yyline yycolumn 'left-angle)
->                (location yyline yycolumn 'right-angle)
-\(               (location yyline yycolumn 'left-parenthesis)
-\)               (location yyline yycolumn 'right-parenthesis)
+\{               (location yyline yycolumn yyoffset 'left-brace)
+\}               (location yyline yycolumn yyoffset 'right-brace)
+\[               (location yyline yycolumn yyoffset 'left-square)
+\]               (location yyline yycolumn yyoffset 'right-square)
+<                (location yyline yycolumn yyoffset 'left-angle)
+>                (location yyline yycolumn yyoffset 'right-angle)
+\(               (location yyline yycolumn yyoffset 'left-parenthesis)
+\)               (location yyline yycolumn yyoffset 'right-parenthesis)
 
-\;               (location yyline yycolumn 'semi-colon)
-:                (location yyline yycolumn 'colon)
-=                (location yyline yycolumn 'equal)
-,                (location yyline yycolumn 'comma)
-\*               (location yyline yycolumn 'star)
+\;               (location yyline yycolumn yyoffset 'semi-colon)
+:                (location yyline yycolumn yyoffset 'colon)
+=                (location yyline yycolumn yyoffset 'equal)
+,                (location yyline yycolumn yyoffset 'comma)
+\*               (location yyline yycolumn yyoffset 'star)
 {space}
 
 <<EOF>>          '*eoi*
-<<ERROR>>        (location yyline yycolumn 'error)
+<<ERROR>>        (location yyline yycolumn yyoffset 'error)

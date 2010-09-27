@@ -36,27 +36,36 @@ EXTRA_DIST = srfi/srfi-64.scm srfi/srfi-64.upstream.scm	\
 # Note: Those files should normally be part of the distribution, making
 # this rule useless to the user.
 .l.scm:
-	module="`basename $@ | sed -es/\\.scm$$//g`" ;			\
-	GUILE_AUTO_COMPILE=0						\
-	$(GUILE) -L $(top_srcdir)/modules/silex				\
-	         -c "(load-from-path \"lex.scm\")			\
-		     (lex \"$^\" \"$@\" 'counters 'all)" &&		\
-	mv "$@" "$@.tmp" &&						\
-	echo ';;; -*- buffer-read-only: t; -*-' > "$@" &&		\
-	echo ';;; Automatically generated---do not modify.' >> "$@" &&	\
-	echo "(define-module (rpc compiler $$module)" >> "$@" &&	\
-	echo '  :use-module (srfi srfi-39)' >> "$@" &&			\
-	echo '  :export (*strip-%-comments?*' >> "$@" &&		\
-	echo '           lexer-init lexer' >> "$@" &&			\
-	echo '           lexer-get-func-column' >> "$@" &&		\
-	echo '           lexer-get-func-offset' >> "$@" &&		\
-	echo '           lexer-get-line lexer-getc' >> "$@" &&		\
-	echo '           lexer-ungetc))' >> "$@" &&			\
-	echo '(define *strip-%-comments?*' >> "$@" &&			\
-	echo '  (make-parameter #t))' >> "$@" &&			\
-	echo '(define (location line column . sexp)' >> "$@" &&		\
-	echo '  (append sexp (list (vector line column))))' >> "$@" &&	\
-	cat "$@.tmp" >> "$@" &&						\
+	module="`basename $@ | sed -es/\\.scm$$//g`" ;				\
+	GUILE_AUTO_COMPILE=0							\
+	$(GUILE) -L $(top_srcdir)/modules/silex					\
+	         -c "(load-from-path \"lex.scm\")				\
+		     (lex \"$^\" \"$@\" 'counters 'all)" &&			\
+	mv "$@" "$@.tmp" &&							\
+	echo ';;; -*- buffer-read-only: t; -*-' > "$@" &&			\
+	echo ';;; Automatically generated---do not modify.' >> "$@" &&		\
+	echo "(define-module (rpc compiler $$module)" >> "$@" &&		\
+	echo '  :use-module (system base lalr)' >> "$@" &&			\
+	echo '  :use-module (srfi srfi-39)' >> "$@" &&				\
+	echo '  :export (*strip-%-comments?*' >> "$@" &&			\
+	echo '           lexer-init lexer' >> "$@" &&				\
+	echo '           lexer-get-func-column' >> "$@" &&			\
+	echo '           lexer-get-func-offset' >> "$@" &&			\
+	echo '           lexer-get-line lexer-getc' >> "$@" &&			\
+	echo '           lexer-ungetc))' >> "$@" &&				\
+	echo '(define *strip-%-comments?*' >> "$@" &&				\
+	echo '  (make-parameter #t))' >> "$@" &&				\
+	echo '(define (location line column offset type' >> "$@" &&		\
+	echo '                   . value)' >> "$@" &&			\
+	echo '  (make-lexical-token type' >> "$@" &&				\
+	echo '                      (make-source-location #f' >> "$@" &&	\
+	echo '                                   line' >> "$@" &&		\
+	echo '                                   column' >> "$@" &&		\
+	echo '                                   offset' >> "$@" &&		\
+	echo '                                   #f)' >> "$@" &&		\
+	echo '                      (append value' >> "$@" && \
+	echo '                              (list (vector line column)))))' >> "$@" &&				\
+	cat "$@.tmp" >> "$@" &&							\
 	rm "$@.tmp"
 
 
