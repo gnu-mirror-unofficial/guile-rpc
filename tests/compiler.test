@@ -1,7 +1,7 @@
 ;;; Excercise the XDR language compiler.              -*- Scheme -*-
 ;;;
 ;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-;;; Copyright (C) 2008, 2010  Free Software Foundation, Inc.
+;;; Copyright (C) 2008, 2010, 2012  Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Guile-RPC.
 ;;;
@@ -488,6 +488,22 @@
                        "  } = 0;"
                        "} = 77;")
              #t #t))
+
+(test-equal "client RPC programs with string parameter"
+            '((define prog-hello
+                (make-synchronous-rpc-call 77 0 0
+                                           xdr-integer
+                                           xdr-string)))
+
+            (parameterize ((*parser-options*
+                            '(allow-string-param-type-specifier)))
+              (rpc-language->scheme-client
+               (xdr-text "program prog {"
+                         "  version zero {"
+                         "    int hello (string) = 0;"
+                         "  } = 0;"
+                         "} = 77;")
+               #t #f)))
 
 (test-equal "client RPC program with forward type ref"
             '((define foo-t xdr-integer)

@@ -1,7 +1,7 @@
 ;;; Excercise the XDR language parser.                -*- Scheme -*-
 ;;;
 ;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-;;; Copyright (C) 2008, 2010  Free Software Foundation, Inc.
+;;; Copyright (C) 2008, 2010, 2012  Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Guile-RPC.
 ;;;
@@ -378,6 +378,37 @@
                                token))))
               (rpc-language->sexp
                (xdr-text "typedef struct foo *bar;"))))
+
+(test-equal "client RPC programs with unrecognized string parameter"
+            '(3 16 string)
+
+            (guard (c ((parser-error? c)
+                       (let ((loc   (compiler-error:location c))
+                             (token (parser-error:token c)))
+                         (list (location-line loc) (location-column loc)
+                               token))))
+              (rpc-language->sexp
+               (xdr-text "program prog {"
+                         "  version zero {"
+                         "    int hello (string) = 0;"
+                         "  } = 0;"
+                         "} = 77;"))))
+
+(test-equal "client RPC programs with string parameter"
+            '((define-program "prog" 77
+                (version "zero" 0
+                  (procedure "hello" 0
+                     "int"
+                     ("string")))))
+
+            (parameterize ((*parser-options*
+                            '(allow-string-param-type-specifier)))
+              (rpc-language->sexp
+               (xdr-text "program prog {"
+                         "  version zero {"
+                         "    int hello (string) = 0;"
+                         "  } = 0;"
+                         "} = 77;"))))
 
 (test-end "xdr-parser")
 

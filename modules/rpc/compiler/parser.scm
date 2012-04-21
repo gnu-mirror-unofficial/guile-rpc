@@ -1,5 +1,5 @@
 ;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.  -*- coding: utf-8 -*-
-;;; Copyright (C) 2008, 2010  Free Software Foundation, Inc.
+;;; Copyright (C) 2008, 2010, 2012  Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Guile-RPC.
 ;;;
@@ -256,6 +256,18 @@
                                             (location (export-location (car $1)))
                                             (token    'struct))))))
 
+   ;; `type-specifier' extended with `string'
+   (type-specifier* (type-specifier) : $1
+                    (string) :
+                      ;; Sun's `rpcgen' allows use of the `string' type as the
+                      ;; type-specifier of an RPC parameter.
+                      (if (memq 'allow-string-param-type-specifier
+                                (*parser-options*))
+                          "string"
+                          (raise (condition (&parser-error
+                                             (location (export-location (car $1)))
+                                             (token    'string))))))
+
    ;; Enums
 
    (enum-type-spec (enum enum-body) :
@@ -348,11 +360,11 @@
    ;; though the example in Section 11.1 uses it.
    (type-specifier-list-or-void (type-specifier-list) : $1
                                 (void) : '())
-   (type-specifier-or-void (type-specifier) : $1
+   (type-specifier-or-void (type-specifier*) : $1
                            (void) : "void")
 
-   (type-specifier-list (type-specifier) : (list $1)
-                        (type-specifier comma type-specifier-list) :
+   (type-specifier-list (type-specifier*) : (list $1)
+                        (type-specifier* comma type-specifier-list) :
                           (cons $1 $3))))
 
 

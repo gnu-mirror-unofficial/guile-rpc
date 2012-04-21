@@ -1,5 +1,5 @@
 ;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.  -*- coding: utf-8 -*-
-;;; Copyright (C) 2008, 2010  Free Software Foundation, Inc.
+;;; Copyright (C) 2008, 2010, 2012  Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Guile-RPC.
 ;;;
@@ -792,6 +792,7 @@ form, e.g., one with dashed instead of underscores, etc."
              ("float"            (define xdr-float ...) #f)
              ("double"           (define xdr-double ...) #f)
              ;; FIXME: We lack support for `quadruple'.
+             ("string"           (define xdr-string ...) #f)
              )
            '()
            '()
