@@ -2,13 +2,13 @@ GNU Guile-RPC
 =============
 
 This package provides a pure Scheme implementation of XDR and ONC RPC
-(respectively RFC 4506 and RFC 1831) for GNU Guile 1.8 or later.
+(respectively RFC 4506 and RFC 1831) for GNU Guile 2.0 or later.
 
 
 Requirements
 ------------
 
-  * GNU Guile 2.0 (1.9.13 or later)
+  * GNU Guile 2.0
     http://www.gnu.org/software/guile/guile.html
 
 
@@ -30,12 +30,24 @@ Please email <bug-guile-rpc@gnu.org> for bug reports, comments, patches,
 etc.
 
 
+Note that this package comes with third-party code that is not part of
+GNU Guile-RPC:
+
+  - modules/srfi/srfi-64.upstream.scm was written by Per Bothner as the
+    reference implementation of the SRFI-64 test suite framework
+    (http://srfi.schemers.org/srfi-64/srfi-64.html);
+
+  - the modules/silex directory (not part of Guile-RPC tarballs)
+    contains a copy of SILex, a lexer generator for Scheme written by
+    Dany Dubé (http://www.iro.umontreal.ca/~dube).
+
+
 Enjoy!
 
 Ludovic Courtès <ludo@gnu.org>.
 
 
-Copyright 2007, 2008, 2009, 2010  Free Software Foundation, Inc.
+Copyright 2007, 2008, 2009, 2010, 2012  Free Software Foundation, Inc.
 
 Copying and distribution of this file, with or without modification, are
 permitted in any medium without royalty provided the copyright notice
