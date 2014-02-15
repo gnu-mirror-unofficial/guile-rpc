@@ -1,7 +1,7 @@
 ;;; Excercise the XDR language compiler.              -*- Scheme -*-
 ;;;
 ;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-;;; Copyright (C) 2008, 2010, 2012  Free Software Foundation, Inc.
+;;; Copyright (C) 2008, 2010, 2012, 2014  Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Guile-RPC.
 ;;;
@@ -467,16 +467,16 @@
             '((define foo-t xdr-integer)
               (define prog-hello
                 (make-synchronous-rpc-call 77 0 0
-                                           xdr-integer xdr-void))
+                                           xdr-void xdr-integer))
               (define prog-greetings-world
                 (make-synchronous-rpc-call 77 0 1
-                                           xdr-boolean
                                            (make-xdr-struct-type
                                             (list
                                              foo-t
                                              (make-xdr-struct-type
                                               (list xdr-integer
-                                                    xdr-integer)))))))
+                                                    xdr-integer))))
+                                           xdr-boolean)))
 
             (rpc-language->scheme-client
              (xdr-text "typedef int foo_t;"
@@ -492,8 +492,8 @@
 (test-equal "client RPC programs with string parameter"
             '((define prog-hello
                 (make-synchronous-rpc-call 77 0 0
-                                           xdr-integer
-                                           xdr-string)))
+                                           xdr-string
+                                           xdr-integer)))
 
             (parameterize ((*parser-options*
                             '(allow-string-param-type-specifier)))
@@ -509,16 +509,16 @@
             '((define foo-t xdr-integer)
               (define prog-hello
                 (make-synchronous-rpc-call 77 0 0
-                                           xdr-integer xdr-void))
+                                           xdr-void xdr-integer))
               (define prog-greetings-world
                 (make-synchronous-rpc-call 77 0 1
-                                           xdr-boolean
                                            (make-xdr-struct-type
                                             (list
                                              foo-t
                                              (make-xdr-struct-type
                                               (list xdr-integer
-                                                    xdr-integer)))))))
+                                                    xdr-integer))))
+                                           xdr-boolean)))
 
             (rpc-language->scheme-client
              (xdr-text "program prog {"
@@ -559,7 +559,7 @@
 
               (define MOUNTPROG-MOUNTPROC-EXPORT
                 (make-synchronous-rpc-call 100005 1 5
-                                           exports xdr-void)))
+                                           xdr-void exports)))
 
             (parameterize ((*parser-options* '(allow-struct-type-specifier)))
               (rpc-language->scheme-client

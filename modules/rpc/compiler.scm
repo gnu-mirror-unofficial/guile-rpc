@@ -688,14 +688,14 @@ form, e.g., one with dashed instead of underscores, etc."
                            `(define ,(make-procedure-name name)
                               (make-synchronous-rpc-call
                                ,program-number ,version-number ,number
-                               ,ret-type
                                ,(cond ((null? arg-types)
                                        'xdr-void)
                                       ((null? (cdr arg-types))
                                        (car arg-types))
                                       (else
                                        `(make-xdr-struct-type
-                                         (list ,@arg-types))))))))
+                                         (list ,@arg-types))))
+                               ,ret-type))))
                        (reverse procs))))
               (reverse versions)))
 
