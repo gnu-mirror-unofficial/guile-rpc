@@ -1,5 +1,5 @@
 # GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-# Copyright (C) 2007, 2008, 2010  Free Software Foundation, Inc.
+# Copyright (C) 2007, 2008, 2010, 2014  Free Software Foundation, Inc.
 #
 # This file is part of GNU Guile-RPC.
 #
@@ -47,12 +47,12 @@ SUFFIXES = .in
 	chmod +x "$@.tmp" &&			\
 	mv "$@.tmp" "$@"
 
-nfs-server-stub.scm: $(top_srcdir)/rpcsvc/nfs_prot.x
+nfs-server-stub.scm: grpc-compile $(top_srcdir)/rpcsvc/nfs_prot.x
 	$(GRPC_COMPILE) --xdr --constants --server	\
 	  < "$(top_srcdir)/rpcsvc/nfs_prot.x"		\
 	  > "$@"
 
-mount-server-stub.scm: $(top_srcdir)/rpcsvc/mount.x
+mount-server-stub.scm: grpc-compile $(top_srcdir)/rpcsvc/mount.x
 	$(GRPC_COMPILE) --xdr --constants --server	\
 	  < "$(top_srcdir)/rpcsvc/mount.x"		\
 	  > "$@"
