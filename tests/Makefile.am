@@ -1,5 +1,5 @@
 # GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-# Copyright (C) 2007, 2008, 2010  Free Software Foundation, Inc.
+# Copyright (C) 2007, 2008, 2010, 2014  Free Software Foundation, Inc.
 #
 # This file is part of GNU Guile-RPC.
 #
@@ -17,9 +17,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 TESTS_ENVIRONMENT =								\
-  GUILE_AUTO_COMPILE=0								\
-  GUILE_LOAD_COMPILED_PATH="$(top_builddir)/modules:$$GUILE_LOAD_COMPILED_PATH"	\
-  $(GUILE) -L $(top_srcdir)/modules
+  GUILE_LOAD_COMPILED_PATH="$(top_builddir)/modules:$$GUILE_LOAD_COMPILED_PATH"
+
+# Running the '.test' files.
+TEST_LOG_COMPILER = $(GUILE)
+AM_TEST_LOG_FLAGS = --no-auto-compile -L "$(top_srcdir)/modules"
 
 TESTS = xdr.test xdr-encoding.test rpc.test server-loop.test	\
         parser.test compiler.test
