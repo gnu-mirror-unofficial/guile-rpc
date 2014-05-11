@@ -1,5 +1,5 @@
 ;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.  -*- coding: utf-8 -*-
-;;; Copyright (C) 2007, 2010  Free Software Foundation, Inc.
+;;; Copyright (C) 2007, 2010, 2014  Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Guile-RPC.
 ;;;
@@ -405,6 +405,23 @@ exception occurs on a port, @var{exception-handler} is called and passed the
 failing port."
   (%make-i/o-manager exception-handler read-handler))
 
+(define (EINTR-safe proc)
+  "Wrap @var{proc} so that if a @code{system-error} exception with
+@code{EINTR} is raised (that was possible up to Guile 2.0.9 included) the
+call to @var{proc} is restarted."
+  (lambda args
+    (let loop ()
+      (catch 'system-error
+        (lambda ()
+          (apply proc args))
+        (lambda args
+          (if (= EINTR (system-error-errno args))
+              (loop)
+              (apply throw args)))))))
+
+(define select
+  ;; Make sure the event loop is not interrupted by EINTR.
+  (EINTR-safe (@ (guile) select)))
 
 (define (run-input-event-loop fd+manager-list timeout idle-thunk)
   "Run an input event loop based on @var{fd+manager-list}, a list of pairs of
