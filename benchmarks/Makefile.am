@@ -1,5 +1,5 @@
 # GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-# Copyright (C) 2007, 2008  Free Software Foundation, Inc.
+# Copyright (C) 2007, 2008, 2014  Free Software Foundation, Inc.
 #
 # This file is part of GNU Guile-RPC.
 #
@@ -44,16 +44,3 @@ else !HAVE_STATPROF
 .PHONY: run
 
 endif !HAVE_STATPROF
-
-
-if HAVE_GUILE_LINT
-
-CLEANFILES = stamp-lint
-
-all-local: stamp-lint
-stamp-lint: $(benchmarks)
-	GUILE=$(GUILE)						\
-	$(GUILE_LINT) -L $(top_srcdir)/modules -L $(srcdir) $(benchmarks)
-	touch $@
-
-endif HAVE_GUILE_LINT

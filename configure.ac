@@ -27,11 +27,6 @@ GUILE_SITE_DIR
 AM_CONDITIONAL([HAVE_GUILE_VM],
   [$GUILE_TOOLS compile --help 2>&1 >/dev/null])
 
-# Guile-Lint (http://www.geocities.com/user42_kevin/guile-lint/index.html)
-AC_PATH_PROG([GUILE_LINT], [guile-lint])
-AC_SUBST([GUILE_LINT])
-AM_CONDITIONAL([HAVE_GUILE_LINT], test "x$GUILE_LINT" != "x")
-
 # Need the R6RS libs.
 GUILE_MODULE_REQUIRED([rnrs bytevectors])
 GUILE_MODULE_REQUIRED([rnrs io ports])

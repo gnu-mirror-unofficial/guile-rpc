@@ -1,5 +1,5 @@
 # GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-# Copyright (C) 2007, 2008, 2009, 2010, 2011  Free Software Foundation, Inc.
+# Copyright (C) 2007, 2008, 2009, 2010, 2011, 2014  Free Software Foundation, Inc.
 #
 # This file is part of GNU Guile-RPC.
 #
@@ -70,18 +70,6 @@ EXTRA_DIST = srfi/srfi-64.scm srfi/srfi-64.upstream.scm	\
 
 
 CLEANFILES =
-
-if HAVE_GUILE_LINT
-
-CLEANFILES += stamp-lint
-
-all-local: stamp-lint
-stamp-lint: $(SOURCES)
-	GUILE=$(GUILE)				\
-	$(GUILE_LINT) -L $(srcdir) $^
-	touch $@
-
-endif
 
 if HAVE_GUILE_VM
 

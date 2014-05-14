@@ -31,13 +31,3 @@ EXTRA_DIST = $(TESTS)
 CLEANFILES = xdr-type-size.log xdr-encoding.log	\
 	     rpc-message.log server-loop.log	\
 	     xdr-parser.log xdr-compiler.log
-
-# XXX: Guile-Lint version 9 doesn't properly handle the
-# `define-syntax' macros used by SRFI-64.
-#
-# if HAVE_GUILE_LINT
-# all-local: stamp-lint
-# stamp-lint: $(TESTS)
-#	GUILE=$(GUILE)				\
-# 	$(GUILE_LINT) -L $(top_srcdir)/modules $(TESTS)
-# endif
