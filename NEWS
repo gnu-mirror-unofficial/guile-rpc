@@ -1,16 +1,19 @@
 * New in GNU Guile-RPC 0.4
 
 ** New features
+
 *** Guile-RPC can now be compiled with Guile's compiler
 
-This compiles Scheme source files to Guile object files (`.go' files).
-Currently, it requires using Guile's `vm' branch.  Eventually, Guile's
-compiler and VM will be part of Guile 2.x.
+On Guile 2.0 and later, Scheme source files are compiled to Guile object
+files (`.go' files).
 
 *** In non-strict mode, `string' can be used as a procedure parameter type
 
+*** Build machinery has been modernized, now complies with latest Automake
+
 ** Bug fixes
 *** The upper bound checked by the `uint32' type predicate was off-by-one
+*** The compiler would generate invalid calls to 'make-synchronous-rpc-call'
 
 
 * New in GNU Guile-RPC 0.3
