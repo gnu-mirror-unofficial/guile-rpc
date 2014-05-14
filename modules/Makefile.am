@@ -78,7 +78,8 @@ nobase_nodist_guilemodule_DATA = $(GOBJECTS)
 
 guile_compiler_warnings =			\
   -Wunbound-variable -Warity-mismatch		\
-  -Wunused-variable -Wunused-toplevel
+  -Wunused-toplevel -Wunused-toplevel		\
+  -Wformat
 
 .scm.go:
 	$(MKDIR_P) `dirname $@`
