@@ -20,6 +20,8 @@ AC_ARG_WITH([guilemoduledir],
    
 
 # Checks for Guile.
+m4_pattern_forbid([^GUILE_(PKG|PROGS|SITE_DIR)$])
+GUILE_PKG			dnl sets 'GUILE_EFFECTIVE_VERSION'
 GUILE_PROGS
 GUILE_SITE_DIR
 
@@ -48,16 +50,15 @@ GUILE_MODULE_AVAILABLE([have_statprof], [(statprof)])
 AM_CONDITIONAL([HAVE_STATPROF], test "x$have_statprof" = "xyes")
 
 
-pkgdatadir="$datadir/$PACKAGE_NAME"
 if test "x$guilemoduledir" = "x"; then
-  guilemoduledir="$pkgdatadir"
+  guilemoduledir="$datadir/guile/site/$GUILE_EFFECTIVE_VERSION"
 fi
 AC_SUBST([guilemoduledir])
 
 if test "$guilemoduledir" != "$GUILE_SITE"; then
    # Guile won't be able to locate the module "out of the box", so
    # warn the user.
-   AC_MSG_WARN([`guilemoduledir' ($guilemoduledir) is different from `GUILE_SITE' ($GUILE_SITE).])
+   AC_MSG_WARN([`guilemoduledir' ($guilemoduledir) seems to be different from `GUILE_SITE' ($GUILE_SITE).])
    AC_MSG_WARN([Make sure to adjust the `GUILE_LOAD_PATH' environment variable accordingly,])
    AC_MSG_WARN([or re-run `configure' with `--with-guilemoduledir=$GUILE_SITE'.])
 fi
