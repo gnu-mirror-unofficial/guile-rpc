@@ -1,5 +1,5 @@
 ;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.  -*- coding: utf-8 -*-
-;;; Copyright (C) 2007, 2008, 2010  Free Software Foundation, Inc.
+;;; Copyright (C) 2007, 2008, 2010, 2014  Free Software Foundation, Inc.
 ;;;
 ;;; This file is part of GNU Guile-RPC.
 ;;;
@@ -213,10 +213,16 @@ type."
 ;;; Type size.
 ;;;
 
-(define array-length generalized-vector-length)
-(define array-ref    generalized-vector-ref)
-(define array-set!   generalized-vector-set!)
-
+(define array-length
+  ;; 'array-length' appeared in 2.0.9.
+  (if (defined? 'array-length)
+      array-length
+      (lambda (vec)
+        "Return the length of a one-dimensional array (e.g., a vector) or @code{#f}
+if @var{vec} is not a one-dimensional array."
+        (let ((dim (array-dimensions vec)))
+          (and (null? (cdr dim))
+               (car dim))))))
 
 (define (xdr-type-static-size type)
   "If @var{type} has a fixed size (once encoded), known statically, i.e.,
@@ -431,7 +437,7 @@ independently of the value of type @var{type} being encoded, then return it
                               (let liip ((index 0))
                                 (if (< index len)
                                     (let ((value (decode type)))
-                                      (array-set! vec index value)
+                                      (array-set! vec value index)
                                       (liip (+ 1 index)))
                                     vec))))))
 

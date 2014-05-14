@@ -1,6 +1,6 @@
 \input texinfo  @c -*-texinfo-*-
 
-@c Copyright (C) 2007, 2008, 2009, 2010, 2012  Free Software Foundation, Inc.
+@c Copyright (C) 2007, 2008, 2009, 2010, 2012, 2014  Free Software Foundation, Inc.
 @c
 @c Permission is granted to copy, distribute and/or modify this
 @c document under the terms of the GNU Free Documentation License,
@@ -236,7 +236,7 @@ Reference}).
 
 
 @node Defining Data Types, Creating the Client, Quick Start, Quick Start
-@subsection Defining Data Types
+@section Defining Data Types
 
 Before actually creating a client or server for this interface, one must
 define the types it uses.  The simplest way to define one or several
@@ -507,10 +507,10 @@ number of items of type @var{base-type} that are allow in actual
 arrays of this type.  If @var{base-type} is @code{#f}, then arrays of
 this type may contain up to 2^32 - 1 items of type @var{base-type}.
 
-Vector types are encoded from @dfn{generalized vectors} such as Scheme
-vectors, SRFI-4 vectors or strings (@pxref{Generalized Vectors,,, guile,
+Vector types are encoded from @dfn{arrays}, which includes Scheme
+vectors, SRFI-4 vectors or strings (@pxref{Arrays,,, guile,
 The GNU Guile Reference Manual}).  By default, vector types decode to
-vectors, but any other kind of generalized vector can be used: it only
+vectors, but any other kind of array can be used: it only
 needs to be specified as the @var{vector-decoder} argument of
 @code{make-xdr-basic-type} for the corresponding base type.  Of course,
 SRFI-4 vectors, for example, may only be used when an XDR integer vector
