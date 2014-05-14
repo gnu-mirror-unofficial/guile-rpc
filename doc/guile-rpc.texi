@@ -160,7 +160,7 @@ GNU Guile-RPC from @uref{ftp://alpha.gnu.org/gnu/guile-rpc/}.
 
 In order to use GNU Guile-RPC, all that is needed is
 @uref{http://www.gnu.org/software/guile/guile.html, GNU Guile 2.0}
-(Guile 1.9.13 or later.)
+or later.
 
 
 @c *********************************************************************
