@@ -50,9 +50,11 @@ SUFFIXES = .in
 nfs-server-stub.scm: grpc-compile $(top_srcdir)/rpcsvc/nfs_prot.x
 	$(GRPC_COMPILE) --xdr --constants --server	\
 	  < "$(top_srcdir)/rpcsvc/nfs_prot.x"		\
-	  > "$@"
+	  > "$@.tmp"
+	mv "$@.tmp" "$@"
 
 mount-server-stub.scm: grpc-compile $(top_srcdir)/rpcsvc/mount.x
 	$(GRPC_COMPILE) --xdr --constants --server	\
 	  < "$(top_srcdir)/rpcsvc/mount.x"		\
-	  > "$@"
+	  > "$@.tmp"
+	mv "$@.tmp" "$@"
