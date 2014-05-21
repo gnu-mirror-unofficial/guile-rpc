@@ -5,7 +5,7 @@ exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -L "@pkgdatadir@" -l "$0"    \
          -c "(apply $main (command-line))" "$@"
 !#
 ;;; GNU Guile-RPC --- A Scheme implementation of ONC RPC.
-;;; Copyright (C) 2008  Free Software Foundation, Inc.
+;;; Copyright (C) 2008, 2014  Free Software Foundation, Inc.
 ;;;
 ;;; This program is free software; you can redistribute it and/or modify it
 ;;; under the terms of the GNU General Public License as published by the
@@ -97,7 +97,7 @@ exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -L "@pkgdatadir@" -l "$0"    \
 
 (define (show-version)
   (format #t "grpc-nfs-export (GNU Guile-RPC) @PACKAGE_VERSION@
-Copyright (C) 2008 Free Software Foundation
+Copyright (C) 2014 Free Software Foundation, Inc.
 
 License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
 This is free software: you are free to change and redistribute it.
