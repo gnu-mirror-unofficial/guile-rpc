@@ -31,8 +31,21 @@ exec ${GUILE-@GUILE@} -L "@guilemoduledir@" -l "$0"    \
 (define-module (guile-rpc compile)
   :autoload   (rpc compiler)         (rpc-language->scheme-server
                                       rpc-language->scheme-client
-                                      *compiler-options*)
-  :autoload   (rpc compiler parser)  (rpc-language->sexp *parser-options*)
+                                      *compiler-options*
+                                      compiler-error?
+                                      compiler-unknown-type-error?
+                                      compiler-unknown-constant-error?
+                                      compiler-unknown-type-error?
+                                      compiler-duplicate-identifier-error?
+                                      compiler-error:location
+                                      compiler-unknown-type-error:type-name
+                                      compiler-unknown-constant-error:constant-name
+                                      compiler-duplicate-identifier-error:name
+                                      compiler-duplicate-identifier-error:previous-location)
+  :autoload   (rpc compiler parser)  (rpc-language->sexp *parser-options*
+                                      location-line location-column
+                                      lexer-error? parser-error?
+                                      parser-error:token)
   :autoload   (rpc compiler lexer)   (*strip-%-comments?*)
   :autoload   (ice-9 pretty-print)   (pretty-print)
   :use-module (srfi srfi-1)

@@ -22,7 +22,7 @@
   :use-module (rpc xdr types)
 
   :autoload   (ice-9 rdelim)        (read-line)
-  :autoload   (ice-9 regex)         (make-regexp)
+  :autoload   (ice-9 regex)         (match:substring)
   :autoload   (srfi srfi-1)         (find)
 
   :export (%portmapper-port %portmapper-version-number

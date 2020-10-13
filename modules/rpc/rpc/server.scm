@@ -19,7 +19,8 @@
 (define-module (rpc rpc server)
   :use-module (rpc rpc)
   :autoload   (rpc rpc types)       (rpc-message)
-  :autoload   (rpc xdr)             (xdr-type-size xdr-decode xdr-error?)
+  :autoload   (rpc xdr)             (xdr-type-size xdr-encode! xdr-decode
+                                     xdr-error?)
   :autoload   (rpc rpc transports)  (rpc-record-marking-input-port
                                      send-rpc-record)
   :autoload   (srfi srfi-1)         (find fold alist-delete!)

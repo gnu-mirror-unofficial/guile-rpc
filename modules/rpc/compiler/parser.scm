@@ -17,7 +17,7 @@
 ;;; along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 (define-module (rpc compiler parser)
-  :autoload    (rpc compiler lexer) (lexer-init)
+  :autoload    (rpc compiler lexer) (lexer-init lexer)
   :use-module  (system base lalr)
   :use-module  (srfi srfi-1)
   :use-module  (srfi srfi-34)
